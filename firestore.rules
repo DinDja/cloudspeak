@@ -111,6 +111,39 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp;
     }
 
+    function isValidParticipantPresenceCreate(participantId) {
+      return request.resource.data.keys().hasOnly([
+          'participantId',
+          'participantName',
+          'joinedAt',
+          'lastSeenAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'participantId',
+          'participantName',
+          'joinedAt',
+          'lastSeenAt'
+        ])
+        && request.resource.data.participantId == participantId
+        && isString(request.resource.data.participantName, 1, 40)
+        && request.resource.data.joinedAt is timestamp
+        && request.resource.data.lastSeenAt is timestamp;
+    }
+
+    function isValidParticipantPresenceUpdate(participantId) {
+      return request.resource.data.keys().hasOnly([
+          'participantId',
+          'participantName',
+          'joinedAt',
+          'lastSeenAt'
+        ])
+        && request.resource.data.participantId == participantId
+        && request.resource.data.participantId == resource.data.participantId
+        && request.resource.data.joinedAt == resource.data.joinedAt
+        && isString(request.resource.data.participantName, 1, 40)
+        && request.resource.data.lastSeenAt is timestamp;
+    }
+
     match /sessions/{sessionCode} {
       allow read: if true;
       allow create: if isValidSessionCode(sessionCode) && request.resource.data.code == sessionCode && isSessionCreate();
@@ -127,6 +160,13 @@ service cloud.firestore {
         allow read: if true;
         allow create: if isValidSessionCode(sessionCode) && isValidReaction();
         allow update, delete: if false;
+      }
+
+      match /participants/{participantId} {
+        allow read: if true;
+        allow create: if isValidSessionCode(sessionCode) && isValidParticipantPresenceCreate(participantId);
+        allow update: if isValidSessionCode(sessionCode) && isValidParticipantPresenceUpdate(participantId);
+        allow delete: if false;
       }
     }
   }

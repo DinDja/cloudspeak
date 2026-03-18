@@ -30,25 +30,15 @@ import { db } from '../firebase'
 
 // Paleta estilo Mentimeter (Vibrante e com alto contraste)
 const palette = ['#E52E71', '#3498DB', '#F1C40F', '#2ECC71', '#9B59B6', '#E67E22', '#1ABC9C']
+const PRESENCE_TTL_MS = 45000
+const PRESENCE_HEARTBEAT_MS = 15000
 
-const defaultSlides = [
-  {
-    id: crypto.randomUUID(),
-    type: 'multiple_choice',
-    question: 'Como você avalia este encontro até agora?',
-    options: ['Excelente', 'Muito bom', 'Regular', 'Precisa melhorar'],
-  },
-  {
-    id: crypto.randomUUID(),
-    type: 'word_cloud',
-    question: 'Resuma a equipe em uma palavra',
-  },
-  {
-    id: crypto.randomUUID(),
-    type: 'open_text',
-    question: 'Qual pergunta você quer que eu responda agora?',
-  },
-]
+const createSlideDraft = (type = 'multiple_choice') => ({
+  id: crypto.randomUUID(),
+  type,
+  question: '',
+  options: type === 'multiple_choice' ? ['', ''] : [],
+})
 
 const generateCode = () =>
   Math.random()
@@ -57,14 +47,18 @@ const generateCode = () =>
     .toUpperCase()
 
 const getParticipantId = () => {
-  const existing = localStorage.getItem('cloudspeak-participant-id')
+  // Use sessionStorage so each tab/browser instance gets a unique participant id.
+  // This enables várias pessoas participarem da mesma sessão no mesmo dispositivo.
+  const existing = sessionStorage.getItem('cloudspeak-participant-id')
   if (existing) return existing
   const created = crypto.randomUUID()
-  localStorage.setItem('cloudspeak-participant-id', created)
+  sessionStorage.setItem('cloudspeak-participant-id', created)
   return created
 }
 
 const normalizeText = (value) => value.trim().replace(/\s+/g, ' ')
+
+const getParticipantDisplayName = (value) => normalizeText(value) || 'Anônimo'
 
 const getJoinUrl = (code) => {
   const configuredBaseUrl = import.meta.env.VITE_APP_URL
@@ -72,9 +66,99 @@ const getJoinUrl = (code) => {
   return `${baseUrl}/?code=${encodeURIComponent(code)}`
 }
 
+const sanitizeSlides = (slides = []) => {
+  const normalizedSlides = slides
+    .map((slide) => {
+      const type = slide?.type
+      const question = normalizeText(slide?.question ?? '')
+
+      if (!question || !['multiple_choice', 'word_cloud', 'open_text'].includes(type)) {
+        return null
+      }
+
+      if (type === 'multiple_choice') {
+        const options = (slide?.options ?? [])
+          .map((option) => normalizeText(option ?? ''))
+          .filter(Boolean)
+
+        if (options.length < 2) return null
+
+        return {
+          id: slide.id || crypto.randomUUID(),
+          type,
+          question,
+          options,
+        }
+      }
+
+      return {
+        id: slide.id || crypto.randomUUID(),
+        type,
+        question,
+      }
+    })
+    .filter(Boolean)
+
+  if (normalizedSlides.length === 0) {
+    return {
+      slides: [],
+      error:
+        'Adicione pelo menos um slide válido. Em múltipla escolha, informe pergunta e no mínimo 2 opções.',
+    }
+  }
+
+  return { slides: normalizedSlides, error: '' }
+}
+
 function Landing({ onCreate, onJoin, loading, initialCode = '' }) {
   const [name, setName] = useState('')
   const [code, setCode] = useState(initialCode)
+  const [title, setTitle] = useState('')
+  const [slides, setSlides] = useState([createSlideDraft()])
+
+  const updateSlide = (slideId, updater) => {
+    setSlides((previous) =>
+      previous.map((slide) => {
+        if (slide.id !== slideId) return slide
+        return typeof updater === 'function' ? updater(slide) : { ...slide, ...updater }
+      }),
+    )
+  }
+
+  const addSlide = () => {
+    setSlides((previous) => [...previous, createSlideDraft()])
+  }
+
+  const removeSlide = (slideId) => {
+    setSlides((previous) => {
+      if (previous.length <= 1) return previous
+      return previous.filter((slide) => slide.id !== slideId)
+    })
+  }
+
+  const addOption = (slideId) => {
+    updateSlide(slideId, (slide) => ({
+      ...slide,
+      options: [...(slide.options ?? []), ''],
+    }))
+  }
+
+  const removeOption = (slideId, optionIndex) => {
+    updateSlide(slideId, (slide) => {
+      const nextOptions = (slide.options ?? []).filter((_, index) => index !== optionIndex)
+      return {
+        ...slide,
+        options: nextOptions.length > 0 ? nextOptions : ['', ''],
+      }
+    })
+  }
+
+  const onCreatePresentation = () => {
+    onCreate({
+      title,
+      slides,
+    })
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-blue-200">
@@ -83,7 +167,7 @@ function Landing({ onCreate, onJoin, loading, initialCode = '' }) {
         {/* Lado do Participante (Foco Principal da Landing) */}
         <section className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl shadow-slate-200/50 md:p-12">
           <div className="mb-8 text-center">
-            <h1 className="text-3xl font-black tracking-tight text-slate-900 md:text-4xl">CloudSpeak</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900 md:text-4xl">SECTI - CloudSpeak</h1>
             <p className="mt-2 text-slate-500">Participe da apresentação</p>
           </div>
 
@@ -126,9 +210,104 @@ function Landing({ onCreate, onJoin, loading, initialCode = '' }) {
           <p className="mt-6 text-lg text-slate-600">
             Crie engajamento real com sua audiência através de enquetes, nuvens de palavras e perguntas ao vivo.
           </p>
+
+          <div className="mt-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+            <h3 className="text-sm font-black uppercase tracking-wide text-slate-700">Configurar apresentação</h3>
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Título da apresentação"
+              className="w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:bg-white"
+            />
+
+            <div className="space-y-3">
+              {slides.map((slide, slideIndex) => (
+                <article key={slide.id} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Slide {slideIndex + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeSlide(slide.id)}
+                      disabled={slides.length <= 1}
+                      className="text-xs font-bold text-slate-500 transition hover:text-rose-500 disabled:opacity-40"
+                    >
+                      Remover
+                    </button>
+                  </div>
+
+                  <select
+                    value={slide.type}
+                    onChange={(event) => {
+                      const nextType = event.target.value
+                      updateSlide(slide.id, {
+                        type: nextType,
+                        options: nextType === 'multiple_choice' ? slide.options?.length ? slide.options : ['', ''] : [],
+                      })
+                    }}
+                    className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-500"
+                  >
+                    <option value="multiple_choice">Múltipla escolha</option>
+                    <option value="word_cloud">Nuvem de palavras</option>
+                    <option value="open_text">Texto aberto</option>
+                  </select>
+
+                  <textarea
+                    value={slide.question}
+                    onChange={(event) => updateSlide(slide.id, { question: event.target.value })}
+                    placeholder="Pergunta do slide"
+                    className="h-20 w-full resize-none rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500"
+                  />
+
+                  {slide.type === 'multiple_choice' && (
+                    <div className="space-y-2">
+                      {(slide.options ?? []).map((option, optionIndex) => (
+                        <div key={`${slide.id}-option-${optionIndex}`} className="flex items-center gap-2">
+                          <input
+                            value={option}
+                            onChange={(event) => {
+                              updateSlide(slide.id, (currentSlide) => ({
+                                ...currentSlide,
+                                options: (currentSlide.options ?? []).map((item, index) =>
+                                  index === optionIndex ? event.target.value : item,
+                                ),
+                              }))
+                            }}
+                            placeholder={`Opção ${optionIndex + 1}`}
+                            className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeOption(slide.id, optionIndex)}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold text-slate-500 transition hover:text-rose-500"
+                          >
+                            X
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => addOption(slide.id)}
+                        className="w-full rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-500 transition hover:border-blue-400 hover:text-blue-600"
+                      >
+                        + Adicionar opção
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
+
+              <button
+                type="button"
+                onClick={addSlide}
+                className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold uppercase tracking-wide text-slate-600 transition hover:border-blue-400 hover:text-blue-600"
+              >
+                + Adicionar slide
+              </button>
+            </div>
+          </div>
           
           <button
-            onClick={onCreate}
+            onClick={onCreatePresentation}
             disabled={loading}
             className="mt-8 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-8 py-4 text-lg font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -193,7 +372,7 @@ function HostView({
       <div className="absolute left-0 right-0 top-6 flex justify-center z-10 px-4">
         <div className="flex items-center gap-4 rounded-[28px] bg-white px-4 py-4 shadow-md shadow-slate-200 border border-slate-100 font-medium text-slate-700 md:px-6 md:py-3 md:text-lg">
           <div className="hidden rounded-2xl border border-slate-100 bg-slate-50 p-2 md:block">
-            <QRCodeSVG value={joinUrl} size={72} bgColor="#f8fafc" fgColor="#0f172a" includeMargin />
+            <QRCodeSVG value={joinUrl} size={144} bgColor="#f8fafc" fgColor="#0f172a" includeMargin />
           </div>
           <div className="text-left">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Entre na sala</div>
@@ -212,6 +391,12 @@ function HostView({
         <div className="mb-8 flex w-full max-w-3xl items-center justify-center">
           <div className="rounded-full bg-gradient-to-r from-blue-500/15 to-indigo-500/15 px-6 py-2 text-sm font-semibold text-blue-700 shadow-sm ring-1 ring-blue-200/70">
             Sala <span className="font-black">{session.code}</span> — {connectedParticipants} participantes conectados
+          </div>
+        </div>
+
+        {/* QR code acima do título */}
+        <div className="mb-10 flex flex-col items-center gap-3">
+          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
           </div>
         </div>
 
@@ -359,7 +544,7 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
       {/* Header Simples */}
       <header className="bg-white px-6 py-4 shadow-sm flex justify-between items-center">
-        <div className="font-bold text-slate-800 tracking-tight">CloudSpeak</div>
+        <div className="font-bold text-slate-800 tracking-tight">SECTI - CloudSpeak</div>
         <div className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
           Sessão {session.code}
         </div>
@@ -469,6 +654,7 @@ export default function App() {
 
   const [session, setSession] = useState(null)
   const [responses, setResponses] = useState([])
+  const [participants, setParticipants] = useState([])
   const [liveReactions, setLiveReactions] = useState([])
   const [sending, setSending] = useState(false)
 
@@ -483,7 +669,13 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!sessionCode) return undefined
+    if (!sessionCode) {
+      setSession(null)
+      setResponses([])
+      setParticipants([])
+      setLiveReactions([])
+      return undefined
+    }
 
     const sessionRef = doc(db, 'sessions', sessionCode)
     const unsubSession = onSnapshot(sessionRef, (snapshot) => {
@@ -501,6 +693,16 @@ export default function App() {
     const responsesRef = query(collection(db, 'sessions', sessionCode, 'responses'), orderBy('createdAt', 'desc'))
     const unsubResponses = onSnapshot(responsesRef, (snapshot) => {
       setResponses(
+        snapshot.docs.map((entry) => ({
+          id: entry.id,
+          ...entry.data(),
+        })),
+      )
+    })
+
+    const participantsRef = collection(db, 'sessions', sessionCode, 'participants')
+    const unsubParticipants = onSnapshot(participantsRef, (snapshot) => {
+      setParticipants(
         snapshot.docs.map((entry) => ({
           id: entry.id,
           ...entry.data(),
@@ -526,24 +728,88 @@ export default function App() {
     return () => {
       unsubSession()
       unsubResponses()
+      unsubParticipants()
       unsubReactions()
     }
   }, [sessionCode])
 
-  const createSession = async () => {
+  useEffect(() => {
+    if (role !== 'participant' || !sessionCode) return undefined
+
+    const participantRef = doc(db, 'sessions', sessionCode, 'participants', participantId)
+    const participantDisplayName = getParticipantDisplayName(participantName)
+
+    const syncPresence = async (includeJoinedAt = false) => {
+      const payload = {
+        participantId,
+        participantName: participantDisplayName,
+        lastSeenAt: serverTimestamp(),
+      }
+
+      if (includeJoinedAt) {
+        payload.joinedAt = serverTimestamp()
+      }
+
+      try {
+        await setDoc(participantRef, payload, { merge: true })
+      } catch {
+        setError('Não foi possível registrar sua presença na sessão.')
+      }
+    }
+
+    syncPresence(true)
+
+    const intervalId = window.setInterval(() => {
+      syncPresence(false)
+    }, PRESENCE_HEARTBEAT_MS)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncPresence(false)
+      }
+    }
+
+    const handleFocus = () => {
+      syncPresence(false)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [participantId, participantName, role, sessionCode])
+
+  const createSession = async (presentationDraft) => {
     setLoading(true)
     setError('')
 
     try {
+      const title = normalizeText(presentationDraft?.title ?? '')
+      const { slides, error: slidesError } = sanitizeSlides(presentationDraft?.slides)
+
+      if (!title) {
+        setError('Informe um título para a apresentação.')
+        return
+      }
+
+      if (slidesError) {
+        setError(slidesError)
+        return
+      }
+
       const code = generateCode()
       const payload = {
         code,
-        title: 'Apresentação Interativa',
+        title,
         status: 'live',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         currentSlideIndex: 0,
-        slides: defaultSlides,
+        slides,
       }
 
       await setDoc(doc(db, 'sessions', code), payload)
@@ -591,9 +857,12 @@ export default function App() {
   }, [responses, currentSlide])
 
   const connectedParticipants = useMemo(() => {
-    const unique = new Set(responses.map((entry) => entry.participantId).filter(Boolean))
-    return unique.size
-  }, [responses])
+    const now = Date.now()
+    return participants.filter((entry) => {
+      const timestamp = entry.lastSeenAt?.toMillis?.()
+      return typeof timestamp === 'number' && now - timestamp <= PRESENCE_TTL_MS
+    }).length
+  }, [participants])
 
   const onNext = async () => {
     if (!session || session.currentSlideIndex >= session.slides.length - 1) return
@@ -621,7 +890,7 @@ export default function App() {
     try {
       await addDoc(collection(db, 'sessions', session.code, 'responses'), {
         participantId,
-        participantName,
+        participantName: getParticipantDisplayName(participantName),
         slideId: currentSlide.id,
         type: currentSlide.type,
         value: finalValue,
