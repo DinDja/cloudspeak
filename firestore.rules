@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isString(value, min, max) {
+      return value is string && value.size() >= min && value.size() <= max;
+    }
+
+    function isSlideType(value) {
+      return value in ['multiple_choice', 'word_cloud', 'open_text'];
+    }
+
+    function isValidSessionCode(value) {
+      return value is string && value.matches('^[A-Z0-9]{6}$');
+    }
+
+    function isSessionCreate() {
+      return request.resource.data.keys().hasOnly([
+          'code',
+          'title',
+          'status',
+          'createdAt',
+          'updatedAt',
+          'currentSlideIndex',
+          'slides'
+        ])
+        && request.resource.data.keys().hasAll([
+          'code',
+          'title',
+          'status',
+          'createdAt',
+          'updatedAt',
+          'currentSlideIndex',
+          'slides'
+        ])
+        && isValidSessionCode(request.resource.data.code)
+        && isString(request.resource.data.title, 1, 120)
+        && request.resource.data.status in ['live', 'ended']
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.currentSlideIndex is int
+        && request.resource.data.currentSlideIndex >= 0
+        && request.resource.data.slides is list
+        && request.resource.data.slides.size() > 0
+        && request.resource.data.slides.size() <= 20;
+    }
+
+    function isSessionUpdate() {
+      return request.resource.data.keys().hasOnly([
+          'code',
+          'title',
+          'status',
+          'createdAt',
+          'updatedAt',
+          'currentSlideIndex',
+          'slides'
+        ])
+        && request.resource.data.code == resource.data.code
+        && request.resource.data.title == resource.data.title
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.slides == resource.data.slides
+        && request.resource.data.currentSlideIndex is int
+        && request.resource.data.currentSlideIndex >= 0
+        && request.resource.data.currentSlideIndex < resource.data.slides.size()
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isValidResponse() {
+      return request.resource.data.keys().hasOnly([
+          'participantId',
+          'participantName',
+          'slideId',
+          'type',
+          'value',
+          'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'participantId',
+          'participantName',
+          'slideId',
+          'type',
+          'value',
+          'createdAt'
+        ])
+        && isString(request.resource.data.participantId, 8, 80)
+        && isString(request.resource.data.participantName, 1, 40)
+        && isString(request.resource.data.slideId, 1, 80)
+        && isSlideType(request.resource.data.type)
+        && isString(request.resource.data.value, 1, 220)
+        && request.resource.data.createdAt is timestamp;
+    }
+
+    function isValidReaction() {
+      return request.resource.data.keys().hasOnly([
+          'type',
+          'left',
+          'participantId',
+          'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'type',
+          'left',
+          'participantId',
+          'createdAt'
+        ])
+        && request.resource.data.type in ['heart', 'thumb', 'question']
+        && request.resource.data.left is int
+        && request.resource.data.left >= 0
+        && request.resource.data.left <= 100
+        && isString(request.resource.data.participantId, 8, 80)
+        && request.resource.data.createdAt is timestamp;
+    }
+
+    match /sessions/{sessionCode} {
+      allow read: if true;
+      allow create: if isValidSessionCode(sessionCode) && request.resource.data.code == sessionCode && isSessionCreate();
+      allow update: if isSessionUpdate();
+      allow delete: if false;
+
+      match /responses/{responseId} {
+        allow read: if true;
+        allow create: if isValidSessionCode(sessionCode) && isValidResponse();
+        allow update, delete: if false;
+      }
+
+      match /reactions/{reactionId} {
+        allow read: if true;
+        allow create: if isValidSessionCode(sessionCode) && isValidReaction();
+        allow update, delete: if false;
+      }
+    }
+  }
+}
