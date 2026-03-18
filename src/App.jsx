@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   addDoc,
   collection,
@@ -25,6 +25,7 @@ import {
   Sparkles,
   MessageSquareText
 } from 'lucide-react'
+import cloud from 'd3-cloud'
 import { QRCodeSVG } from 'qrcode.react'
 import { db } from '../firebase'
 
@@ -61,6 +62,98 @@ const getJoinUrl = (code) => {
   const configuredBaseUrl = import.meta.env.VITE_APP_URL
   const baseUrl = configuredBaseUrl || window.location.origin
   return `${baseUrl}/?code=${encodeURIComponent(code)}`
+}
+
+function WordCloudCanvas({ words }) {
+  const containerRef = useRef(null)
+  const [dimensions, setDimensions] = useState({ width: 960, height: 440 })
+  const [layoutWords, setLayoutWords] = useState([])
+
+  useEffect(() => {
+    if (!containerRef.current) return undefined
+
+    const updateDimensions = () => {
+      const nextWidth = Math.max(containerRef.current?.clientWidth ?? 0, 320)
+      const nextHeight = nextWidth < 640 ? 340 : 420
+      setDimensions({ width: nextWidth, height: nextHeight })
+    }
+
+    updateDimensions()
+
+    const observer = new ResizeObserver(() => {
+      updateDimensions()
+    })
+
+    observer.observe(containerRef.current)
+
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (words.length === 0) {
+      setLayoutWords([])
+      return undefined
+    }
+
+    let cancelled = false
+    const layout = cloud()
+      .size([dimensions.width, dimensions.height])
+      .words(words.map((item) => ({ ...item })))
+      .padding(4)
+      .rotate((item) => item.rotate)
+      .font('sans-serif')
+      .fontWeight(800)
+      .fontSize((item) => item.fontSize)
+      .spiral('archimedean')
+      .on('end', (computedWords) => {
+        if (!cancelled) {
+          setLayoutWords(computedWords)
+        }
+      })
+
+    layout.start()
+
+    return () => {
+      cancelled = true
+      layout.stop()
+    }
+  }, [dimensions.height, dimensions.width, words])
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative min-h-[340px] w-full overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.98),_rgba(241,245,249,0.82)_58%,_transparent_100%)] p-4 md:min-h-[420px]"
+    >
+      {layoutWords.length === 0 ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+          <WandSparkles className="mb-4 h-12 w-12 opacity-50" />
+          <p className="text-2xl font-bold">A nuvem está vazia.</p>
+          <p className="text-lg font-medium opacity-75">Envie a primeira palavra!</p>
+        </div>
+      ) : (
+        <svg viewBox={`0 0 ${dimensions.width} ${dimensions.height}`} className="h-full w-full">
+          <g transform={`translate(${dimensions.width / 2}, ${dimensions.height / 2})`}>
+            {layoutWords.map((item) => (
+              <text
+                key={`${item.text}-${item.x}-${item.y}`}
+                x={item.x}
+                y={item.y}
+                textAnchor="middle"
+                transform={`rotate(${item.rotate}, ${item.x}, ${item.y})`}
+                fill={item.color}
+                fillOpacity={item.opacity}
+                fontSize={item.size}
+                fontWeight={800}
+                style={{ cursor: 'default' }}
+              >
+                {item.text}
+              </text>
+            ))}
+          </g>
+        </svg>
+      )}
+    </div>
+  )
 }
 
 const sanitizeSlides = (slides = []) => {
@@ -156,7 +249,7 @@ function Landing({ onCreate, onJoin, loading, initialCode = '' }) {
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50 via-white to-purple-50 font-sans text-slate-900 selection:bg-blue-200">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-6 py-12 md:flex-row md:gap-20">
-        
+
         {/* Lado do Participante */}
         <section className="relative w-full max-w-md animate-in fade-in slide-in-from-bottom-8 duration-700">
           <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-br from-blue-500/20 to-purple-500/20 blur-2xl filter" />
@@ -212,7 +305,7 @@ function Landing({ onCreate, onJoin, loading, initialCode = '' }) {
             Modo Apresentador
           </div>
           <h2 className="text-4xl font-black leading-[1.1] tracking-tight text-slate-900 md:text-5xl">
-            Crie engajamento <br/>
+            Crie engajamento <br />
             <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">em tempo real.</span>
           </h2>
           <p className="mt-5 text-lg font-medium text-slate-500 leading-relaxed">
@@ -314,7 +407,7 @@ function Landing({ onCreate, onJoin, loading, initialCode = '' }) {
               </button>
             </div>
           </div>
-          
+
           <button
             onClick={onCreatePresentation}
             disabled={loading}
@@ -354,23 +447,44 @@ function HostView({
     return currentSlide.options.map((option) => ({ option, count: counts.get(option) ?? 0 }))
   }, [currentSlide, responses])
 
-  const wordCloud = useMemo(() => {
-    if (!currentSlide || currentSlide.type !== 'word_cloud') return []
+  // Nuvem de palavras com layout calculado por colisão real
+  const wordCloudData = useMemo(() => {
+    if (!currentSlide || currentSlide.type !== 'word_cloud') return { words: [] }
+
     const counts = {}
     responses.forEach((entry) => {
       const key = normalizeText(entry.value || '').toLowerCase()
       if (key) counts[key] = (counts[key] ?? 0) + 1
     })
-    return Object.entries(counts)
-      .map(([word, count]) => ({ word, count }))
+
+    const topWords = Object.entries(counts)
+      .map(([word, count]) => ({ text: word, count }))
       .sort((a, b) => b.count - a.count)
+      .slice(0, 40)
+
+    if (topWords.length === 0) return { words: [] }
+
+    const maxCount = topWords[0].count
+
+    return {
+      words: topWords.map((item, index) => {
+        const ratio = item.count / maxCount
+        const size = Math.round(18 + ratio * 26 + Math.min(item.count, 4))
+
+        return {
+          ...item,
+          fontSize: Math.min(size, 52),
+          rotate: index % 7 === 0 ? 90 : 0,
+          color: palette[index % palette.length],
+          opacity: 0.76 + ratio * 0.24,
+          size,
+        }
+      }),
+    }
   }, [currentSlide, responses])
 
-  const topWords = wordCloud.slice(0, 40)
-  const maxWordCount = topWords[0]?.count ?? 1
-
   return (
-    <div 
+    <div
       className="relative min-h-screen overflow-hidden font-sans text-slate-900"
       style={{
         backgroundColor: '#fafafa',
@@ -379,9 +493,9 @@ function HostView({
       }}
     >
       {/* Banner Topo Moderno */}
-      <div className="absolute left-0 right-0 top-6 z-10 flex justify-center px-4 animate-in fade-in slide-in-from-top-4">
+      <div className="absolute left-0 right-0 top-1 z-10 flex justify-center px-4 animate-in fade-in slide-in-from-top-4">
         <div className="flex items-center gap-5 rounded-[2rem] bg-white/80 p-3 pr-8 shadow-2xl shadow-blue-900/10 backdrop-blur-xl ring-1 ring-slate-900/5 transition-all hover:bg-white/95">
-          <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white shadow-inner ring-1 ring-slate-100">
+          <div className="relative flex  shrink-0 items-center justify-center rounded-2xl bg-white shadow-inner ring-1 ring-slate-100">
             <QRCodeSVG value={joinUrl} size={120} bgColor="transparent" fgColor="#0f172a" />
           </div>
           <div className="text-left">
@@ -404,13 +518,13 @@ function HostView({
 
       {/* Área Central do Slide */}
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-6 pb-32 pt-40 text-center animate-in fade-in zoom-in-95 duration-500">
-        
+
         <h1 className="mb-16 max-w-5xl text-5xl font-black leading-tight tracking-tight text-slate-900 md:text-6xl lg:text-7xl drop-shadow-sm">
           {currentSlide?.question}
         </h1>
 
         <div className="w-full max-w-4xl flex-1">
-          
+
           {/* Gráfico de Barras com Visual 3D Suave */}
           {currentSlide?.type === 'multiple_choice' && (
             <div className="flex w-full flex-col gap-6">
@@ -440,37 +554,9 @@ function HostView({
             </div>
           )}
 
-          {/* Nuvem de Palavras Aprimorada */}
+          {/* Nuvem de Palavras com colisão real */}
           {currentSlide?.type === 'word_cloud' && (
-            <div className="flex min-h-[400px] flex-wrap content-center justify-center gap-x-8 gap-y-6">
-              {topWords.length === 0 && (
-                <div className="flex flex-col items-center text-slate-400">
-                  <WandSparkles className="mb-4 h-12 w-12 opacity-50" />
-                  <p className="text-2xl font-bold">A nuvem está vazia.</p>
-                  <p className="text-lg font-medium opacity-75">Envie a primeira palavra!</p>
-                </div>
-              )}
-              {topWords.map((item, index) => {
-                const ratio = item.count / maxWordCount
-                const size = 32 + ratio * 72 // Fonte de 32px até 104px
-                const color = palette[index % palette.length]
-                return (
-                  <span
-                    key={`${item.word}-${index}`}
-                    className="font-black leading-none transition-all duration-700 ease-out hover:scale-110"
-                    style={{
-                      fontSize: `${size}px`,
-                      color: color,
-                      opacity: 0.85 + (ratio * 0.15),
-                      textShadow: `0 10px 30px ${color}30`,
-                      transform: `scale(${1 + ratio * 0.1})`,
-                    }}
-                  >
-                    {item.word}
-                  </span>
-                )
-              })}
-            </div>
+            <WordCloudCanvas words={wordCloudData.words} />
           )}
 
           {/* Q&A / Texto Aberto Cards */}
@@ -512,7 +598,7 @@ function HostView({
           <ChevronLeft className="h-7 w-7 transition-transform group-hover:-translate-x-1" />
         </button>
         <div className="flex h-10 items-center justify-center rounded-full bg-white/10 px-5 font-bold text-white shadow-inner">
-           {session.currentSlideIndex + 1} / {session.slides.length}
+          {session.currentSlideIndex + 1} / {session.slides.length}
         </div>
         <button
           onClick={onNext}
@@ -525,11 +611,11 @@ function HostView({
 
       {/* Estatísticas Flutuantes */}
       <div className="fixed bottom-10 left-10 flex items-center gap-3 rounded-2xl bg-white/80 px-5 py-3 font-bold text-slate-600 shadow-lg backdrop-blur-md ring-1 ring-slate-900/5">
-        <Users className="h-6 w-6 text-blue-500" /> 
+        <Users className="h-6 w-6 text-blue-500" />
         <span className="text-xl">{connectedParticipants}</span>
       </div>
       <div className="fixed bottom-10 right-10 flex items-center gap-3 rounded-2xl bg-white/80 px-5 py-3 font-bold text-slate-600 shadow-lg backdrop-blur-md ring-1 ring-slate-900/5">
-        <BarChart3 className="h-6 w-6 text-rose-500" /> 
+        <BarChart3 className="h-6 w-6 text-rose-500" />
         <span className="text-xl">{responseCount}</span>
       </div>
 
@@ -551,8 +637,8 @@ function HostView({
           )
         })}
       </div>
-      
-      {/* CSS para Animação de Flutuação (Adicione no seu global.css idealmente, mas injetado aqui via style) */}
+
+      {/* CSS para Animação de Flutuação */}
       <style>{`
         @keyframes float-up {
           0% { transform: translateY(100px) scale(0.5); opacity: 0; }
@@ -584,7 +670,7 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-slate-50 font-sans text-slate-900 selection:bg-blue-200">
-      
+
       {/* Header Mobile Clean */}
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200/50 bg-white/80 px-6 py-4 backdrop-blur-md">
         <div className="flex items-center gap-2">
@@ -607,16 +693,16 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
 
           {/* Feedback de Sucesso */}
           {hasSubmittedThisSlide && currentSlide?.type !== 'word_cloud' ? (
-             <div className="mt-12 flex flex-col items-center justify-center rounded-[2rem] bg-gradient-to-br from-green-400 to-emerald-600 p-10 text-center text-white shadow-xl shadow-green-500/20">
-               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
-                 <Sparkles className="h-10 w-10 text-white" />
-               </div>
-               <h3 className="text-3xl font-black tracking-tight">Enviado!</h3>
-               <p className="mt-3 text-lg font-medium text-green-50">Olhe para a tela principal para ver os resultados ao vivo.</p>
-             </div>
+            <div className="mt-12 flex flex-col items-center justify-center rounded-[2rem] bg-gradient-to-br from-green-400 to-emerald-600 p-10 text-center text-white shadow-xl shadow-green-500/20">
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
+                <Sparkles className="h-10 w-10 text-white" />
+              </div>
+              <h3 className="text-3xl font-black tracking-tight">Enviado!</h3>
+              <p className="mt-3 text-lg font-medium text-green-50">Olhe para a tela principal para ver os resultados ao vivo.</p>
+            </div>
           ) : (
             <div className="space-y-4">
-              
+
               {/* Múltipla Escolha - Botões Táteis */}
               {currentSlide?.type === 'multiple_choice' &&
                 currentSlide.options.map((option) => (
@@ -653,9 +739,9 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
                     {sending ? 'Enviando...' : 'Enviar Palavra'}
                   </button>
                   {hasSubmittedThisSlide && (
-                     <p className="pt-2 text-center text-sm font-bold text-green-600">
-                       ✓ Enviado! Mande mais palavras se quiser.
-                     </p>
+                    <p className="pt-2 text-center text-sm font-bold text-green-600">
+                      ✓ Enviado! Mande mais palavras se quiser.
+                    </p>
                   )}
                 </form>
               )}
@@ -691,22 +777,22 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
       {/* Dock de Reações Flutuante (Bottom) */}
       <footer className="sticky bottom-6 mt-auto px-6 pb-safe">
         <div className="mx-auto flex max-w-xs items-center justify-around rounded-full bg-white/90 p-3 shadow-2xl shadow-slate-300/50 backdrop-blur-xl ring-1 ring-slate-200">
-          <button 
-            onClick={() => onReact('heart')} 
+          <button
+            onClick={() => onReact('heart')}
             className="group rounded-full p-4 transition-all hover:bg-rose-50 active:scale-90"
           >
             <Heart className="h-8 w-8 fill-rose-100 text-rose-500 transition-transform group-hover:scale-110 group-hover:fill-rose-500" />
           </button>
           <div className="h-8 w-px bg-slate-200" />
-          <button 
-            onClick={() => onReact('thumb')} 
+          <button
+            onClick={() => onReact('thumb')}
             className="group rounded-full p-4 transition-all hover:bg-blue-50 active:scale-90"
           >
             <ThumbsUp className="h-8 w-8 fill-blue-100 text-blue-500 transition-transform group-hover:scale-110 group-hover:fill-blue-500" />
           </button>
           <div className="h-8 w-px bg-slate-200" />
-          <button 
-            onClick={() => onReact('question')} 
+          <button
+            onClick={() => onReact('question')}
             className="group rounded-full p-4 transition-all hover:bg-amber-50 active:scale-90"
           >
             <HelpCircle className="h-8 w-8 fill-amber-100 text-amber-500 transition-transform group-hover:scale-110 group-hover:fill-amber-400" />
