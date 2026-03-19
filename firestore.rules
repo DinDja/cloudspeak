@@ -45,6 +45,7 @@ service cloud.firestore {
     }
 
     function isSessionUpdate() {
+      // Allow advancing a session to 'ended' (to allow cleanup) but otherwise keep the core payload stable.
       return request.resource.data.keys().hasOnly([
           'code',
           'title',
@@ -56,7 +57,10 @@ service cloud.firestore {
         ])
         && request.resource.data.code == resource.data.code
         && request.resource.data.title == resource.data.title
-        && request.resource.data.status == resource.data.status
+        && (
+          request.resource.data.status == resource.data.status
+          || (resource.data.status == 'live' && request.resource.data.status == 'ended')
+        )
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.slides == resource.data.slides
         && request.resource.data.currentSlideIndex is int
@@ -144,29 +148,34 @@ service cloud.firestore {
         && request.resource.data.lastSeenAt is timestamp;
     }
 
+    function isOldTimestamp(ts) {
+      return ts is timestamp && ts < request.time - duration.value(1, 'd');
+    }
+
     match /sessions/{sessionCode} {
       allow read: if true;
       allow create: if isValidSessionCode(sessionCode) && request.resource.data.code == sessionCode && isSessionCreate();
       allow update: if isSessionUpdate();
-      allow delete: if false;
-
+      allow delete: if isValidSessionCode(sessionCode);
       match /responses/{responseId} {
         allow read: if true;
         allow create: if isValidSessionCode(sessionCode) && isValidResponse();
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if isValidSessionCode(sessionCode);
       }
 
       match /reactions/{reactionId} {
         allow read: if true;
         allow create: if isValidSessionCode(sessionCode) && isValidReaction();
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if isValidSessionCode(sessionCode);
       }
 
       match /participants/{participantId} {
         allow read: if true;
         allow create: if isValidSessionCode(sessionCode) && isValidParticipantPresenceCreate(participantId);
         allow update: if isValidSessionCode(sessionCode) && isValidParticipantPresenceUpdate(participantId);
-        allow delete: if false;
+        allow delete: if isValidSessionCode(sessionCode);
       }
     }
   }

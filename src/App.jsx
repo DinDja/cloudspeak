@@ -2,8 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -23,7 +26,14 @@ import {
   Users,
   WandSparkles,
   Sparkles,
-  MessageSquareText
+  MessageSquareText,
+  KeyRound,
+  UserCircle,
+  Plus,
+  Trash2,
+  MonitorPlay,
+  History,
+  LayoutTemplate
 } from 'lucide-react'
 import cloud from 'd3-cloud'
 import { QRCodeSVG } from 'qrcode.react'
@@ -62,6 +72,20 @@ const getJoinUrl = (code) => {
   const configuredBaseUrl = import.meta.env.VITE_APP_URL
   const baseUrl = configuredBaseUrl || window.location.origin
   return `${baseUrl}/?code=${encodeURIComponent(code)}`
+}
+
+const deleteFirestoreSession = async (code) => {
+  const subcollections = ['responses', 'participants', 'reactions']
+  try {
+    for (const sub of subcollections) {
+      const snapshot = await getDocs(collection(db, 'sessions', code, sub))
+      await Promise.all(snapshot.docs.map((docRef) => deleteDoc(docRef.ref)))
+    }
+    await deleteDoc(doc(db, 'sessions', code))
+  } catch (error) {
+    console.error('Failed to delete session', code, error)
+    throw error
+  }
 }
 
 function WordCloudCanvas({ words }) {
@@ -199,7 +223,7 @@ const sanitizeSlides = (slides = []) => {
   return { slides: normalizedSlides, error: '' }
 }
 
-function Landing({ onCreate, onJoin, loading, initialCode = '' }) {
+function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [], loading, initialCode = '' }) {
   const [name, setName] = useState('')
   const [code, setCode] = useState(initialCode)
   const [title, setTitle] = useState('')
@@ -247,175 +271,232 @@ function Landing({ onCreate, onJoin, loading, initialCode = '' }) {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50 via-white to-purple-50 font-sans text-slate-900 selection:bg-blue-200">
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-6 py-12 md:flex-row md:gap-20">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-blue-200">
+      {/* Fundo com linhas sutis */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-slate-50" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.02] mix-blend-overlay" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#38bdf812_1px,transparent_1px),linear-gradient(to_bottom,#38bdf812_1px,transparent_1px)] bg-[size:28px_28px]" />
+      </div>
 
-        {/* Lado do Participante */}
-        <section className="relative w-full max-w-md animate-in fade-in slide-in-from-bottom-8 duration-700">
-          <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-br from-blue-500/20 to-purple-500/20 blur-2xl filter" />
-          <div className="relative rounded-[2rem] bg-white/80 p-8 shadow-2xl shadow-blue-900/5 backdrop-blur-xl ring-1 ring-slate-900/5 md:p-12">
-            <div className="mb-10 text-center">
-              <img
-                src="/Secti_Vertical.png"
-                alt="Secti logo"
-                className="mx-auto mb-6 h-24 w-auto"
-              />
-              <h1 className="bg-gradient-to-br from-slate-900 to-slate-600 bg-clip-text text-3xl font-black tracking-tight text-transparent md:text-4xl">
-                SECTI<span className="font-light text-slate-400">Speak</span>
-              </h1>
-              <p className="mt-3 text-sm font-medium text-slate-500">Pronto para interagir?</p>
-            </div>
+      <div className=" relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-12 lg:flex-row lg:items-center lg:gap-16 xl:gap-24">
 
-            <div className="space-y-5">
-              <div className="group relative">
+        {/* Lado Esquerdo: Foco no Participante */}
+        <section className="bg-white rounded-3xl  py-5 flex w-full flex-col justify-center lg:w-5/12 animate-in fade-in slide-in-from-left-8 duration-700">
+          <div className="mb-10 text-center">
+            <img
+              src="/Secti_Vertical.png" 
+              alt="Secti logo"
+              className="mx-auto mb-6 h-24 w-auto"
+            />
+            <h1 className="bg-gradient-to-br from-slate-900 to-slate-600 bg-clip-text text-3xl font-black tracking-tight text-transparent md:text-4xl">
+              SECTI<span className="font-light text-slate-400">Speak</span>
+            </h1>
+            <p className="mt-3 text-sm font-medium text-slate-500">Pronto para interagir?</p>
+          </div>
+
+          <div className="rounded-3xl bg-white p-6 shadow-2xl shadow-slate-200/50 ring-1 ring-slate-100 sm:p-8">
+            <div className="space-y-4">
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                  <KeyRound className="h-5 w-5 text-slate-400" />
+                </div>
                 <input
                   value={code}
                   onChange={(event) => setCode(event.target.value.toUpperCase())}
                   placeholder="Código da sala"
-                  className="peer w-full rounded-2xl border-2 border-slate-100 bg-slate-50/50 px-6 py-4 text-center text-xl font-bold tracking-widest text-slate-900 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal placeholder:tracking-normal hover:bg-white focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                  className="w-full rounded-2xl border-0 bg-slate-50 py-4 pl-12 pr-4 text-lg font-bold tracking-widest text-slate-900 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 hover:bg-slate-100/50 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-600"
                 />
               </div>
-              <div>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                  <UserCircle className="h-5 w-5 text-slate-400" />
+                </div>
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Seu nome (opcional)"
-                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50/50 px-6 py-4 text-center text-lg outline-none transition-all placeholder:text-slate-400 hover:bg-white focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                  className="w-full rounded-2xl border-0 bg-slate-50 py-4 pl-12 pr-4 text-base font-medium text-slate-900 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 hover:bg-slate-100/50 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-blue-600"
                 />
               </div>
               <button
                 onClick={() => onJoin(name, code)}
                 disabled={loading || code.trim().length < 6}
-                className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-lg font-bold text-white shadow-lg shadow-blue-500/25 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/40 disabled:pointer-events-none disabled:opacity-50"
+                className="mt-2 flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-900 py-4 text-lg font-bold text-white shadow-lg shadow-slate-900/20 transition-all hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-xl active:translate-y-0 disabled:pointer-events-none disabled:opacity-50"
               >
                 {loading ? <LoaderCircle className="h-6 w-6 animate-spin" /> : <Play className="h-5 w-5 fill-current" />}
-                Participar
+                Entrar na Sessão
               </button>
             </div>
           </div>
         </section>
 
         {/* Separador Mobile */}
-        <div className="my-16 h-px w-full bg-gradient-to-r from-transparent via-slate-200 to-transparent md:hidden" />
+        <div className="my-16 flex items-center gap-4 lg:hidden">
+          <div className="h-px flex-1 bg-slate-200"></div>
+          <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Ou crie uma</span>
+          <div className="h-px flex-1 bg-slate-200"></div>
+        </div>
 
-        {/* Lado do Host */}
-        <section className="w-full max-w-lg animate-in fade-in slide-in-from-right-8 duration-700 md:text-left text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1.5 text-sm font-bold text-indigo-600 ring-1 ring-indigo-500/20 mb-6">
-            <WandSparkles className="h-4 w-4" />
-            Modo Apresentador
-          </div>
-          <h2 className="text-4xl font-black leading-[1.1] tracking-tight text-slate-900 md:text-5xl">
-            Crie engajamento <br />
-            <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">em tempo real.</span>
-          </h2>
-          <p className="mt-5 text-lg font-medium text-slate-500 leading-relaxed">
-            Configure enquetes, nuvens de palavras e perguntas ao vivo em segundos e conecte-se com sua audiência.
-          </p>
+        {/* Lado Direito: Dashboard do Host */}
+        <section className="w-full lg:w-7/12 animate-in fade-in slide-in-from-right-8 duration-700">
+          <div className="relative rounded-[2.5rem] bg-white/70 p-6 shadow-2xl shadow-blue-900/5 backdrop-blur-xl ring-1 ring-slate-200 sm:p-10">
 
-          <div className="mt-10 space-y-5 rounded-[2rem] border border-slate-100 bg-white/60 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-md md:p-8">
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Nome da sua apresentação..."
-              className="w-full rounded-2xl border-2 border-slate-100 bg-white px-5 py-4 text-base font-bold text-slate-800 outline-none transition-all placeholder:font-medium placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-            />
+            <div className="mb-8 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                  <LayoutTemplate className="h-6 w-6 text-indigo-500" />
+                  Criar Apresentação
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">Configure seus slides interativos abaixo.</p>
+              </div>
+            </div>
 
-            <div className="space-y-4">
-              {slides.map((slide, slideIndex) => (
-                <article key={slide.id} className="relative space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-indigo-200 hover:shadow-md">
-                  <div className="flex items-center justify-between">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600">
-                      {slideIndex + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeSlide(slide.id)}
-                      disabled={slides.length <= 1}
-                      className="text-xs font-bold text-slate-400 transition-colors hover:text-rose-500 disabled:opacity-30"
-                    >
-                      Remover
-                    </button>
-                  </div>
+            <div className="space-y-6">
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Título da Apresentação"
+                className="w-full rounded-2xl border-0 bg-white py-4 px-5 text-lg font-bold text-slate-900 outline-none ring-1 ring-inset ring-slate-200 shadow-sm transition-all placeholder:font-medium placeholder:text-slate-400 hover:ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+              />
 
-                  <select
-                    value={slide.type}
-                    onChange={(event) => {
-                      const nextType = event.target.value
-                      updateSlide(slide.id, {
-                        type: nextType,
-                        options: nextType === 'multiple_choice' ? slide.options?.length ? slide.options : ['', ''] : [],
-                      })
-                    }}
-                    className="w-full appearance-none rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:bg-white"
-                  >
-                    <option value="multiple_choice">📊 Múltipla escolha</option>
-                    <option value="word_cloud">☁️ Nuvem de palavras</option>
-                    <option value="open_text">💬 Texto aberto (Q&A)</option>
-                  </select>
+              <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                {slides.map((slide, slideIndex) => (
+                  <article key={slide.id} className="group relative rounded-2xl border border-slate-200 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-md hover:border-indigo-100">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-sm font-black text-indigo-700">
+                          {slideIndex + 1}
+                        </span>
+                        <select
+                          value={slide.type}
+                          onChange={(event) => {
+                            const nextType = event.target.value
+                            updateSlide(slide.id, {
+                              type: nextType,
+                              options: nextType === 'multiple_choice' ? slide.options?.length ? slide.options : ['', ''] : [],
+                            })
+                          }}
+                          className="appearance-none rounded-xl border-0 bg-white py-2 pl-4 pr-10 text-sm font-bold text-slate-700 shadow-sm outline-none ring-1 ring-inset ring-slate-200 transition-all focus:ring-2 focus:ring-inset focus:ring-indigo-600 cursor-pointer"
+                        >
+                          <option value="multiple_choice">📊 Múltipla escolha</option>
+                          <option value="word_cloud">☁️ Nuvem de palavras</option>
+                          <option value="open_text">💬 Texto aberto (Q&A)</option>
+                        </select>
+                      </div>
 
-                  <textarea
-                    value={slide.question}
-                    onChange={(event) => updateSlide(slide.id, { question: event.target.value })}
-                    placeholder="Qual é a sua pergunta?"
-                    className="h-20 w-full resize-none rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none transition-all placeholder:font-medium placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white"
-                  />
-
-                  {slide.type === 'multiple_choice' && (
-                    <div className="space-y-3 pt-2">
-                      {(slide.options ?? []).map((option, optionIndex) => (
-                        <div key={`${slide.id}-option-${optionIndex}`} className="flex items-center gap-2">
-                          <input
-                            value={option}
-                            onChange={(event) => {
-                              updateSlide(slide.id, (currentSlide) => ({
-                                ...currentSlide,
-                                options: (currentSlide.options ?? []).map((item, index) =>
-                                  index === optionIndex ? event.target.value : item,
-                                ),
-                              }))
-                            }}
-                            placeholder={`Opção ${optionIndex + 1}`}
-                            className="w-full rounded-xl border-2 border-slate-100 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 outline-none transition-all placeholder:font-medium placeholder:text-slate-300 focus:border-indigo-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeOption(slide.id, optionIndex)}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-slate-100 bg-white text-xs font-bold text-slate-400 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
                       <button
                         type="button"
-                        onClick={() => addOption(slide.id)}
-                        className="w-full rounded-xl border-2 border-dashed border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-indigo-500 transition-all hover:border-indigo-300 hover:bg-indigo-50"
+                        onClick={() => removeSlide(slide.id)}
+                        disabled={slides.length <= 1}
+                        className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500 disabled:opacity-30"
+                        title="Remover slide"
                       >
-                        + Adicionar opção
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                  )}
-                </article>
-              ))}
 
-              <button
-                type="button"
-                onClick={addSlide}
-                className="w-full rounded-2xl border-2 border-dashed border-slate-300 bg-transparent px-4 py-4 text-sm font-bold uppercase tracking-wider text-slate-500 transition-all hover:border-slate-400 hover:text-slate-700"
-              >
-                + Novo Slide
-              </button>
+                    <textarea
+                      value={slide.question}
+                      onChange={(event) => updateSlide(slide.id, { question: event.target.value })}
+                      placeholder="Qual é a sua pergunta?"
+                      className="min-h-[80px] w-full resize-none rounded-xl border-0 bg-white py-3 px-4 text-base font-bold text-slate-800 shadow-sm outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+                    />
+
+                    {slide.type === 'multiple_choice' && (
+                      <div className="mt-4 space-y-2 pl-2 border-l-2 border-slate-200">
+                        {(slide.options ?? []).map((option, optionIndex) => (
+                          <div key={`${slide.id}-option-${optionIndex}`} className="flex items-center gap-2">
+                            <input
+                              value={option}
+                              onChange={(event) => {
+                                updateSlide(slide.id, (currentSlide) => ({
+                                  ...currentSlide,
+                                  options: (currentSlide.options ?? []).map((item, index) =>
+                                    index === optionIndex ? event.target.value : item,
+                                  ),
+                                }))
+                              }}
+                              placeholder={`Opção ${optionIndex + 1}`}
+                              className="w-full rounded-lg border-0 bg-white px-4 py-2 text-sm font-medium text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeOption(slide.id, optionIndex)}
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => addOption(slide.id)}
+                          className="mt-2 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-indigo-600 transition-all hover:bg-indigo-50"
+                        >
+                          <Plus className="h-4 w-4" /> Adicionar opção
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={addSlide}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-indigo-50 py-4 text-sm font-bold text-indigo-600 transition-all hover:bg-indigo-100"
+                >
+                  <Plus className="h-5 w-5" /> Novo Slide
+                </button>
+                <button
+                  onClick={onCreatePresentation}
+                  disabled={loading}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 py-4 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/40 disabled:pointer-events-none disabled:opacity-60"
+                >
+                  {loading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <MonitorPlay className="h-5 w-5" />}
+                  Lançar Apresentação
+                </button>
+              </div>
             </div>
-          </div>
 
-          <button
-            onClick={onCreatePresentation}
-            disabled={loading}
-            className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-900 px-8 py-5 text-lg font-bold text-white shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-60 md:w-auto"
-          >
-            {loading ? <LoaderCircle className="h-6 w-6 animate-spin" /> : <WandSparkles className="h-5 w-5" />}
-            Lançar Apresentação
-          </button>
+            {/* Sessões Anteriores 
+            {sessions.length > 0 && (
+              <div className="mt-8 pt-8 border-t border-slate-200/60">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-4">
+                  <History className="h-4 w-4" /> Sessões Recentes
+                </h4>
+                <div className="space-y-3">
+                  {sessions.slice(0, 3).map((item) => (
+                    <div key={item.id} className="flex items-center justify-between rounded-xl bg-white p-4 ring-1 ring-slate-100 shadow-sm transition-all hover:shadow-md">
+                      <div className="truncate pr-4">
+                        <div className="text-sm font-bold text-slate-800 truncate">{item.title || 'Sessão sem título'}</div>
+                        <div className="text-xs font-mono text-slate-500 mt-0.5">#{item.code || item.id}</div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => onEnterSaved(item.code || item.id)}
+                          className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-indigo-600 hover:text-white"
+                        >
+                          Abrir
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteSaved(item.code || item.id)}
+                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                          title="Apagar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}*/}
+          </div>
         </section>
       </div>
     </div>
@@ -447,7 +528,6 @@ function HostView({
     return currentSlide.options.map((option) => ({ option, count: counts.get(option) ?? 0 }))
   }, [currentSlide, responses])
 
-  // Nuvem de palavras com layout calculado por colisão real
   const wordCloudData = useMemo(() => {
     if (!currentSlide || currentSlide.type !== 'word_cloud') return { words: [] }
 
@@ -484,18 +564,10 @@ function HostView({
   }, [currentSlide, responses])
 
   return (
-    <div
-      className="relative min-h-screen overflow-hidden font-sans text-slate-900"
-      style={{
-        backgroundColor: '#fafafa',
-        backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)',
-        backgroundSize: '32px 32px'
-      }}
-    >
-      {/* Banner Topo Moderno */}
+    <div className="relative min-h-screen overflow-hidden font-sans text-slate-900" style={{ backgroundColor: '#fafafa' }}>
       <div className="absolute left-0 right-0 top-1 z-10 flex justify-center px-4 animate-in fade-in slide-in-from-top-4">
         <div className="flex items-center gap-5 rounded-[2rem] bg-white/80 p-3 pr-8 shadow-2xl shadow-blue-900/10 backdrop-blur-xl ring-1 ring-slate-900/5 transition-all hover:bg-white/95">
-          <div className="relative flex  shrink-0 items-center justify-center rounded-2xl bg-white shadow-inner ring-1 ring-slate-100">
+          <div className="relative flex shrink-0 items-center justify-center rounded-2xl bg-white shadow-inner ring-1 ring-slate-100">
             <QRCodeSVG value={joinUrl} size={120} bgColor="transparent" fgColor="#0f172a" />
           </div>
           <div className="text-left">
@@ -516,16 +588,12 @@ function HostView({
         </div>
       </div>
 
-      {/* Área Central do Slide */}
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-6 pb-32 pt-40 text-center animate-in fade-in zoom-in-95 duration-500">
-
         <h1 className="mb-16 max-w-5xl text-5xl font-black leading-tight tracking-tight text-slate-900 md:text-6xl lg:text-7xl drop-shadow-sm">
           {currentSlide?.question}
         </h1>
 
         <div className="w-full max-w-4xl flex-1">
-
-          {/* Gráfico de Barras com Visual 3D Suave */}
           {currentSlide?.type === 'multiple_choice' && (
             <div className="flex w-full flex-col gap-6">
               {multipleChoiceStats.map((entry, index) => {
@@ -554,12 +622,10 @@ function HostView({
             </div>
           )}
 
-          {/* Nuvem de Palavras com colisão real */}
           {currentSlide?.type === 'word_cloud' && (
             <WordCloudCanvas words={wordCloudData.words} />
           )}
 
-          {/* Q&A / Texto Aberto Cards */}
           {currentSlide?.type === 'open_text' && (
             <div className="columns-1 gap-6 space-y-6 md:columns-2 lg:columns-3 text-left">
               {responses.length === 0 && (
@@ -584,11 +650,9 @@ function HostView({
               ))}
             </div>
           )}
-
         </div>
       </div>
 
-      {/* Controles do Host (Rodapé) */}
       <div className="fixed bottom-10 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full bg-slate-900/90 p-2.5 shadow-2xl backdrop-blur-xl ring-1 ring-white/10 transition-all hover:bg-slate-900">
         <button
           onClick={onPrevious}
@@ -609,7 +673,6 @@ function HostView({
         </button>
       </div>
 
-      {/* Estatísticas Flutuantes */}
       <div className="fixed bottom-10 left-10 flex items-center gap-3 rounded-2xl bg-white/80 px-5 py-3 font-bold text-slate-600 shadow-lg backdrop-blur-md ring-1 ring-slate-900/5">
         <Users className="h-6 w-6 text-blue-500" />
         <span className="text-xl">{connectedParticipants}</span>
@@ -619,7 +682,6 @@ function HostView({
         <span className="text-xl">{responseCount}</span>
       </div>
 
-      {/* Reações Animadas Otimizadas */}
       <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
         {reactions.map((reaction) => {
           const isHeart = reaction.type === 'heart'
@@ -638,7 +700,6 @@ function HostView({
         })}
       </div>
 
-      {/* CSS para Animação de Flutuação */}
       <style>{`
         @keyframes float-up {
           0% { transform: translateY(100px) scale(0.5); opacity: 0; }
@@ -670,8 +731,6 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-slate-50 font-sans text-slate-900 selection:bg-blue-200">
-
-      {/* Header Mobile Clean */}
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200/50 bg-white/80 px-6 py-4 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
@@ -684,14 +743,12 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
         </div>
       </header>
 
-      {/* Conteúdo Dinâmico */}
       <main className="flex-1 px-5 py-8 md:py-16">
         <div className="mx-auto w-full max-w-lg animate-in fade-in slide-in-from-bottom-4">
           <h1 className="mb-10 text-3xl font-black leading-tight tracking-tight text-slate-900 drop-shadow-sm md:text-4xl">
             {currentSlide?.question}
           </h1>
 
-          {/* Feedback de Sucesso */}
           {hasSubmittedThisSlide && currentSlide?.type !== 'word_cloud' ? (
             <div className="mt-12 flex flex-col items-center justify-center rounded-[2rem] bg-gradient-to-br from-green-400 to-emerald-600 p-10 text-center text-white shadow-xl shadow-green-500/20">
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
@@ -702,15 +759,13 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
             </div>
           ) : (
             <div className="space-y-4">
-
-              {/* Múltipla Escolha - Botões Táteis */}
               {currentSlide?.type === 'multiple_choice' &&
                 currentSlide.options.map((option) => (
                   <button
                     key={option}
                     onClick={(event) => submit(event, option)}
                     disabled={sending}
-                    className="group relative w-full overflow-hidden rounded-[1.5rem] bg-white p-6 text-left shadow-md ring-2 ring-transparent transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/10 hover:ring-blue-500 active:scale-[0.98] disabled:opacity-60"
+                    className="group relative w-full overflow-hidden rounded-[1.5rem] bg-white p-6 text-left shadow-sm ring-1 ring-slate-200 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/10 hover:ring-blue-500 active:scale-[0.98] disabled:opacity-60"
                   >
                     <span className="relative z-10 text-xl font-bold text-slate-800 transition-colors group-hover:text-blue-700">
                       {option}
@@ -719,7 +774,6 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
                   </button>
                 ))}
 
-              {/* Input Nuvem de Palavras */}
               {currentSlide?.type === 'word_cloud' && (
                 <form onSubmit={submit} className="space-y-4 rounded-[2rem] bg-white p-6 shadow-xl shadow-slate-200/50 ring-1 ring-slate-100">
                   <div className="relative">
@@ -746,7 +800,6 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
                 </form>
               )}
 
-              {/* Textarea Q&A */}
               {currentSlide?.type === 'open_text' && (
                 <form onSubmit={submit} className="space-y-4">
                   <div className="relative rounded-[2rem] bg-white p-2 shadow-xl shadow-slate-200/50 ring-1 ring-slate-100">
@@ -774,7 +827,6 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
         </div>
       </main>
 
-      {/* Dock de Reações Flutuante (Bottom) */}
       <footer className="sticky bottom-6 mt-auto px-6 pb-safe">
         <div className="mx-auto flex max-w-xs items-center justify-around rounded-full bg-white/90 p-3 shadow-2xl shadow-slate-300/50 backdrop-blur-xl ring-1 ring-slate-200">
           <button
@@ -810,6 +862,7 @@ export default function App() {
   const [sessionCode, setSessionCode] = useState('')
   const [participantName, setParticipantName] = useState('')
   const [prefilledCode, setPrefilledCode] = useState('')
+  const [sessionsList, setSessionsList] = useState([])
 
   const [session, setSession] = useState(null)
   const [responses, setResponses] = useState([])
@@ -891,6 +944,34 @@ export default function App() {
       unsubReactions()
     }
   }, [sessionCode])
+
+  useEffect(() => {
+    if (role !== 'landing') return undefined
+
+    const sessionsRef = query(
+      collection(db, 'sessions'),
+      orderBy('updatedAt', 'desc'),
+      limit(20),
+    )
+
+    const unsub = onSnapshot(
+      sessionsRef,
+      (snapshot) => {
+        setSessionsList(
+          snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })),
+        )
+      },
+      (err) => {
+        console.error('Failed to load sessions list', err)
+        setError('Não foi possível carregar as apresentações antigas.')
+      },
+    )
+
+    return () => unsub()
+  }, [role])
 
   useEffect(() => {
     if (role !== 'participant' || !sessionCode) return undefined
@@ -1005,6 +1086,50 @@ export default function App() {
     }
   }
 
+  const enterSavedSession = async (code) => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const sessionRef = doc(db, 'sessions', code)
+      const snapshot = await getDoc(sessionRef)
+
+      if (!snapshot.exists()) {
+        setError('Sessão não encontrada.')
+        return
+      }
+
+      setSessionCode(code)
+      setRole('host')
+    } catch {
+      setError('Erro ao carregar a apresentação. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const deleteSavedSession = async (code) => {
+    const confirmed = window.confirm('Tem certeza que deseja apagar esta apresentação? Essa ação não pode ser desfeita.')
+    if (!confirmed) return
+
+    setLoading(true)
+    setError('')
+
+    try {
+      await deleteFirestoreSession(code)
+      setSessionsList((prev) => prev.filter((session) => session.id !== code))
+
+      if (sessionCode === code) {
+        setRole('landing')
+        setSessionCode('')
+      }
+    } catch {
+      setError('Não foi possível excluir a apresentação. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const currentSlide = useMemo(() => {
     if (!session?.slides?.length) return null
     return session.slides[session.currentSlideIndex] ?? session.slides[0]
@@ -1084,6 +1209,9 @@ export default function App() {
           key={prefilledCode || 'landing'}
           onCreate={createSession}
           onJoin={joinSession}
+          onEnterSaved={enterSavedSession}
+          onDeleteSaved={deleteSavedSession}
+          sessions={sessionsList}
           loading={loading}
           initialCode={prefilledCode}
         />
@@ -1133,7 +1261,7 @@ export default function App() {
       )}
 
       {error && (
-        <div className="fixed top-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-rose-600 px-8 py-4 text-sm font-black tracking-wide text-white shadow-2xl">
+        <div className="fixed top-6 left-1/2 z-[9999] -translate-x-1/2 rounded-full bg-rose-600 px-8 py-4 text-sm font-black tracking-wide text-white shadow-2xl">
           {error}
         </div>
       )}
