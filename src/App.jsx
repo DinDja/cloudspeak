@@ -272,11 +272,17 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-blue-200">
-      {/* Fundo com linhas sutis */}
+      {/* Fundo com linhas sutis + wave */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-slate-50" />
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.02] mix-blend-overlay" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#38bdf812_1px,transparent_1px),linear-gradient(to_bottom,#38bdf812_1px,transparent_1px)] bg-[size:28px_28px]" />
+        <img
+          src="/wave.svg"
+          alt=""
+          className="absolute inset-x-0 bottom-0 h-[] w-full object-cover opacity-70"
+          aria-hidden="true"
+        />
       </div>
 
       <div className=" relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-12 lg:flex-row lg:items-center lg:gap-16 xl:gap-24">
