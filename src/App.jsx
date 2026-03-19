@@ -43,6 +43,7 @@ import { db } from '../firebase'
 const palette = ['#FF0055', '#0099FF', '#FFCC00', '#00CC66', '#9933FF', '#FF6600', '#00E6B8']
 const PRESENCE_TTL_MS = 45000
 const PRESENCE_HEARTBEAT_MS = 15000
+const REACTION_LIFETIME_MS = 4200
 
 const createSlideDraft = (type = 'multiple_choice') => ({
   id: crypto.randomUUID(),
@@ -280,7 +281,7 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
         <img
           src="/wave.svg"
           alt=""
-          className="absolute inset-x-0 bottom-0 h-[] w-full object-cover opacity-70"
+          className="absolute inset-x-0 bottom-0 h-[] w-full object-cover opacity-70r"
           aria-hidden="true"
         />
       </div>
@@ -692,15 +693,27 @@ function HostView({
         {reactions.map((reaction) => {
           const isHeart = reaction.type === 'heart'
           const isThumb = reaction.type === 'thumb'
+          const iconClassName = isHeart
+            ? 'h-16 w-16 fill-rose-500 text-rose-500 drop-shadow-xl'
+            : isThumb
+              ? 'h-16 w-16 fill-blue-500 text-blue-500 drop-shadow-xl'
+              : 'h-16 w-16 fill-amber-400 text-slate-900 drop-shadow-xl'
           return (
             <div
               key={reaction.id}
               className="absolute bottom-0 animate-float-up opacity-0"
               style={{ left: `${reaction.left}%` }}
             >
-              {isHeart && <Heart className="h-16 w-16 fill-rose-500 text-rose-500 drop-shadow-xl" />}
-              {isThumb && <ThumbsUp className="h-16 w-16 fill-blue-500 text-blue-500 drop-shadow-xl" />}
-              {!isHeart && !isThumb && <HelpCircle className="h-16 w-16 fill-amber-400 text-amber-400 drop-shadow-xl" />}
+              <div className="relative">
+                {isHeart && <Heart className={iconClassName} />}
+                {isThumb && <ThumbsUp className={iconClassName} />}
+                {!isHeart && !isThumb && <HelpCircle className={iconClassName} />}
+                <span className="reaction-pop-burst" />
+                <span className="reaction-pop-spark reaction-pop-spark-1" />
+                <span className="reaction-pop-spark reaction-pop-spark-2" />
+                <span className="reaction-pop-spark reaction-pop-spark-3" />
+                <span className="reaction-pop-spark reaction-pop-spark-4" />
+              </div>
             </div>
           )
         })}
@@ -709,12 +722,75 @@ function HostView({
       <style>{`
         @keyframes float-up {
           0% { transform: translateY(100px) scale(0.5); opacity: 0; }
-          20% { opacity: 1; transform: translateY(0) scale(1.2); }
-          50% { transform: translateY(-300px) scale(1) rotate(15deg); }
-          100% { transform: translateY(-800px) scale(1.5) rotate(-15deg); opacity: 0; }
+          12% { opacity: 1; transform: translateY(40px) scale(1.2); }
+          38% { transform: translateY(-220px) scale(1) rotate(6deg); }
+          62% { transform: translateY(-460px) scale(1.1) rotate(-6deg); }
+          80% { transform: translateY(-620px) scale(1.2) rotate(10deg); opacity: 1; }
+          88% { transform: translateY(-760px) scale(1.1) rotate(14deg); opacity: 1; }
+          93% { transform: translateY(-780px) scale(1.9) rotate(16deg); opacity: 1; }
+          100% { transform: translateY(-790px) scale(0.08) rotate(16deg); opacity: 0; }
         }
+
+        @keyframes pop-burst {
+          0%, 88% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+          92% { opacity: 0.95; transform: translate(-50%, -50%) scale(1.15); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(1.85); }
+        }
+
+        @keyframes pop-spark {
+          0%, 89% { opacity: 0; transform: translate(0, 0) scale(0.2); }
+          93% { opacity: 1; transform: var(--spark-end) scale(1); }
+          100% { opacity: 0; transform: var(--spark-fade) scale(0.2); }
+        }
+
         .animate-float-up {
-          animation: float-up 3.5s ease-out forwards;
+          animation: float-up 4.2s ease-out forwards;
+        }
+
+        .reaction-pop-burst {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 18px;
+          height: 18px;
+          border: 3px solid rgba(255, 255, 255, 0.95);
+          border-radius: 9999px;
+          filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+          animation: pop-burst 4.2s ease-out forwards;
+        }
+
+        .reaction-pop-spark {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 8px;
+          height: 3px;
+          margin-left: -4px;
+          margin-top: -1.5px;
+          border-radius: 9999px;
+          background: rgba(255, 255, 255, 0.98);
+          filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+          animation: pop-spark 4.2s ease-out forwards;
+        }
+
+        .reaction-pop-spark-1 {
+          --spark-end: translate(-22px, -14px) rotate(-25deg);
+          --spark-fade: translate(-34px, -22px) rotate(-25deg);
+        }
+
+        .reaction-pop-spark-2 {
+          --spark-end: translate(20px, -17px) rotate(18deg);
+          --spark-fade: translate(32px, -27px) rotate(18deg);
+        }
+
+        .reaction-pop-spark-3 {
+          --spark-end: translate(-16px, 18px) rotate(148deg);
+          --spark-fade: translate(-28px, 30px) rotate(148deg);
+        }
+
+        .reaction-pop-spark-4 {
+          --spark-end: translate(18px, 16px) rotate(36deg);
+          --spark-fade: translate(30px, 28px) rotate(36deg);
         }
       `}</style>
     </div>
@@ -938,7 +1014,7 @@ export default function App() {
         }))
         .filter((item) => {
           const timestamp = item.createdAt?.toMillis?.() ?? now
-          return now - timestamp < 4000
+          return now - timestamp < REACTION_LIFETIME_MS
         })
       setLiveReactions(active)
     })
