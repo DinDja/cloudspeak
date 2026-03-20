@@ -224,7 +224,7 @@ const sanitizeSlides = (slides = []) => {
   return { slides: normalizedSlides, error: '' }
 }
 
-function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [], loading, initialCode = '' }) {
+function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [], loading, initialCode = '', isMobile = false }) {
   const [name, setName] = useState('')
   const [code, setCode] = useState(initialCode)
   const [title, setTitle] = useState('')
@@ -272,7 +272,7 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-blue-200">
+    <div className="relative min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-blue-200">
       {/* Fundo com linhas sutis + wave */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-slate-50" />
@@ -338,15 +338,17 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
           </div>
         </section>
 
-        {/* Separador Mobile */}
-        <div className="my-16 flex items-center gap-4 lg:hidden">
-          <div className="h-px flex-1 bg-slate-200"></div>
-          <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Ou crie uma</span>
-          <div className="h-px flex-1 bg-slate-200"></div>
-        </div>
+        {!isMobile && (
+          <>
+            {/* Separador Mobile */}
+            <div className="my-16 flex items-center gap-4 lg:hidden">
+              <div className="h-px flex-1 bg-slate-200"></div>
+              <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Ou crie uma</span>
+              <div className="h-px flex-1 bg-slate-200"></div>
+            </div>
 
-        {/* Lado Direito: Dashboard do Host */}
-        <section className="w-full lg:w-7/12 animate-in fade-in slide-in-from-right-8 duration-700">
+            {/* Lado Direito: Dashboard do Host */}
+            <section className="w-full lg:w-7/12 animate-in fade-in slide-in-from-right-8 duration-700">
           <div className="relative rounded-[2.5rem] bg-white/70 p-6 shadow-2xl shadow-blue-900/5 backdrop-blur-xl ring-1 ring-slate-200 sm:p-10">
 
             <div className="mb-8 flex items-center justify-between">
@@ -468,26 +470,25 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
               </div>
             </div>
 
-            {/* Sessões Anteriores 
             {sessions.length > 0 && (
-              <div className="mt-8 pt-8 border-t border-slate-200/60">
-                <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-4">
-                  <History className="h-4 w-4" /> Sessões Recentes
+              <div className="mt-8 border-t border-slate-200/60 pt-8">
+                <h4 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-500">
+                  <History className="h-4 w-4" /> Apresentações salvas
                 </h4>
-                <div className="space-y-3">
-                  {sessions.slice(0, 3).map((item) => (
+                <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
+                  {sessions.map((item) => (
                     <div key={item.id} className="flex items-center justify-between rounded-xl bg-white p-4 ring-1 ring-slate-100 shadow-sm transition-all hover:shadow-md">
                       <div className="truncate pr-4">
-                        <div className="text-sm font-bold text-slate-800 truncate">{item.title || 'Sessão sem título'}</div>
-                        <div className="text-xs font-mono text-slate-500 mt-0.5">#{item.code || item.id}</div>
+                        <div className="truncate text-sm font-bold text-slate-800">{item.title || 'Sessão sem título'}</div>
+                        <div className="mt-0.5 text-xs font-mono text-slate-500">#{item.code || item.id}</div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex shrink-0 items-center gap-2">
                         <button
                           type="button"
                           onClick={() => onEnterSaved(item.code || item.id)}
                           className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-indigo-600 hover:text-white"
                         >
-                          Abrir
+                          Entrar
                         </button>
                         <button
                           type="button"
@@ -502,12 +503,19 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
                   ))}
                 </div>
               </div>
-            )}*/}
+            )}
           </div>
-        </section>
+            </section>
+          </>
+        )}
       </div>
     </div>
   )
+}
+
+const isMobileViewport = () => {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(max-width: 1023px)').matches
 }
 
 function HostView({
@@ -945,6 +953,7 @@ export default function App() {
   const [participantName, setParticipantName] = useState('')
   const [prefilledCode, setPrefilledCode] = useState('')
   const [sessionsList, setSessionsList] = useState([])
+  const [isMobile, setIsMobile] = useState(isMobileViewport)
 
   const [session, setSession] = useState(null)
   const [responses, setResponses] = useState([])
@@ -953,6 +962,24 @@ export default function App() {
   const [sending, setSending] = useState(false)
 
   const participantId = useMemo(() => getParticipantId(), [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const mediaQuery = window.matchMedia('(max-width: 1023px)')
+    const handleChange = () => setIsMobile(mediaQuery.matches)
+
+    handleChange()
+    mediaQuery.addEventListener('change', handleChange)
+
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
+
+  useEffect(() => {
+    if (!isMobile || role !== 'host') return
+    setRole('landing')
+    setError('No celular, apenas participação em apresentações está disponível.')
+  }, [isMobile, role])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -1106,6 +1133,11 @@ export default function App() {
   }, [participantId, participantName, role, sessionCode])
 
   const createSession = async (presentationDraft) => {
+    if (isMobile) {
+      setError('Criação de apresentação disponível apenas no desktop.')
+      return
+    }
+
     setLoading(true)
     setError('')
 
@@ -1169,6 +1201,11 @@ export default function App() {
   }
 
   const enterSavedSession = async (code) => {
+    if (isMobile) {
+      setError('Abertura como apresentador disponível apenas no desktop.')
+      return
+    }
+
     setLoading(true)
     setError('')
 
@@ -1190,18 +1227,34 @@ export default function App() {
     }
   }
 
-  const deleteSavedSession = async (code) => {
-    const confirmed = window.confirm('Tem certeza que deseja apagar esta apresentação? Essa ação não pode ser desfeita.')
-    if (!confirmed) return
+  const [deleteTargetCode, setDeleteTargetCode] = useState('')
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+
+  const openDeleteModal = (code) => {
+    if (isMobile) {
+      setError('Exclusão de apresentação disponível apenas no desktop.')
+      return
+    }
+    setDeleteTargetCode(code)
+    setIsDeleteModalOpen(true)
+  }
+
+  const closeDeleteModal = () => {
+    setIsDeleteModalOpen(false)
+    setDeleteTargetCode('')
+  }
+
+  const performDeleteSession = async () => {
+    if (!deleteTargetCode) return
 
     setLoading(true)
     setError('')
 
     try {
-      await deleteFirestoreSession(code)
-      setSessionsList((prev) => prev.filter((session) => session.id !== code))
+      await deleteFirestoreSession(deleteTargetCode)
+      setSessionsList((prev) => prev.filter((session) => session.id !== deleteTargetCode))
 
-      if (sessionCode === code) {
+      if (sessionCode === deleteTargetCode) {
         setRole('landing')
         setSessionCode('')
       }
@@ -1209,7 +1262,12 @@ export default function App() {
       setError('Não foi possível excluir a apresentação. Tente novamente.')
     } finally {
       setLoading(false)
+      closeDeleteModal()
     }
+  }
+
+  const deleteSavedSession = (code) => {
+    openDeleteModal(code)
   }
 
   const currentSlide = useMemo(() => {
@@ -1284,6 +1342,32 @@ export default function App() {
     }
   }
 
+  const deleteConfirmationModal = isDeleteModalOpen ? (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+        <h3 className="text-lg font-black text-slate-900">Confirmar exclusão</h3>
+        <p className="mt-3 text-sm text-slate-600 leading-relaxed">
+          Tem certeza que deseja apagar esta apresentação? Essa ação não pode ser desfeita.
+        </p>
+        <div className="mt-6 flex items-center justify-end gap-3">
+          <button
+            onClick={closeDeleteModal}
+            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={performDeleteSession}
+            disabled={loading}
+            className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-black text-white shadow transition hover:bg-rose-700 disabled:opacity-50"
+          >
+            {loading ? 'Excluindo...' : 'Apagar apresentação'}
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null
+
   if (role === 'landing') {
     return (
       <>
@@ -1293,10 +1377,12 @@ export default function App() {
           onJoin={joinSession}
           onEnterSaved={enterSavedSession}
           onDeleteSaved={deleteSavedSession}
-          sessions={sessionsList}
+          sessions={isMobile ? [] : sessionsList}
           loading={loading}
           initialCode={prefilledCode}
+          isMobile={isMobile}
         />
+        {deleteConfirmationModal}
         {error && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 animate-bounce rounded-full bg-rose-600 px-6 py-3 text-sm font-bold text-white shadow-xl">
             {error}
@@ -1342,9 +1428,36 @@ export default function App() {
         />
       )}
 
+      {deleteConfirmationModal}
       {error && (
         <div className="fixed top-6 left-1/2 z-[9999] -translate-x-1/2 rounded-full bg-rose-600 px-8 py-4 text-sm font-black tracking-wide text-white shadow-2xl">
           {error}
+        </div>
+      )}
+
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-200">
+            <h3 className="text-lg font-black text-slate-900">Confirmar exclusão</h3>
+            <p className="mt-3 text-sm text-slate-600 leading-relaxed">
+              Tem certeza que deseja apagar esta apresentação? Essa ação não pode ser desfeita.
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={closeDeleteModal}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={performDeleteSession}
+                disabled={loading}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-black text-white shadow transition hover:bg-rose-700 disabled:opacity-50"
+              >
+                {loading ? 'Excluindo...' : 'Apagar apresentação'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>
