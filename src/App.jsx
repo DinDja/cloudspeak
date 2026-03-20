@@ -292,7 +292,7 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
         <section className="bg-white rounded-3xl  py-5 flex w-full flex-col justify-center lg:w-5/12 animate-in fade-in slide-in-from-left-8 duration-700">
           <div className="mb-10 text-center">
             <img
-              src="/Secti_Vertical.png" 
+              src="/Secti_Vertical.png"
               alt="Secti logo"
               className="mx-auto mb-6 h-24 w-auto"
             />
@@ -349,162 +349,162 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
 
             {/* Lado Direito: Dashboard do Host */}
             <section className="w-full lg:w-7/12 animate-in fade-in slide-in-from-right-8 duration-700">
-          <div className="relative rounded-[2.5rem] bg-white/70 p-6 shadow-2xl shadow-blue-900/5 backdrop-blur-xl ring-1 ring-slate-200 sm:p-10">
+              <div className="relative rounded-[2.5rem] bg-white/70 p-6 shadow-2xl shadow-blue-900/5 backdrop-blur-xl ring-1 ring-slate-200 sm:p-10">
 
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                  <LayoutTemplate className="h-6 w-6 text-indigo-500" />
-                  Criar Apresentação
-                </h3>
-                <p className="mt-1 text-sm text-slate-500">Configure seus slides interativos abaixo.</p>
-              </div>
-            </div>
+                <div className="mb-8 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                      <LayoutTemplate className="h-6 w-6 text-indigo-500" />
+                      Criar Apresentação
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500">Configure seus slides interativos abaixo.</p>
+                  </div>
+                </div>
 
-            <div className="space-y-6">
-              <input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Título da Apresentação"
-                className="w-full rounded-2xl border-0 bg-white py-4 px-5 text-lg font-bold text-slate-900 outline-none ring-1 ring-inset ring-slate-200 shadow-sm transition-all placeholder:font-medium placeholder:text-slate-400 hover:ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
-              />
+                <div className="space-y-6">
+                  <input
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="Título da Apresentação"
+                    className="w-full rounded-2xl border-0 bg-white py-4 px-5 text-lg font-bold text-slate-900 outline-none ring-1 ring-inset ring-slate-200 shadow-sm transition-all placeholder:font-medium placeholder:text-slate-400 hover:ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+                  />
 
-              <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                {slides.map((slide, slideIndex) => (
-                  <article key={slide.id} className="group relative rounded-2xl border border-slate-200 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-md hover:border-indigo-100">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-sm font-black text-indigo-700">
-                          {slideIndex + 1}
-                        </span>
-                        <select
-                          value={slide.type}
-                          onChange={(event) => {
-                            const nextType = event.target.value
-                            updateSlide(slide.id, {
-                              type: nextType,
-                              options: nextType === 'multiple_choice' ? slide.options?.length ? slide.options : ['', ''] : [],
-                            })
-                          }}
-                          className="appearance-none rounded-xl border-0 bg-white py-2 pl-4 pr-10 text-sm font-bold text-slate-700 shadow-sm outline-none ring-1 ring-inset ring-slate-200 transition-all focus:ring-2 focus:ring-inset focus:ring-indigo-600 cursor-pointer"
-                        >
-                          <option value="multiple_choice">📊 Múltipla escolha</option>
-                          <option value="word_cloud">☁️ Nuvem de palavras</option>
-                          <option value="open_text">💬 Texto aberto (Q&A)</option>
-                        </select>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => removeSlide(slide.id)}
-                        disabled={slides.length <= 1}
-                        className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500 disabled:opacity-30"
-                        title="Remover slide"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <textarea
-                      value={slide.question}
-                      onChange={(event) => updateSlide(slide.id, { question: event.target.value })}
-                      placeholder="Qual é a sua pergunta?"
-                      className="min-h-[80px] w-full resize-none rounded-xl border-0 bg-white py-3 px-4 text-base font-bold text-slate-800 shadow-sm outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
-                    />
-
-                    {slide.type === 'multiple_choice' && (
-                      <div className="mt-4 space-y-2 pl-2 border-l-2 border-slate-200">
-                        {(slide.options ?? []).map((option, optionIndex) => (
-                          <div key={`${slide.id}-option-${optionIndex}`} className="flex items-center gap-2">
-                            <input
-                              value={option}
+                  <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                    {slides.map((slide, slideIndex) => (
+                      <article key={slide.id} className="group relative rounded-2xl border border-slate-200 bg-slate-50/50 p-5 transition-all hover:bg-white hover:shadow-md hover:border-indigo-100">
+                        <div className="mb-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-sm font-black text-indigo-700">
+                              {slideIndex + 1}
+                            </span>
+                            <select
+                              value={slide.type}
                               onChange={(event) => {
-                                updateSlide(slide.id, (currentSlide) => ({
-                                  ...currentSlide,
-                                  options: (currentSlide.options ?? []).map((item, index) =>
-                                    index === optionIndex ? event.target.value : item,
-                                  ),
-                                }))
+                                const nextType = event.target.value
+                                updateSlide(slide.id, {
+                                  type: nextType,
+                                  options: nextType === 'multiple_choice' ? slide.options?.length ? slide.options : ['', ''] : [],
+                                })
                               }}
-                              placeholder={`Opção ${optionIndex + 1}`}
-                              className="w-full rounded-lg border-0 bg-white px-4 py-2 text-sm font-medium text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
-                            />
+                              className="appearance-none rounded-xl border-0 bg-white py-2 pl-4 pr-10 text-sm font-bold text-slate-700 shadow-sm outline-none ring-1 ring-inset ring-slate-200 transition-all focus:ring-2 focus:ring-inset focus:ring-indigo-600 cursor-pointer"
+                            >
+                              <option value="multiple_choice">📊 Múltipla escolha</option>
+                              <option value="word_cloud">☁️ Nuvem de palavras</option>
+                              <option value="open_text">💬 Texto aberto (Q&A)</option>
+                            </select>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeSlide(slide.id)}
+                            disabled={slides.length <= 1}
+                            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500 disabled:opacity-30"
+                            title="Remover slide"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <textarea
+                          value={slide.question}
+                          onChange={(event) => updateSlide(slide.id, { question: event.target.value })}
+                          placeholder="Qual é a sua pergunta?"
+                          className="min-h-[80px] w-full resize-none rounded-xl border-0 bg-white py-3 px-4 text-base font-bold text-slate-800 shadow-sm outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+                        />
+
+                        {slide.type === 'multiple_choice' && (
+                          <div className="mt-4 space-y-2 pl-2 border-l-2 border-slate-200">
+                            {(slide.options ?? []).map((option, optionIndex) => (
+                              <div key={`${slide.id}-option-${optionIndex}`} className="flex items-center gap-2">
+                                <input
+                                  value={option}
+                                  onChange={(event) => {
+                                    updateSlide(slide.id, (currentSlide) => ({
+                                      ...currentSlide,
+                                      options: (currentSlide.options ?? []).map((item, index) =>
+                                        index === optionIndex ? event.target.value : item,
+                                      ),
+                                    }))
+                                  }}
+                                  placeholder={`Opção ${optionIndex + 1}`}
+                                  className="w-full rounded-lg border-0 bg-white px-4 py-2 text-sm font-medium text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeOption(slide.id, optionIndex)}
+                                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
                             <button
                               type="button"
-                              onClick={() => removeOption(slide.id, optionIndex)}
-                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500"
+                              onClick={() => addOption(slide.id)}
+                              className="mt-2 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-indigo-600 transition-all hover:bg-indigo-50"
                             >
-                              ✕
+                              <Plus className="h-4 w-4" /> Adicionar opção
                             </button>
                           </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => addOption(slide.id)}
-                          className="mt-2 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-indigo-600 transition-all hover:bg-indigo-50"
-                        >
-                          <Plus className="h-4 w-4" /> Adicionar opção
-                        </button>
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
+                        )}
+                      </article>
+                    ))}
+                  </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={addSlide}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-indigo-50 py-4 text-sm font-bold text-indigo-600 transition-all hover:bg-indigo-100"
-                >
-                  <Plus className="h-5 w-5" /> Novo Slide
-                </button>
-                <button
-                  onClick={onCreatePresentation}
-                  disabled={loading}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 py-4 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/40 disabled:pointer-events-none disabled:opacity-60"
-                >
-                  {loading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <MonitorPlay className="h-5 w-5" />}
-                  Lançar Apresentação
-                </button>
-              </div>
-            </div>
-
-            {sessions.length > 0 && (
-              <div className="mt-8 border-t border-slate-200/60 pt-8">
-                <h4 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-500">
-                  <History className="h-4 w-4" /> Apresentações salvas
-                </h4>
-                <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
-                  {sessions.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between rounded-xl bg-white p-4 ring-1 ring-slate-100 shadow-sm transition-all hover:shadow-md">
-                      <div className="truncate pr-4">
-                        <div className="truncate text-sm font-bold text-slate-800">{item.title || 'Sessão sem título'}</div>
-                        <div className="mt-0.5 text-xs font-mono text-slate-500">#{item.code || item.id}</div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => onEnterSaved(item.code || item.id)}
-                          className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-indigo-600 hover:text-white"
-                        >
-                          Entrar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDeleteSaved(item.code || item.id)}
-                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                          title="Apagar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                  <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={addSlide}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-indigo-50 py-4 text-sm font-bold text-indigo-600 transition-all hover:bg-indigo-100"
+                    >
+                      <Plus className="h-5 w-5" /> Novo Slide
+                    </button>
+                    <button
+                      onClick={onCreatePresentation}
+                      disabled={loading}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 py-4 text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/40 disabled:pointer-events-none disabled:opacity-60"
+                    >
+                      {loading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <MonitorPlay className="h-5 w-5" />}
+                      Lançar Apresentação
+                    </button>
+                  </div>
                 </div>
+
+                {sessions.length > 0 && (
+                  <div className="mt-8 border-t border-slate-200/60 pt-8">
+                    <h4 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-500">
+                      <History className="h-4 w-4" /> Apresentações salvas
+                    </h4>
+                    <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
+                      {sessions.map((item) => (
+                        <div key={item.id} className="flex items-center justify-between rounded-xl bg-white p-4 ring-1 ring-slate-100 shadow-sm transition-all hover:shadow-md">
+                          <div className="truncate pr-4">
+                            <div className="truncate text-sm font-bold text-slate-800">{item.title || 'Sessão sem título'}</div>
+                            <div className="mt-0.5 text-xs font-mono text-slate-500">#{item.code || item.id}</div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onEnterSaved(item.code || item.id)}
+                              className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-indigo-600 hover:text-white"
+                            >
+                              Entrar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteSaved(item.code || item.id)}
+                              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                              title="Apagar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
             </section>
           </>
         )}
@@ -823,10 +823,15 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
     <div className="flex min-h-[100dvh] flex-col bg-slate-50 font-sans text-slate-900 selection:bg-blue-200">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200/50 bg-white/80 px-6 py-4 backdrop-blur-md">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
-            <Sparkles className="h-4 w-4 text-white" />
-          </div>
-          <span className="font-black tracking-tight text-slate-800">SECTI</span>
+          <div className="flex items-center justify-center">
+            <img
+              src="/Secti_Vertical.png"
+              alt="Secti logo"
+              className="h-8 w-auto mt-2"
+            />          </div>
+          <h1 className="bg-gradient-to-br from-slate-900 to-slate-600 bg-clip-text text-3xl font-black tracking-tight text-transparent md:text-4xl">
+            SECTI<span className="font-light text-slate-400">Speak</span>
+          </h1>
         </div>
         <div className="rounded-full bg-slate-100 px-4 py-1.5 text-xs font-black tracking-widest text-slate-500">
           SALA {session.code}
