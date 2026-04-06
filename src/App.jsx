@@ -10,9 +10,11 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore'
 import {
   BarChart3,
@@ -44,12 +46,23 @@ const palette = ['#FF0055', '#0099FF', '#FFCC00', '#00CC66', '#9933FF', '#FF6600
 const PRESENCE_TTL_MS = 45000
 const PRESENCE_HEARTBEAT_MS = 15000
 const REACTION_LIFETIME_MS = 4200
+const TEAM_SELECTION_TYPE = 'team_selection'
+const MAX_TEAM_CAPACITY = 50
+
+const createTeamDraft = (name = '', capacity = 8) => ({
+  id: crypto.randomUUID(),
+  name,
+  capacity: String(capacity),
+})
+
+const getDefaultTeamSelectionTeams = () => [createTeamDraft('Clube X', 8), createTeamDraft('Clube Y', 7)]
 
 const createSlideDraft = (type = 'multiple_choice') => ({
   id: crypto.randomUUID(),
   type,
   question: '',
   options: type === 'multiple_choice' ? ['', ''] : [],
+  teams: type === TEAM_SELECTION_TYPE ? getDefaultTeamSelectionTeams() : [],
 })
 
 const generateCode = () =>
@@ -73,6 +86,49 @@ const getJoinUrl = (code) => {
   const configuredBaseUrl = import.meta.env.VITE_APP_URL
   const baseUrl = configuredBaseUrl || window.location.origin
   return `${baseUrl}/?code=${encodeURIComponent(code)}`
+}
+
+const getTeamSelectionResponseId = (slideId, participantId) => `${slideId}__${participantId}`
+
+const buildTeamSelectionStats = (slide, responses = []) => {
+  if (!slide || slide.type !== TEAM_SELECTION_TYPE) return []
+
+  const teams = Array.isArray(slide.teams) ? slide.teams : []
+  const membersByTeam = new Map(teams.map((team) => [team.name, []]))
+  const assignedParticipants = new Set()
+
+  responses.forEach((entry) => {
+    if (entry?.type !== TEAM_SELECTION_TYPE) return
+
+    const participantKey = normalizeText(entry.participantId ?? '')
+    const teamName = normalizeText(entry.value ?? '')
+
+    if (!participantKey || assignedParticipants.has(participantKey) || !membersByTeam.has(teamName)) {
+      return
+    }
+
+    assignedParticipants.add(participantKey)
+    membersByTeam.get(teamName).push({
+      ...entry,
+      participantName: getParticipantDisplayName(entry.participantName ?? ''),
+    })
+  })
+
+  return teams.map((team) => {
+    const capacity = Number(team.capacity) || 0
+    const members = (membersByTeam.get(team.name) ?? []).sort((left, right) =>
+      left.participantName.localeCompare(right.participantName, 'pt-BR'),
+    )
+
+    return {
+      ...team,
+      capacity,
+      count: members.length,
+      spotsLeft: Math.max(capacity - members.length, 0),
+      isFull: members.length >= capacity,
+      members,
+    }
+  })
 }
 
 const deleteFirestoreSession = async (code) => {
@@ -182,12 +238,14 @@ function WordCloudCanvas({ words }) {
 }
 
 const sanitizeSlides = (slides = []) => {
+  let hasTeamSelectionError = false
+
   const normalizedSlides = slides
     .map((slide) => {
       const type = slide?.type
       const question = normalizeText(slide?.question ?? '')
 
-      if (!question || !['multiple_choice', 'word_cloud', 'open_text'].includes(type)) {
+      if (!question || !['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE].includes(type)) {
         return null
       }
 
@@ -206,6 +264,41 @@ const sanitizeSlides = (slides = []) => {
         }
       }
 
+      if (type === TEAM_SELECTION_TYPE) {
+        const teams = []
+        const seenTeams = new Set()
+
+        for (const team of slide?.teams ?? []) {
+          const name = normalizeText(typeof team?.name === 'string' ? team.name : '')
+          const capacity = Number.parseInt(String(team?.capacity ?? ''), 10)
+          const normalizedKey = name.toLowerCase()
+
+          if (!name || !Number.isInteger(capacity) || capacity < 1 || capacity > MAX_TEAM_CAPACITY || seenTeams.has(normalizedKey)) {
+            hasTeamSelectionError = true
+            return null
+          }
+
+          seenTeams.add(normalizedKey)
+          teams.push({
+            id: team.id || crypto.randomUUID(),
+            name,
+            capacity,
+          })
+        }
+
+        if (teams.length < 2) {
+          hasTeamSelectionError = true
+          return null
+        }
+
+        return {
+          id: slide.id || crypto.randomUUID(),
+          type,
+          question,
+          teams,
+        }
+      }
+
       return {
         id: slide.id || crypto.randomUUID(),
         type,
@@ -213,6 +306,13 @@ const sanitizeSlides = (slides = []) => {
       }
     })
     .filter(Boolean)
+
+  if (hasTeamSelectionError) {
+    return {
+      slides: [],
+      error: `Na seleção de times, informe pergunta, pelo menos 2 clubes com nomes distintos e um limite entre 1 e ${MAX_TEAM_CAPACITY} vagas por clube.`,
+    }
+  }
 
   if (normalizedSlides.length === 0) {
     return {
@@ -257,12 +357,30 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
     }))
   }
 
+  const addTeam = (slideId) => {
+    updateSlide(slideId, (slide) => ({
+      ...slide,
+      teams: [...(slide.teams ?? []), createTeamDraft(`Clube ${(slide.teams?.length ?? 0) + 1}`, 8)],
+    }))
+  }
+
   const removeOption = (slideId, optionIndex) => {
     updateSlide(slideId, (slide) => {
       const nextOptions = (slide.options ?? []).filter((_, index) => index !== optionIndex)
       return {
         ...slide,
         options: nextOptions.length > 0 ? nextOptions : ['', ''],
+      }
+    })
+  }
+
+  const removeTeam = (slideId, teamIndex) => {
+    updateSlide(slideId, (slide) => {
+      if ((slide.teams ?? []).length <= 2) return slide
+
+      return {
+        ...slide,
+        teams: (slide.teams ?? []).filter((_, index) => index !== teamIndex),
       }
     })
   }
@@ -384,6 +502,7 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
                                 updateSlide(slide.id, {
                                   type: nextType,
                                   options: nextType === 'multiple_choice' ? slide.options?.length ? slide.options : ['', ''] : [],
+                                  teams: nextType === TEAM_SELECTION_TYPE ? slide.teams?.length ? slide.teams : getDefaultTeamSelectionTeams() : [],
                                 })
                               }}
                               className="appearance-none rounded-xl border-0 bg-white py-2 pl-4 pr-10 text-sm font-bold text-slate-700 shadow-sm outline-none ring-1 ring-inset ring-slate-200 transition-all focus:ring-2 focus:ring-inset focus:ring-indigo-600 cursor-pointer"
@@ -391,6 +510,7 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
                               <option value="multiple_choice">📊 Múltipla escolha</option>
                               <option value="word_cloud">☁️ Nuvem de palavras</option>
                               <option value="open_text">💬 Texto aberto (Q&A)</option>
+                              <option value={TEAM_SELECTION_TYPE}>👥 Seleção de times</option>
                             </select>
                           </div>
 
@@ -444,6 +564,66 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, sessions = [],
                               className="mt-2 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-indigo-600 transition-all hover:bg-indigo-50"
                             >
                               <Plus className="h-4 w-4" /> Adicionar opção
+                            </button>
+                          </div>
+                        )}
+
+                        {slide.type === TEAM_SELECTION_TYPE && (
+                          <div className="mt-4 space-y-3 border-l-2 border-slate-200 pl-2">
+                            {(slide.teams ?? []).map((team, teamIndex) => (
+                              <div
+                                key={team.id ?? `${slide.id}-team-${teamIndex}`}
+                                className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px_auto]"
+                              >
+                                <input
+                                  value={team.name}
+                                  onChange={(event) => {
+                                    updateSlide(slide.id, (currentSlide) => ({
+                                      ...currentSlide,
+                                      teams: (currentSlide.teams ?? []).map((item, index) =>
+                                        index === teamIndex ? { ...item, name: event.target.value } : item,
+                                      ),
+                                    }))
+                                  }}
+                                  placeholder={`Clube ${teamIndex + 1}`}
+                                  className="w-full rounded-lg border-0 bg-white px-4 py-2 text-sm font-medium text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+                                />
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={MAX_TEAM_CAPACITY}
+                                  inputMode="numeric"
+                                  value={team.capacity}
+                                  onChange={(event) => {
+                                    updateSlide(slide.id, (currentSlide) => ({
+                                      ...currentSlide,
+                                      teams: (currentSlide.teams ?? []).map((item, index) =>
+                                        index === teamIndex ? { ...item, capacity: event.target.value } : item,
+                                      ),
+                                    }))
+                                  }}
+                                  placeholder="Vagas"
+                                  className="w-full rounded-lg border-0 bg-white px-4 py-2 text-sm font-bold text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeTeam(slide.id, teamIndex)}
+                                  disabled={(slide.teams ?? []).length <= 2}
+                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500 disabled:opacity-30 disabled:hover:bg-transparent"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                            <p className="text-xs font-medium text-slate-500">
+                              Defina o nome de cada clube e quantas vagas ele possui.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => addTeam(slide.id)}
+                              className="mt-2 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-indigo-600 transition-all hover:bg-indigo-50"
+                            >
+                              <Plus className="h-4 w-4" /> Adicionar clube
                             </button>
                           </div>
                         )}
@@ -529,8 +709,16 @@ function HostView({
   canGoForward,
   connectedParticipants,
 }) {
-  const responseCount = responses.length
   const joinUrl = useMemo(() => getJoinUrl(session.code), [session.code])
+
+  const teamSelectionStats = useMemo(() => {
+    if (!currentSlide || currentSlide.type !== TEAM_SELECTION_TYPE) return []
+    return buildTeamSelectionStats(currentSlide, responses)
+  }, [currentSlide, responses])
+
+  const responseCount = currentSlide?.type === TEAM_SELECTION_TYPE
+    ? teamSelectionStats.reduce((total, team) => total + team.count, 0)
+    : responses.length
 
   const multipleChoiceStats = useMemo(() => {
     if (!currentSlide || currentSlide.type !== 'multiple_choice') return []
@@ -639,6 +827,79 @@ function HostView({
 
           {currentSlide?.type === 'word_cloud' && (
             <WordCloudCanvas words={wordCloudData.words} />
+          )}
+
+          {currentSlide?.type === TEAM_SELECTION_TYPE && (
+            <div className="grid gap-6 text-left md:grid-cols-2 xl:grid-cols-3">
+              {teamSelectionStats.map((team, index) => {
+                const fillPercent = team.capacity > 0 ? Math.min(Math.round((team.count / team.capacity) * 100), 100) : 0
+                const color = palette[index % palette.length]
+
+                return (
+                  <article
+                    key={team.id ?? team.name}
+                    className="rounded-[2rem] border border-white/50 bg-white/75 p-7 shadow-xl shadow-slate-200/50 backdrop-blur-md"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-2xl font-black text-slate-900">{team.name}</h3>
+                        <p className="mt-1 text-sm font-bold uppercase tracking-[0.2em] text-slate-400">
+                          {team.count} de {team.capacity} vagas ocupadas
+                        </p>
+                      </div>
+                      <span
+                        className="rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.18em]"
+                        style={{
+                          color,
+                          backgroundColor: `${color}18`,
+                        }}
+                      >
+                        {team.isFull ? 'Lotado' : `${team.spotsLeft} vaga${team.spotsLeft === 1 ? '' : 's'}`}
+                      </span>
+                    </div>
+
+                    <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200/80">
+                      <div
+                        className="h-full rounded-full transition-all duration-700 ease-out"
+                        style={{
+                          width: `${Math.max(fillPercent, team.count > 0 ? 8 : 0)}%`,
+                          backgroundColor: color,
+                          boxShadow: `0 0 20px ${color}55`,
+                        }}
+                      />
+                    </div>
+
+                    <div className="mt-6 space-y-3">
+                      {team.members.length === 0 ? (
+                        <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm font-semibold text-slate-400">
+                          Nenhum participante neste clube ainda.
+                        </p>
+                      ) : (
+                        team.members.map((member, memberIndex) => (
+                          <div
+                            key={`${team.name}-${member.participantId}`}
+                            className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-black text-white"
+                                style={{ backgroundColor: color }}
+                              >
+                                {memberIndex + 1}
+                              </div>
+                              <span className="text-base font-bold text-slate-800">{member.participantName}</span>
+                            </div>
+                            <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
+                              confirmado
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
           )}
 
           {currentSlide?.type === 'open_text' && (
@@ -805,19 +1066,47 @@ function HostView({
   )
 }
 
-function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) {
+function ParticipantView({ session, currentSlide, responses, participantResponse, onSubmit, onReact, sending }) {
   const [value, setValue] = useState('')
   const [hasSubmittedThisSlide, setHasSubmittedThisSlide] = useState(false)
+  const [submittedValue, setSubmittedValue] = useState('')
 
-  const submit = (event, predefinedValue) => {
+  const teamSelectionStats = useMemo(() => {
+    if (!currentSlide || currentSlide.type !== TEAM_SELECTION_TYPE) return []
+    return buildTeamSelectionStats(currentSlide, responses)
+  }, [currentSlide, responses])
+
+  useEffect(() => {
+    if (currentSlide?.type === 'word_cloud') {
+      setHasSubmittedThisSlide(false)
+      setSubmittedValue('')
+      return
+    }
+
+    if (participantResponse) {
+      setHasSubmittedThisSlide(true)
+      setSubmittedValue(participantResponse.value ?? '')
+      return
+    }
+
+    setHasSubmittedThisSlide(false)
+    setSubmittedValue('')
+  }, [currentSlide?.id, currentSlide?.type, participantResponse])
+
+  const submit = async (event, predefinedValue) => {
     event?.preventDefault()
     const finalValue = predefinedValue ?? value
     if (!finalValue.trim()) return
 
-    onSubmit(finalValue)
+    const didSubmit = await onSubmit(finalValue)
+    if (!didSubmit) return
+
     setHasSubmittedThisSlide(true)
+    setSubmittedValue(finalValue)
     if (!predefinedValue) setValue('')
   }
+
+  const showSubmittedState = currentSlide?.type !== 'word_cloud' && hasSubmittedThisSlide
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-slate-50 font-sans text-slate-900 selection:bg-blue-200">
@@ -844,14 +1133,27 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
             {currentSlide?.question}
           </h1>
 
-          {hasSubmittedThisSlide && currentSlide?.type !== 'word_cloud' ? (
-            <div className="mt-12 flex flex-col items-center justify-center rounded-[2rem] bg-gradient-to-br from-green-400 to-emerald-600 p-10 text-center text-white shadow-xl shadow-green-500/20">
-              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
-                <Sparkles className="h-10 w-10 text-white" />
+          {showSubmittedState ? (
+            currentSlide?.type === TEAM_SELECTION_TYPE ? (
+              <div className="mt-12 flex flex-col items-center justify-center rounded-[2rem] bg-gradient-to-br from-blue-600 via-cyan-500 to-emerald-500 p-10 text-center text-white shadow-xl shadow-cyan-500/25">
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/15 backdrop-blur-md">
+                  <Users className="h-10 w-10 text-white" />
+                </div>
+                <p className="text-sm font-black uppercase tracking-[0.28em] text-cyan-100">vaga confirmada</p>
+                <h3 className="mt-3 text-3xl font-black tracking-tight">{submittedValue}</h3>
+                <p className="mt-3 text-lg font-medium text-cyan-50">
+                  Sua escolha foi registrada. O apresentador já consegue ver em qual clube você está.
+                </p>
               </div>
-              <h3 className="text-3xl font-black tracking-tight">Enviado!</h3>
-              <p className="mt-3 text-lg font-medium text-green-50">Olhe para a tela principal para ver os resultados ao vivo.</p>
-            </div>
+            ) : (
+              <div className="mt-12 flex flex-col items-center justify-center rounded-[2rem] bg-gradient-to-br from-green-400 to-emerald-600 p-10 text-center text-white shadow-xl shadow-green-500/20">
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur-md">
+                  <Sparkles className="h-10 w-10 text-white" />
+                </div>
+                <h3 className="text-3xl font-black tracking-tight">Enviado!</h3>
+                <p className="mt-3 text-lg font-medium text-green-50">Olhe para a tela principal para ver os resultados ao vivo.</p>
+              </div>
+            )
           ) : (
             <div className="space-y-4">
               {currentSlide?.type === 'multiple_choice' &&
@@ -868,6 +1170,56 @@ function ParticipantView({ session, currentSlide, onSubmit, onReact, sending }) 
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>
                 ))}
+
+              {currentSlide?.type === TEAM_SELECTION_TYPE && (
+                <div className="space-y-4">
+                  {teamSelectionStats.map((team, index) => {
+                    const color = palette[index % palette.length]
+                    const isDisabled = sending || team.isFull
+
+                    return (
+                      <button
+                        key={team.id ?? team.name}
+                        onClick={(event) => submit(event, team.name)}
+                        disabled={isDisabled}
+                        className="group relative w-full overflow-hidden rounded-[1.75rem] bg-white p-6 text-left shadow-sm ring-1 ring-slate-200 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/10 hover:ring-blue-500 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                      >
+                        <div className="relative z-10 flex items-start justify-between gap-4">
+                          <div>
+                            <span className="text-2xl font-black text-slate-800 transition-colors group-hover:text-blue-700">
+                              {team.name}
+                            </span>
+                            <p className="mt-2 text-sm font-semibold text-slate-500">
+                              {team.isFull
+                                ? 'Todas as vagas foram preenchidas.'
+                                : `${team.spotsLeft} vaga${team.spotsLeft === 1 ? '' : 's'} restante${team.spotsLeft === 1 ? '' : 's'}`}
+                            </p>
+                          </div>
+                          <div
+                            className="rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.18em]"
+                            style={{
+                              color,
+                              backgroundColor: `${color}18`,
+                            }}
+                          >
+                            {team.count}/{team.capacity}
+                          </div>
+                        </div>
+                        <div className="relative z-10 mt-5 h-3 overflow-hidden rounded-full bg-slate-200/80">
+                          <div
+                            className="h-full rounded-full transition-all duration-500 ease-out"
+                            style={{
+                              width: `${team.capacity > 0 ? Math.max(Math.round((team.count / team.capacity) * 100), team.count > 0 ? 8 : 0) : 0}%`,
+                              backgroundColor: color,
+                            }}
+                          />
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
 
               {currentSlide?.type === 'word_cloud' && (
                 <form onSubmit={submit} className="space-y-4 rounded-[2rem] bg-white p-6 shadow-xl shadow-slate-200/50 ring-1 ring-slate-100">
@@ -1285,6 +1637,10 @@ export default function App() {
     return responses.filter((entry) => entry.slideId === currentSlide.id)
   }, [responses, currentSlide])
 
+  const currentParticipantResponse = useMemo(() => {
+    return currentSlideResponses.find((entry) => entry.participantId === participantId) ?? null
+  }, [currentSlideResponses, participantId])
+
   const connectedParticipants = useMemo(() => {
     const now = Date.now()
     return participants.filter((entry) => {
@@ -1317,6 +1673,60 @@ export default function App() {
     setError('')
 
     try {
+      if (currentSlide.type === TEAM_SELECTION_TYPE) {
+        const selectedTeam = currentSlide.teams?.find((team) => team.name === finalValue)
+
+        if (!selectedTeam) {
+          setError('Esse clube não está disponível no momento.')
+          return false
+        }
+
+        const responseRef = doc(
+          db,
+          'sessions',
+          session.code,
+          'responses',
+          getTeamSelectionResponseId(currentSlide.id, participantId),
+        )
+
+        const slideResponsesQuery = query(
+          collection(db, 'sessions', session.code, 'responses'),
+          where('slideId', '==', currentSlide.id),
+        )
+
+        await runTransaction(db, async (transaction) => {
+          const existingResponse = await transaction.get(responseRef)
+
+          if (existingResponse.exists()) {
+            throw new Error('TEAM_ALREADY_SELECTED')
+          }
+
+          const slideResponsesSnapshot = await transaction.get(slideResponsesQuery)
+          const selectedTeamCount = slideResponsesSnapshot.docs.reduce((total, responseDoc) => {
+            const responseData = responseDoc.data()
+
+            if (responseData.type !== TEAM_SELECTION_TYPE) return total
+
+            return normalizeText(responseData.value ?? '') === finalValue ? total + 1 : total
+          }, 0)
+
+          if (selectedTeamCount >= Number(selectedTeam.capacity)) {
+            throw new Error('TEAM_FULL')
+          }
+
+          transaction.set(responseRef, {
+            participantId,
+            participantName: getParticipantDisplayName(participantName),
+            slideId: currentSlide.id,
+            type: currentSlide.type,
+            value: finalValue,
+            createdAt: serverTimestamp(),
+          })
+        })
+
+        return true
+      }
+
       await addDoc(collection(db, 'sessions', session.code, 'responses'), {
         participantId,
         participantName: getParticipantDisplayName(participantName),
@@ -1325,8 +1735,20 @@ export default function App() {
         value: finalValue,
         createdAt: serverTimestamp(),
       })
-    } catch {
-      setError('Não foi possível enviar sua resposta.')
+      return true
+    } catch (submitError) {
+      if (submitError?.message === 'TEAM_FULL') {
+        setError(`O clube ${finalValue} acabou de lotar. Escolha outro.`)
+      } else if (submitError?.message === 'TEAM_ALREADY_SELECTED') {
+        setError('Você já escolheu um clube nesta etapa.')
+      } else {
+        setError(
+          currentSlide.type === TEAM_SELECTION_TYPE
+            ? 'Não foi possível confirmar sua vaga no clube.'
+            : 'Não foi possível enviar sua resposta.',
+        )
+      }
+      return false
     } finally {
       setSending(false)
     }
@@ -1427,6 +1849,8 @@ export default function App() {
           key={currentSlide.id}
           session={session}
           currentSlide={currentSlide}
+          responses={currentSlideResponses}
+          participantResponse={currentParticipantResponse}
           onSubmit={submitResponse}
           onReact={sendReaction}
           sending={sending}

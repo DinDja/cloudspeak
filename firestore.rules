@@ -6,7 +6,7 @@ service cloud.firestore {
     }
 
     function isSlideType(value) {
-      return value in ['multiple_choice', 'word_cloud', 'open_text'];
+      return value in ['multiple_choice', 'word_cloud', 'open_text', 'team_selection'];
     }
 
     function isValidSessionCode(value) {
@@ -69,7 +69,7 @@ service cloud.firestore {
         && request.resource.data.updatedAt is timestamp;
     }
 
-    function isValidResponse() {
+    function isValidResponse(responseId) {
       return request.resource.data.keys().hasOnly([
           'participantId',
           'participantName',
@@ -91,6 +91,10 @@ service cloud.firestore {
         && isString(request.resource.data.slideId, 1, 80)
         && isSlideType(request.resource.data.type)
         && isString(request.resource.data.value, 1, 220)
+        && (
+          request.resource.data.type != 'team_selection'
+          || responseId == request.resource.data.slideId + '__' + request.resource.data.participantId
+        )
         && request.resource.data.createdAt is timestamp;
     }
 
@@ -159,7 +163,7 @@ service cloud.firestore {
       allow delete: if isValidSessionCode(sessionCode);
       match /responses/{responseId} {
         allow read: if true;
-        allow create: if isValidSessionCode(sessionCode) && isValidResponse();
+        allow create: if isValidSessionCode(sessionCode) && isValidResponse(responseId);
         allow update: if false;
         allow delete: if isValidSessionCode(sessionCode);
       }
