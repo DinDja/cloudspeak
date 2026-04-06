@@ -1694,24 +1694,25 @@ export default function App() {
           where('slideId', '==', currentSlide.id),
         )
 
+        const slideResponsesSnapshot = await getDocs(slideResponsesQuery)
+        const selectedTeamCount = slideResponsesSnapshot.docs.reduce((total, responseDoc) => {
+          const responseData = responseDoc.data()
+
+          if (responseData.type !== TEAM_SELECTION_TYPE) return total
+
+          return normalizeText(responseData.value ?? '') === finalValue ? total + 1 : total
+        }, 0)
+
+        if (selectedTeamCount >= Number(selectedTeam.capacity)) {
+          setError(`O clube ${finalValue} acabou de lotar. Escolha outro.`)
+          return false
+        }
+
         await runTransaction(db, async (transaction) => {
           const existingResponse = await transaction.get(responseRef)
 
           if (existingResponse.exists()) {
             throw new Error('TEAM_ALREADY_SELECTED')
-          }
-
-          const slideResponsesSnapshot = await transaction.get(slideResponsesQuery)
-          const selectedTeamCount = slideResponsesSnapshot.docs.reduce((total, responseDoc) => {
-            const responseData = responseDoc.data()
-
-            if (responseData.type !== TEAM_SELECTION_TYPE) return total
-
-            return normalizeText(responseData.value ?? '') === finalValue ? total + 1 : total
-          }, 0)
-
-          if (selectedTeamCount >= Number(selectedTeam.capacity)) {
-            throw new Error('TEAM_FULL')
           }
 
           transaction.set(responseRef, {
@@ -1737,10 +1738,14 @@ export default function App() {
       })
       return true
     } catch (submitError) {
+      console.error('Team selection submit failed', submitError)
+
       if (submitError?.message === 'TEAM_FULL') {
         setError(`O clube ${finalValue} acabou de lotar. Escolha outro.`)
       } else if (submitError?.message === 'TEAM_ALREADY_SELECTED') {
         setError('Você já escolheu um clube nesta etapa.')
+      } else if (submitError?.code === 'permission-denied') {
+        setError('Permissão negada no Firestore. Atualize as regras ou tente novamente mais tarde.')
       } else {
         setError(
           currentSlide.type === TEAM_SELECTION_TYPE

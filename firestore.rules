@@ -91,10 +91,6 @@ service cloud.firestore {
         && isString(request.resource.data.slideId, 1, 80)
         && isSlideType(request.resource.data.type)
         && isString(request.resource.data.value, 1, 220)
-        && (
-          request.resource.data.type != 'team_selection'
-          || responseId == request.resource.data.slideId + '__' + request.resource.data.participantId
-        )
         && request.resource.data.createdAt is timestamp;
     }
 
