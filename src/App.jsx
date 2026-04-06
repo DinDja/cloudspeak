@@ -710,6 +710,7 @@ function HostView({
   connectedParticipants,
 }) {
   const joinUrl = useMemo(() => getJoinUrl(session.code), [session.code])
+  const [teamReportModal, setTeamReportModal] = useState(null)
 
   const teamSelectionStats = useMemo(() => {
     if (!currentSlide || currentSlide.type !== TEAM_SELECTION_TYPE) return []
@@ -830,7 +831,7 @@ function HostView({
           )}
 
           {currentSlide?.type === TEAM_SELECTION_TYPE && (
-            <div className="grid gap-6 text-left md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-6 text-left md:grid-cols-2 xl:grid-cols-2">
               {teamSelectionStats.map((team, index) => {
                 const fillPercent = team.capacity > 0 ? Math.min(Math.round((team.count / team.capacity) * 100), 100) : 0
                 const color = palette[index % palette.length]
@@ -848,7 +849,7 @@ function HostView({
                         </p>
                       </div>
                       <span
-                        className="rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.18em]"
+                        className="px-3 py-1 text-xs font-black uppercase tracking-[0.18em] d-flex flex"
                         style={{
                           color,
                           backgroundColor: `${color}18`,
@@ -869,35 +870,15 @@ function HostView({
                       />
                     </div>
 
-                    <div className="mt-6 space-y-3">
-                      {team.members.length === 0 ? (
-                        <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm font-semibold text-slate-400">
-                          Nenhum participante neste clube ainda.
-                        </p>
-                      ) : (
-                        team.members.map((member, memberIndex) => (
-                          <div
-                            key={`${team.name}-${member.participantId}`}
-                            className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100"
-                          >
-                            <div className="flex min-w-0 items-center gap-3">
-                              <div
-                                className="flex h-9 w-9 min-w-[2.25rem] items-center justify-center rounded-full text-sm font-black text-white"
-                                style={{ backgroundColor: color }}
-                              >
-                                {memberIndex + 1}
-                              </div>
-                              <span className="min-w-0 break-words text-base font-bold text-slate-800 whitespace-normal">
-                                {member.participantName}
-                              </span>
-                            </div>
-                            <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
-                              confirmado
-                            </span>
-                          </div>
-                        ))
-                      )}
-                    </div>
+                    {team.members.length > 0 && (
+                      <button
+                        onClick={() => setTeamReportModal(team)}
+                        className="mt-6 w-full rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-[0.15em] transition-colors"
+                        style={{ color, backgroundColor: `${color}18` }}
+                      >
+                        Ver participantes ({team.count})
+                      </button>
+                    )}
                   </article>
                 )
               })}
@@ -1064,6 +1045,52 @@ function HostView({
           --spark-fade: translate(30px, 28px) rotate(36deg);
         }
       `}</style>
+
+      {teamReportModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setTeamReportModal(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900">{teamReportModal.name}</h2>
+                <p className="mt-1 text-sm font-bold uppercase tracking-[0.2em] text-slate-400">
+                  {teamReportModal.count} de {teamReportModal.capacity} participantes
+                </p>
+              </div>
+              <button
+                onClick={() => setTeamReportModal(null)}
+                className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="max-h-[60vh] space-y-3 overflow-y-auto">
+              {teamReportModal.members.map((member, idx) => (
+                <div
+                  key={`${teamReportModal.name}-${member.participantId}`}
+                  className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100"
+                >
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black text-white"
+                    style={{ backgroundColor: palette[teamReportModal._colorIndex ?? 0] }}
+                  >
+                    {idx + 1}
+                  </div>
+                  <span className="text-base font-bold text-slate-800">{member.participantName}</span>
+                  <span className="ml-auto text-xs font-black uppercase tracking-[0.18em] text-slate-300">
+                    confirmado
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
