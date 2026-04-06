@@ -880,14 +880,16 @@ function HostView({
                             key={`${team.name}-${member.participantId}`}
                             className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100"
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
                               <div
-                                className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-black text-white"
+                                className="flex h-9 w-9 min-w-[2.25rem] items-center justify-center rounded-full text-sm font-black text-white"
                                 style={{ backgroundColor: color }}
                               >
                                 {memberIndex + 1}
                               </div>
-                              <span className="text-base font-bold text-slate-800">{member.participantName}</span>
+                              <span className="min-w-0 break-words text-base font-bold text-slate-800 whitespace-normal">
+                                {member.participantName}
+                              </span>
                             </div>
                             <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-300">
                               confirmado
