@@ -2571,8 +2571,13 @@ export default function App() {
           createdAt: serverTimestamp(),
         })
         return true
-      } catch {
-        setError('Não foi possível enviar o formulário.')
+      } catch (submitError) {
+        console.error('Structural form submit failed', submitError)
+        if (submitError?.code === 'permission-denied') {
+          setError('Permissão negada. Publique as regras do Firestore com: firebase deploy --only firestore:rules')
+        } else {
+          setError(submitError?.message || 'Não foi possível enviar o formulário.')
+        }
         return false
       } finally {
         setSending(false)
