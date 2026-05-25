@@ -75,46 +75,35 @@ service cloud.firestore {
         && value.size() <= maxItems;
     }
 
-    function isValidResponse(responseId) {
-      return request.resource.data.keys().hasAll([
-          'participantId',
-          'participantName',
-          'slideId',
-          'type',
-          'value',
-          'createdAt'
-        ])
-        && request.resource.data.keys().hasOnly([
-          'participantId',
-          'participantName',
-          'slideId',
-          'type',
-          'value',
-          'createdAt',
-          'email'
-        ])
-        && isString(request.resource.data.participantId, 8, 80)
-        && isString(request.resource.data.participantName, 1, 120)
-        && isString(request.resource.data.slideId, 1, 80)
-        && isSlideType(request.resource.data.type)
-        && request.resource.data.createdAt is timestamp
-        && (
-          // structural_form: value is an object with required fields
-          (request.resource.data.type == 'structural_form'
-            && request.resource.data.value is map
-            && request.resource.data.value.keys().hasAll(['name', 'email', 'institution', 'transversalities', 'pillars', 'contributions'])
-            && isString(request.resource.data.value.name, 1, 120)
-            && isString(request.resource.data.value.email, 5, 120)
-            && isString(request.resource.data.value.institution, 1, 120)
-            && isStringList(request.resource.data.value.transversalities, 1, 10)
-            && isStringList(request.resource.data.value.pillars, 1, 10)
-            && isString(request.resource.data.value.contributions, 10, 800)
-          )
-          ||
-          // other types: value is a string
-          (isString(request.resource.data.value, 1, 220))
-        );
-    }
+  function isValidResponse(responseId) {
+  return request.resource.data.keys().hasAll([
+      'participantId',
+      'participantName',
+      'slideId',
+      'type',
+      'value',
+      'createdAt'
+    ])
+    && request.resource.data.keys().hasOnly([
+      'participantId',
+      'participantName',
+      'slideId',
+      'type',
+      'value',
+      'createdAt',
+      'email'
+    ])
+    && isString(request.resource.data.participantId, 8, 80)
+    && isString(request.resource.data.participantName, 1, 120)
+    && isString(request.resource.data.slideId, 1, 80)
+    && isSlideType(request.resource.data.type)
+    && request.resource.data.createdAt is timestamp
+    && (
+      (request.resource.data.type == 'structural_form' && request.resource.data.value is map)
+      ||
+      (request.resource.data.type != 'structural_form' && isString(request.resource.data.value, 1, 220))
+    );
+}
 
     function isValidReaction() {
       return request.resource.data.keys().hasOnly([
