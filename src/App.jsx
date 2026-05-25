@@ -41,6 +41,9 @@ import {
   Maximize2,
   Minimize2,
   FileDown,
+  Mail,
+  ClipboardList,
+  Building2,
 } from 'lucide-react'
 import cloud from 'd3-cloud'
 import { QRCodeSVG } from 'qrcode.react'
@@ -68,6 +71,9 @@ const createSlideDraft = (type = 'multiple_choice') => ({
   question: '',
   options: type === 'multiple_choice' ? ['', ''] : [],
   teams: type === TEAM_SELECTION_TYPE ? getDefaultTeamSelectionTeams() : [],
+  minContributionLength: type === STRUCTURAL_FORM_TYPE ? STRUCTURAL_MIN_CONTRIBUTION_CHARS : undefined,
+  transversalityOptions: type === STRUCTURAL_FORM_TYPE ? [...STRUCTURAL_TRANSVERSALITY_OPTIONS] : [],
+  pillarOptions: type === STRUCTURAL_FORM_TYPE ? [...STRUCTURAL_PILLAR_OPTIONS] : [],
 })
 
 const generateCode = () =>
@@ -86,6 +92,83 @@ const getParticipantId = () => {
 
 const normalizeText = (value) => value.trim().replace(/\s+/g, ' ')
 const getParticipantDisplayName = (value) => normalizeText(value) || 'Anônimo'
+
+const STRUCTURAL_FORM_TYPE = 'structural_form'
+const STRUCTURAL_TRANSVERSALITY_OPTIONS = [
+  'Planejamento Estratégico',
+  'Gestão Orçamentária',
+  'Inovação Tecnológica',
+  'Articulação Interinstitucional',
+]
+const STRUCTURAL_PILLAR_OPTIONS = [
+  'Governança',
+  'Educação',
+  'Infraestrutura',
+  'Segurança',
+  'Sustentabilidade',
+  'Desenvolvimento Econômico',
+]
+const STRUCTURAL_TRANSVERSALITY_COUNT = 4
+const STRUCTURAL_PILLAR_COUNT = 6
+const STRUCTURAL_MIN_CONTRIBUTION_CHARS = 30
+const STRUCTURAL_MAX_CONTRIBUTION_CHARS = 800
+
+const getStructuralMinChars = (slide) => {
+  const val = Number.parseInt(String(slide?.minContributionLength ?? STRUCTURAL_MIN_CONTRIBUTION_CHARS), 10)
+  return Number.isInteger(val) && val >= 10 && val <= 600 ? val : STRUCTURAL_MIN_CONTRIBUTION_CHARS
+}
+
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+const normalizeSelections = (items) =>
+  Array.from(new Set((Array.isArray(items) ? items : []).map((i) => normalizeText(String(i ?? ''))).filter(Boolean)))
+
+const getStructuralTransversalityOptions = (slide) => {
+  const options = normalizeSelections(slide?.transversalityOptions)
+  return options.length > 0 ? options : [...STRUCTURAL_TRANSVERSALITY_OPTIONS]
+}
+
+const getStructuralPillarOptions = (slide) => {
+  const options = normalizeSelections(slide?.pillarOptions)
+  return options.length > 0 ? options : [...STRUCTURAL_PILLAR_OPTIONS]
+}
+
+const validateStructuralFormPayload = (raw, minChars, config = {}) => {
+  const allowedTransversalities = normalizeSelections(
+    config.transversalityOptions?.length ? config.transversalityOptions : STRUCTURAL_TRANSVERSALITY_OPTIONS,
+  )
+  const allowedPillars = normalizeSelections(
+    config.pillarOptions?.length ? config.pillarOptions : STRUCTURAL_PILLAR_OPTIONS,
+  )
+
+  const name = normalizeText(raw?.name ?? '')
+  if (!name) return { isValid: false, error: 'Nome é obrigatório.', payload: null }
+
+  const email = normalizeText(raw?.email ?? '').toLowerCase()
+  if (!email) return { isValid: false, error: 'Email é obrigatório.', payload: null }
+  if (!isValidEmail(email)) return { isValid: false, error: 'Informe um email válido.', payload: null }
+
+  const institution = normalizeText(raw?.institution ?? '')
+  if (!institution) return { isValid: false, error: 'Instituição é obrigatória.', payload: null }
+
+  const transversalities = normalizeSelections(raw?.transversalities)
+    .filter((item) => allowedTransversalities.includes(item))
+  if (transversalities.length === 0) return { isValid: false, error: 'Selecione ao menos uma transversalidade.', payload: null }
+
+  const pillars = normalizeSelections(raw?.pillars)
+    .filter((item) => allowedPillars.includes(item))
+  if (pillars.length === 0) return { isValid: false, error: 'Selecione ao menos um pilar.', payload: null }
+
+  const contributions = normalizeText(raw?.contributions ?? '')
+  if (!contributions) return { isValid: false, error: 'Contribuição é obrigatória.', payload: null }
+  if (contributions.length < minChars) return { isValid: false, error: `Contribuição deve ter no mínimo ${minChars} caracteres.`, payload: null }
+
+  return {
+    isValid: true,
+    error: '',
+    payload: { name, email, institution, transversalities, pillars, contributions },
+  }
+}
 
 const getJoinUrl = (code) => {
   const configuredBaseUrl = import.meta.env.VITE_APP_URL
@@ -141,6 +224,7 @@ const SLIDE_TYPE_LABELS = {
   word_cloud: 'Nuvem de Palavras',
   open_text: 'Texto Livre',
   [TEAM_SELECTION_TYPE]: 'Seleção de Times',
+  [STRUCTURAL_FORM_TYPE]: 'Formulário Estrutural',
 }
 
 const generateSessionReport = async (sessionCode, sessionData) => {
@@ -264,6 +348,34 @@ const generateSessionReport = async (sessionCode, sessionData) => {
         head: [['Time', '#', 'Participante']],
         body: tableRows.length > 0 ? tableRows : [['—', '—', 'Sem respostas']],
         styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [241, 245, 249] },
+        margin: { left: margin, right: margin },
+      })
+    } else if (slide.type === STRUCTURAL_FORM_TYPE) {
+      const minChars = getStructuralMinChars(slide)
+      const uniqueByParticipant = new Map()
+      slideResponses.forEach((r) => {
+        const validation = validateStructuralFormPayload(r.value ?? {}, minChars, {
+          transversalityOptions: getStructuralTransversalityOptions(slide),
+          pillarOptions: getStructuralPillarOptions(slide),
+        })
+        if (!validation.isValid) return
+        uniqueByParticipant.set(r.participantId ?? r.id, validation.payload)
+      })
+      tableRows = Array.from(uniqueByParticipant.values()).map((item) => [
+        item.name,
+        item.email,
+        item.institution,
+        item.transversalities.join(', '),
+        item.pillars.join(', '),
+        item.contributions,
+      ])
+      autoTable(pdf, {
+        startY: cursorY,
+        head: [['Nome', 'Email', 'Instituição', 'Transversalidades', 'Pilares', 'Contribuição']],
+        body: tableRows.length > 0 ? tableRows : [['—', '—', '—', '—', '—', 'Sem respostas']],
+        styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [241, 245, 249] },
         margin: { left: margin, right: margin },
@@ -417,13 +529,14 @@ function WordCloudCanvas({ words }) {
 
 const sanitizeSlides = (slides = []) => {
   let hasTeamSelectionError = false
+  let hasStructuralFormError = false
 
   const normalizedSlides = slides
     .map((slide) => {
       const type = slide?.type
       const question = normalizeText(slide?.question ?? '')
 
-      if (!question || !['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE].includes(type)) {
+      if (!question || !['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE, STRUCTURAL_FORM_TYPE].includes(type)) {
         return null
       }
 
@@ -477,6 +590,33 @@ const sanitizeSlides = (slides = []) => {
         }
       }
 
+      if (type === STRUCTURAL_FORM_TYPE) {
+        const minChars = getStructuralMinChars(slide)
+        const transversalityOptions = normalizeSelections(
+          slide?.transversalityOptions?.length ? slide.transversalityOptions : STRUCTURAL_TRANSVERSALITY_OPTIONS,
+        )
+        const pillarOptions = normalizeSelections(
+          slide?.pillarOptions?.length ? slide.pillarOptions : STRUCTURAL_PILLAR_OPTIONS,
+        )
+
+        if (
+          transversalityOptions.length !== STRUCTURAL_TRANSVERSALITY_COUNT
+          || pillarOptions.length !== STRUCTURAL_PILLAR_COUNT
+        ) {
+          hasStructuralFormError = true
+          return null
+        }
+
+        return {
+          id: slide.id || crypto.randomUUID(),
+          type,
+          question,
+          minContributionLength: minChars,
+          transversalityOptions,
+          pillarOptions,
+        }
+      }
+
       return {
         id: slide.id || crypto.randomUUID(),
         type,
@@ -489,6 +629,13 @@ const sanitizeSlides = (slides = []) => {
     return {
       slides: [],
       error: `Na seleção de times, informe pergunta, pelo menos 2 clubes com nomes distintos e um limite entre 1 e ${MAX_TEAM_CAPACITY} vagas por clube.`,
+    }
+  }
+
+  if (hasStructuralFormError) {
+    return {
+      slides: [],
+      error: `No formulário estrutural, informe exatamente ${STRUCTURAL_TRANSVERSALITY_COUNT} opções de transversalidade e ${STRUCTURAL_PILLAR_COUNT} opções de pilares.`,
     }
   }
 
@@ -539,6 +686,18 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, onExportSaved,
     updateSlide(slideId, (slide) => ({
       ...slide,
       teams: [...(slide.teams ?? []), createTeamDraft(`Clube ${(slide.teams?.length ?? 0) + 1}`, 8)],
+    }))
+  }
+
+  const updateStructuralOption = (slideId, field, optionIndex, nextValue) => {
+    updateSlide(slideId, (slide) => ({
+      ...slide,
+      [field]: (slide[field]?.length
+        ? slide[field]
+        : field === 'transversalityOptions'
+          ? STRUCTURAL_TRANSVERSALITY_OPTIONS
+          : STRUCTURAL_PILLAR_OPTIONS
+      ).map((item, index) => (index === optionIndex ? nextValue : item)),
     }))
   }
 
@@ -689,12 +848,14 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, onExportSaved,
                       word_cloud:      { label: 'Nuvem de Palavras', short: 'Nuvem',    icon: '☁️', accent: 'sky'    },
                       open_text:       { label: 'Texto Livre',       short: 'Q&A',       icon: '💬', accent: 'emerald'},
                       [TEAM_SELECTION_TYPE]: { label: 'Times', short: 'Times', icon: '👥', accent: 'violet' },
+                      [STRUCTURAL_FORM_TYPE]: { label: 'Formulário Estrutural', short: 'Estrutural', icon: '📋', accent: 'teal' },
                     }
                     const ACCENT_CLASSES = {
                       indigo:  { strip: 'bg-indigo-500',  badge: 'bg-indigo-100 text-indigo-700', ring: 'focus:ring-indigo-500', btn: 'bg-indigo-600 text-white shadow-sm shadow-indigo-300', btnOff: 'bg-slate-100 text-slate-500 hover:bg-slate-200', hint: 'text-indigo-400' },
                       sky:     { strip: 'bg-sky-500',     badge: 'bg-sky-100 text-sky-700',       ring: 'focus:ring-sky-500',    btn: 'bg-sky-500 text-white shadow-sm shadow-sky-300',    btnOff: 'bg-slate-100 text-slate-500 hover:bg-slate-200', hint: 'text-sky-400' },
                       emerald: { strip: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700',ring: 'focus:ring-emerald-500',btn: 'bg-emerald-600 text-white shadow-sm shadow-emerald-300',btnOff: 'bg-slate-100 text-slate-500 hover:bg-slate-200', hint: 'text-emerald-400' },
                       violet:  { strip: 'bg-violet-500',  badge: 'bg-violet-100 text-violet-700', ring: 'focus:ring-violet-500', btn: 'bg-violet-600 text-white shadow-sm shadow-violet-300', btnOff: 'bg-slate-100 text-slate-500 hover:bg-slate-200', hint: 'text-violet-400' },
+                      teal:    { strip: 'bg-teal-500',    badge: 'bg-teal-100 text-teal-700',     ring: 'focus:ring-teal-500',   btn: 'bg-teal-600 text-white shadow-sm shadow-teal-300',   btnOff: 'bg-slate-100 text-slate-500 hover:bg-slate-200', hint: 'text-teal-400' },
                     }
                     const OPTION_LABELS = 'ABCDEFGHIJ'
                     return (
@@ -727,6 +888,13 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, onExportSaved,
                                             type: value,
                                             options: value === 'multiple_choice' ? (slide.options?.length ? slide.options : ['', '']) : [],
                                             teams: value === TEAM_SELECTION_TYPE ? (slide.teams?.length ? slide.teams : getDefaultTeamSelectionTeams()) : [],
+                                            minContributionLength: value === STRUCTURAL_FORM_TYPE ? (slide.minContributionLength ?? STRUCTURAL_MIN_CONTRIBUTION_CHARS) : undefined,
+                                            transversalityOptions: value === STRUCTURAL_FORM_TYPE
+                                              ? (slide.transversalityOptions?.length ? slide.transversalityOptions : [...STRUCTURAL_TRANSVERSALITY_OPTIONS])
+                                              : [],
+                                            pillarOptions: value === STRUCTURAL_FORM_TYPE
+                                              ? (slide.pillarOptions?.length ? slide.pillarOptions : [...STRUCTURAL_PILLAR_OPTIONS])
+                                              : [],
                                           })}
                                           className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${isActive ? tAc.btn : tAc.btnOff}`}
                                         >
@@ -796,65 +964,131 @@ function Landing({ onCreate, onJoin, onEnterSaved, onDeleteSaved, onExportSaved,
                                   </div>
                                 )}
 
-                                {/* Team selection */}
-                                {slide.type === TEAM_SELECTION_TYPE && (
-                                  <div className="mt-3 space-y-1.5">
-                                    {(slide.teams ?? []).map((team, teamIndex) => (
-                                      <div
-                                        key={team.id ?? `${slide.id}-team-${teamIndex}`}
-                                        className="grid grid-cols-[minmax(0,1fr)_96px_auto] items-center gap-2"
-                                      >
-                                        <input
-                                          value={team.name}
-                                          onChange={(event) => {
-                                            updateSlide(slide.id, (s) => ({
-                                              ...s,
-                                              teams: (s.teams ?? []).map((item, i) => i === teamIndex ? { ...item, name: event.target.value } : item),
-                                            }))
-                                          }}
-                                          placeholder={`Time ${teamIndex + 1}`}
-                                          className={`w-full rounded-lg border-0 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset ${ac.ring}`}
-                                        />
-                                        <div className="relative">
+                                  {/* Team selection */}
+                                  {slide.type === TEAM_SELECTION_TYPE && (
+                                    <div className="mt-3 space-y-1.5">
+                                      {(slide.teams ?? []).map((team, teamIndex) => (
+                                        <div
+                                          key={team.id ?? `${slide.id}-team-${teamIndex}`}
+                                          className="grid grid-cols-[minmax(0,1fr)_96px_auto] items-center gap-2"
+                                        >
                                           <input
-                                            type="number"
-                                            min="1"
-                                            max={MAX_TEAM_CAPACITY}
-                                            inputMode="numeric"
-                                            value={team.capacity}
+                                            value={team.name}
                                             onChange={(event) => {
                                               updateSlide(slide.id, (s) => ({
                                                 ...s,
-                                                teams: (s.teams ?? []).map((item, i) => i === teamIndex ? { ...item, capacity: event.target.value } : item),
+                                                teams: (s.teams ?? []).map((item, i) => i === teamIndex ? { ...item, name: event.target.value } : item),
                                               }))
                                             }}
-                                            placeholder="Vagas"
-                                            className={`w-full rounded-lg border-0 bg-slate-50 px-3 py-2 pr-10 text-sm font-bold text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset ${ac.ring}`}
+                                            placeholder={`Time ${teamIndex + 1}`}
+                                            className={`w-full rounded-lg border-0 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset ${ac.ring}`}
                                           />
-                                          <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[10px] font-bold text-slate-400">vgs</span>
+                                          <div className="relative">
+                                            <input
+                                              type="number"
+                                              min="1"
+                                              max={MAX_TEAM_CAPACITY}
+                                              inputMode="numeric"
+                                              value={team.capacity}
+                                              onChange={(event) => {
+                                                updateSlide(slide.id, (s) => ({
+                                                  ...s,
+                                                  teams: (s.teams ?? []).map((item, i) => i === teamIndex ? { ...item, capacity: event.target.value } : item),
+                                                }))
+                                              }}
+                                              placeholder="Vagas"
+                                              className={`w-full rounded-lg border-0 bg-slate-50 px-3 py-2 pr-10 text-sm font-bold text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset ${ac.ring}`}
+                                            />
+                                            <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[10px] font-bold text-slate-400">vgs</span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => removeTeam(slide.id, teamIndex)}
+                                            disabled={(slide.teams ?? []).length <= 2}
+                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-all hover:bg-rose-50 hover:text-rose-500 disabled:opacity-25 disabled:hover:bg-transparent"
+                                            title="Remover time"
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </button>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => removeTeam(slide.id, teamIndex)}
-                                          disabled={(slide.teams ?? []).length <= 2}
-                                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-all hover:bg-rose-50 hover:text-rose-500 disabled:opacity-25 disabled:hover:bg-transparent"
-                                          title="Remover time"
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                      </div>
-                                    ))}
-                                    <button
-                                      type="button"
-                                      onClick={() => addTeam(slide.id)}
-                                      className={`mt-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${ac.badge} bg-opacity-60 hover:bg-opacity-100`}
-                                    >
-                                      <Plus className="h-3 w-3" /> Adicionar time
-                                    </button>
-                                  </div>
-                                )}
+                                      ))}
+                                      <button
+                                        type="button"
+                                        onClick={() => addTeam(slide.id)}
+                                        className={`mt-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${ac.badge} bg-opacity-60 hover:bg-opacity-100`}
+                                      >
+                                        <Plus className="h-3 w-3" /> Adicionar time
+                                      </button>
+                                    </div>
+                                  )}
 
-                                {/* Hint for word cloud / open text */}
+                                  {/* Structural form */}
+                                  {slide.type === STRUCTURAL_FORM_TYPE && (
+                                    <div className="mt-3 space-y-3">
+                                      <div className="rounded-lg bg-teal-50 px-4 py-3 text-xs font-medium text-teal-700 ring-1 ring-teal-200/50">
+                                        Os participantes preencherão nome, email, instituição, transversalidades, pilares e contribuição com mínimo de caracteres.
+                                      </div>
+                                      <div className="space-y-2">
+                                        <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                                          Transversalidades ({STRUCTURAL_TRANSVERSALITY_COUNT})
+                                        </p>
+                                        {(slide.transversalityOptions?.length
+                                          ? slide.transversalityOptions
+                                          : STRUCTURAL_TRANSVERSALITY_OPTIONS).map((option, optionIndex) => (
+                                          <div key={`${slide.id}-transv-${optionIndex}`} className="flex items-center gap-2">
+                                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded text-[11px] font-black ${ac.badge}`}>
+                                              {optionIndex + 1}
+                                            </span>
+                                            <input
+                                              value={option}
+                                              onChange={(event) =>
+                                                updateStructuralOption(slide.id, 'transversalityOptions', optionIndex, event.target.value)
+                                              }
+                                              placeholder={`Transversalidade ${optionIndex + 1}`}
+                                              className={`w-full rounded-lg border-0 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset ${ac.ring}`}
+                                            />
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <div className="space-y-2">
+                                        <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                                          Pilares ({STRUCTURAL_PILLAR_COUNT})
+                                        </p>
+                                        {(slide.pillarOptions?.length
+                                          ? slide.pillarOptions
+                                          : STRUCTURAL_PILLAR_OPTIONS).map((option, optionIndex) => (
+                                          <div key={`${slide.id}-pillar-${optionIndex}`} className="flex items-center gap-2">
+                                            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded text-[11px] font-black ${ac.badge}`}>
+                                              {optionIndex + 1}
+                                            </span>
+                                            <input
+                                              value={option}
+                                              onChange={(event) =>
+                                                updateStructuralOption(slide.id, 'pillarOptions', optionIndex, event.target.value)
+                                              }
+                                              placeholder={`Pilar ${optionIndex + 1}`}
+                                              className={`w-full rounded-lg border-0 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset ${ac.ring}`}
+                                            />
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Mín. caracteres (contribuição):</label>
+                                        <input
+                                          type="number"
+                                          min="10"
+                                          max="600"
+                                          value={slide.minContributionLength ?? STRUCTURAL_MIN_CONTRIBUTION_CHARS}
+                                          onChange={(event) => {
+                                            updateSlide(slide.id, { minContributionLength: Number(event.target.value) })
+                                          }}
+                                          className="w-24 rounded-lg border-0 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all focus:bg-white focus:ring-2 focus:ring-inset focus:ring-teal-500"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Hint for word cloud / open text */}
                                 {(slide.type === 'word_cloud' || slide.type === 'open_text') && (
                                   <p className={`mt-2.5 text-xs font-medium ${ac.hint}`}>
                                     {slide.type === 'word_cloud'
@@ -969,10 +1203,6 @@ function HostView({
     return buildTeamSelectionStats(currentSlide, responses)
   }, [currentSlide, responses])
 
-  const responseCount = currentSlide?.type === TEAM_SELECTION_TYPE
-    ? teamSelectionStats.reduce((total, team) => total + team.count, 0)
-    : responses.length
-
   const multipleChoiceStats = useMemo(() => {
     if (!currentSlide || currentSlide.type !== 'multiple_choice') return []
     const counts = new Map(currentSlide.options.map((option) => [option, 0]))
@@ -1018,6 +1248,32 @@ function HostView({
       }),
     }
   }, [currentSlide, responses])
+
+  const structuralFormResponses = useMemo(() => {
+    if (!currentSlide || currentSlide.type !== STRUCTURAL_FORM_TYPE) return []
+    const minChars = getStructuralMinChars(currentSlide)
+    const byParticipant = new Map()
+    responses.forEach((entry) => {
+      const validation = validateStructuralFormPayload(entry.value ?? {}, minChars, {
+        transversalityOptions: getStructuralTransversalityOptions(currentSlide),
+        pillarOptions: getStructuralPillarOptions(currentSlide),
+      })
+      if (!validation.isValid) return
+      byParticipant.set(entry.participantId ?? entry.id, {
+        id: entry.id,
+        participantId: entry.participantId,
+        ...validation.payload,
+      })
+    })
+    return Array.from(byParticipant.values())
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  }, [currentSlide, responses])
+
+  const responseCount = currentSlide?.type === TEAM_SELECTION_TYPE
+    ? teamSelectionStats.reduce((total, team) => total + team.count, 0)
+    : currentSlide?.type === STRUCTURAL_FORM_TYPE
+      ? structuralFormResponses.length
+      : responses.length
 
   return (
     <div className="relative min-h-screen overflow-hidden font-sans text-slate-900" style={{ backgroundColor: '#fafafa' }}>
@@ -1186,6 +1442,60 @@ function HostView({
                   </article>
                 )
               })}
+            </div>
+          )}
+
+          {currentSlide?.type === STRUCTURAL_FORM_TYPE && (
+            <div className="space-y-4 text-left">
+              {structuralFormResponses.length === 0 && (
+                <div className="mt-10 text-center text-2xl font-bold text-slate-400">
+                  Aguardando respostas...
+                </div>
+              )}
+              {structuralFormResponses.map((entry) => (
+                <article
+                  key={entry.id}
+                  className="rounded-[2rem] border border-white/50 bg-white/70 p-6 shadow-xl shadow-slate-200/50 backdrop-blur-md transition-all hover:-translate-y-1 hover:bg-white"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-teal-600 text-sm font-black text-white">
+                        {entry.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-lg font-black text-slate-900">{entry.name}</p>
+                        <p className="text-sm font-medium text-slate-500">{entry.email}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{entry.institution}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <p className="mb-1 text-xs font-black uppercase tracking-wider text-teal-600">Transversalidades</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {entry.transversalities.map((t) => (
+                          <span key={t} className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700 ring-1 ring-teal-200/50">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs font-black uppercase tracking-wider text-indigo-600">Pilares</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {entry.pillars.map((p) => (
+                          <span key={p} className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 ring-1 ring-indigo-200/50">
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200/50">
+                    <p className="text-sm font-semibold text-slate-800 leading-relaxed">{entry.contributions}</p>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
 
@@ -1410,10 +1720,20 @@ function HostView({
   )
 }
 
-function ParticipantView({ session, currentSlide, responses, participantResponse, onSubmit, onReact, sending }) {
+function ParticipantView({ session, currentSlide, responses, participantResponse, onSubmit, onReact, sending, participantName: initialParticipantName = '' }) {
   const [value, setValue] = useState('')
   const [hasSubmittedThisSlide, setHasSubmittedThisSlide] = useState(false)
   const [submittedValue, setSubmittedValue] = useState('')
+  const [localValidationError, setLocalValidationError] = useState('')
+
+  const [structuralForm, setStructuralForm] = useState({
+    name: '',
+    email: '',
+    institution: '',
+    transversalities: [],
+    pillars: [],
+    contributions: '',
+  })
 
   const teamSelectionStats = useMemo(() => {
     if (!currentSlide || currentSlide.type !== TEAM_SELECTION_TYPE) return []
@@ -1429,16 +1749,59 @@ function ParticipantView({ session, currentSlide, responses, participantResponse
 
     if (participantResponse) {
       setHasSubmittedThisSlide(true)
-      setSubmittedValue(participantResponse.value ?? '')
+      if (currentSlide?.type === STRUCTURAL_FORM_TYPE) {
+        const raw = participantResponse.value ?? {}
+        setSubmittedValue(raw.name ?? '')
+        setStructuralForm({
+          name: raw.name ?? '',
+          email: raw.email ?? '',
+          institution: raw.institution ?? '',
+          transversalities: Array.isArray(raw.transversalities) ? raw.transversalities : [],
+          pillars: Array.isArray(raw.pillars) ? raw.pillars : [],
+          contributions: raw.contributions ?? '',
+        })
+      } else {
+        setSubmittedValue(participantResponse.value ?? '')
+      }
       return
     }
 
     setHasSubmittedThisSlide(false)
     setSubmittedValue('')
-  }, [currentSlide?.id, currentSlide?.type, participantResponse])
+    if (currentSlide?.type === STRUCTURAL_FORM_TYPE) {
+      setStructuralForm({
+        name: initialParticipantName || '',
+        email: '',
+        institution: '',
+        transversalities: [],
+        pillars: [],
+        contributions: '',
+      })
+    }
+    setLocalValidationError('')
+  }, [currentSlide?.id, currentSlide?.type, participantResponse, initialParticipantName])
 
   const submit = async (event, predefinedValue) => {
     event?.preventDefault()
+
+    if (currentSlide?.type === STRUCTURAL_FORM_TYPE) {
+      const minChars = getStructuralMinChars(currentSlide)
+      const validation = validateStructuralFormPayload(structuralForm, minChars, {
+        transversalityOptions: getStructuralTransversalityOptions(currentSlide),
+        pillarOptions: getStructuralPillarOptions(currentSlide),
+      })
+      if (!validation.isValid) {
+        setLocalValidationError(validation.error)
+        return
+      }
+      setLocalValidationError('')
+      const didSubmit = await onSubmit(validation.payload)
+      if (!didSubmit) return
+      setHasSubmittedThisSlide(true)
+      setSubmittedValue(validation.payload.name)
+      return
+    }
+
     const finalValue = predefinedValue ?? value
     if (!finalValue.trim()) return
 
@@ -1448,6 +1811,17 @@ function ParticipantView({ session, currentSlide, responses, participantResponse
     setHasSubmittedThisSlide(true)
     setSubmittedValue(finalValue)
     if (!predefinedValue) setValue('')
+  }
+
+  const toggleStructuralOption = (field, option) => {
+    setStructuralForm((prev) => {
+      const current = prev[field]
+      const next = current.includes(option)
+        ? current.filter((item) => item !== option)
+        : [...current, option]
+      return { ...prev, [field]: next }
+    })
+    setLocalValidationError('')
   }
 
   const showSubmittedState = currentSlide?.type !== 'word_cloud' && hasSubmittedThisSlide
@@ -1487,6 +1861,17 @@ function ParticipantView({ session, currentSlide, responses, participantResponse
                 <h3 className="mt-3 text-3xl font-black tracking-tight">{submittedValue}</h3>
                 <p className="mt-3 text-lg font-medium text-cyan-50">
                   Sua escolha foi registrada. O apresentador já consegue ver em qual clube você está.
+                </p>
+              </div>
+            ) : currentSlide?.type === STRUCTURAL_FORM_TYPE ? (
+              <div className="mt-12 flex flex-col items-center justify-center rounded-[2rem] bg-gradient-to-br from-teal-500 to-emerald-600 p-10 text-center text-white shadow-xl shadow-teal-500/25">
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/15 backdrop-blur-md">
+                  <ClipboardList className="h-10 w-10 text-white" />
+                </div>
+                <p className="text-sm font-black uppercase tracking-[0.28em] text-teal-100">formulário enviado</p>
+                <h3 className="mt-3 text-3xl font-black tracking-tight">Obrigado, {submittedValue}!</h3>
+                <p className="mt-3 text-lg font-medium text-teal-50">
+                  Suas respostas foram registradas com sucesso.
                 </p>
               </div>
             ) : (
@@ -1610,6 +1995,154 @@ function ParticipantView({ session, currentSlide, responses, participantResponse
                         {sending ? 'Enviando...' : 'Enviar Resposta'}
                       </button>
                     </div>
+                  </div>
+                </form>
+              )}
+
+              {currentSlide?.type === STRUCTURAL_FORM_TYPE && (
+                <form onSubmit={submit} className="space-y-4">
+                  <div className="rounded-[2rem] bg-white p-6 shadow-xl shadow-slate-200/50 ring-1 ring-slate-100">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="mb-1 block text-xs font-black uppercase tracking-wider text-slate-500">
+                          Nome <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <UserCircle className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            value={structuralForm.name}
+                            onChange={(e) => { setStructuralForm((p) => ({ ...p, name: e.target.value })); setLocalValidationError('') }}
+                            placeholder="Seu nome completo"
+                            className="w-full rounded-xl border-0 bg-slate-50 py-3.5 pl-12 pr-4 text-base font-semibold text-slate-800 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-teal-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-black uppercase tracking-wider text-slate-500">
+                          Email <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="email"
+                            value={structuralForm.email}
+                            onChange={(e) => { setStructuralForm((p) => ({ ...p, email: e.target.value })); setLocalValidationError('') }}
+                            placeholder="seu@email.com"
+                            className="w-full rounded-xl border-0 bg-slate-50 py-3.5 pl-12 pr-4 text-base font-semibold text-slate-800 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-teal-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-black uppercase tracking-wider text-slate-500">
+                          Instituição <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Building2 className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            value={structuralForm.institution}
+                            onChange={(e) => { setStructuralForm((p) => ({ ...p, institution: e.target.value })); setLocalValidationError('') }}
+                            placeholder="Nome da instituição"
+                            className="w-full rounded-xl border-0 bg-slate-50 py-3.5 pl-12 pr-4 text-base font-semibold text-slate-800 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-teal-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                          Transversalidade Estrutural <span className="text-rose-500">*</span>
+                        </label>
+                        <p className="mb-2 text-xs text-slate-400">Selecione uma ou mais opções</p>
+                        <div className="space-y-2">
+                          {getStructuralTransversalityOptions(currentSlide).map((opt) => {
+                            const selected = structuralForm.transversalities.includes(opt)
+                            return (
+                              <label
+                                key={opt}
+                                className={`flex cursor-pointer items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+                                  selected
+                                    ? 'bg-teal-500 text-white shadow-md shadow-teal-200'
+                                    : 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-teal-50 hover:ring-teal-300'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => toggleStructuralOption('transversalities', opt)}
+                                  className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-teal-500"
+                                />
+                                <span>{opt}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">
+                          Pilares <span className="text-rose-500">*</span>
+                        </label>
+                        <p className="mb-2 text-xs text-slate-400">Selecione um ou mais pilares</p>
+                        <div className="space-y-2">
+                          {getStructuralPillarOptions(currentSlide).map((opt) => {
+                            const selected = structuralForm.pillars.includes(opt)
+                            return (
+                              <label
+                                key={opt}
+                                className={`flex cursor-pointer items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+                                  selected
+                                    ? 'bg-indigo-500 text-white shadow-md shadow-indigo-200'
+                                    : 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-indigo-50 hover:ring-indigo-300'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => toggleStructuralOption('pillars', opt)}
+                                  className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-indigo-500"
+                                />
+                                <span>{opt}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-black uppercase tracking-wider text-slate-500">
+                          Contribuição <span className="text-rose-500">*</span>
+                        </label>
+                        <textarea
+                          value={structuralForm.contributions}
+                          onChange={(e) => { setStructuralForm((p) => ({ ...p, contributions: e.target.value })); setLocalValidationError('') }}
+                          placeholder={`Escreva sua contribuição (mín. ${getStructuralMinChars(currentSlide)} caracteres)`}
+                          maxLength={STRUCTURAL_MAX_CONTRIBUTION_CHARS}
+                          rows={4}
+                          className="h-36 w-full resize-none rounded-xl border-0 bg-slate-50 px-4 py-3 text-base font-medium text-slate-800 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-teal-500"
+                        />
+                        <div className="mt-1 flex items-center justify-between text-xs font-medium text-slate-400">
+                          <span>
+                            {structuralForm.contributions.trim().length} / {getStructuralMinChars(currentSlide)} mín.
+                          </span>
+                          <span>{STRUCTURAL_MAX_CONTRIBUTION_CHARS} máx.</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {localValidationError && (
+                      <div className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600 ring-1 ring-rose-200">
+                        {localValidationError}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={sending}
+                      className="mt-4 w-full rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 px-6 py-4 text-base font-black text-white shadow-lg shadow-teal-500/30 transition-all hover:-translate-y-0.5 hover:shadow-xl disabled:pointer-events-none disabled:opacity-60"
+                    >
+                      {sending ? 'Enviando...' : 'Enviar Formulário'}
+                    </button>
                   </div>
                 </form>
               )}
@@ -2010,8 +2543,44 @@ export default function App() {
   }
 
   const submitResponse = async (value) => {
+    if (!session || !currentSlide) return false
+
+    if (currentSlide.type === STRUCTURAL_FORM_TYPE) {
+      setSending(true)
+      setError('')
+      try {
+        const minChars = getStructuralMinChars(currentSlide)
+        const validation = validateStructuralFormPayload(value, minChars, {
+          transversalityOptions: getStructuralTransversalityOptions(currentSlide),
+          pillarOptions: getStructuralPillarOptions(currentSlide),
+        })
+
+        if (!validation.isValid) {
+          setError(validation.error)
+          return false
+        }
+
+        const payload = validation.payload
+        await addDoc(collection(db, 'sessions', session.code, 'responses'), {
+          participantId,
+          participantName: payload.name,
+          email: payload.email,
+          slideId: currentSlide.id,
+          type: currentSlide.type,
+          value: payload,
+          createdAt: serverTimestamp(),
+        })
+        return true
+      } catch {
+        setError('Não foi possível enviar o formulário.')
+        return false
+      } finally {
+        setSending(false)
+      }
+    }
+
     const finalValue = normalizeText(value ?? '')
-    if (!finalValue || !session || !currentSlide) return
+    if (!finalValue || !session || !currentSlide) return false
 
     setSending(true)
     setError('')
@@ -2205,6 +2774,7 @@ export default function App() {
           onSubmit={submitResponse}
           onReact={sendReaction}
           sending={sending}
+          participantName={participantName}
         />
       )}
 
