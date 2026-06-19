@@ -6,7 +6,7 @@ service cloud.firestore {
     }
 
     function isSlideType(value) {
-      return value in ['multiple_choice', 'word_cloud', 'open_text', 'team_selection'];
+      return value in ['multiple_choice', 'word_cloud', 'open_text', 'team_selection', 'structural_form'];
     }
 
     function isValidSessionCode(value) {
@@ -69,30 +69,41 @@ service cloud.firestore {
         && request.resource.data.updatedAt is timestamp;
     }
 
-    function isValidResponse(responseId) {
-      return request.resource.data.keys().hasOnly([
-          'participantId',
-          'participantName',
-          'slideId',
-          'type',
-          'value',
-          'createdAt'
-        ])
-        && request.resource.data.keys().hasAll([
-          'participantId',
-          'participantName',
-          'slideId',
-          'type',
-          'value',
-          'createdAt'
-        ])
-        && isString(request.resource.data.participantId, 8, 80)
-        && isString(request.resource.data.participantName, 1, 40)
-        && isString(request.resource.data.slideId, 1, 80)
-        && isSlideType(request.resource.data.type)
-        && isString(request.resource.data.value, 1, 220)
-        && request.resource.data.createdAt is timestamp;
+    function isStringList(value, minItems, maxItems) {
+      return value is list
+        && value.size() >= minItems
+        && value.size() <= maxItems;
     }
+
+  function isValidResponse(responseId) {
+  return request.resource.data.keys().hasAll([
+      'participantId',
+      'participantName',
+      'slideId',
+      'type',
+      'value',
+      'createdAt'
+    ])
+    && request.resource.data.keys().hasOnly([
+      'participantId',
+      'participantName',
+      'slideId',
+      'type',
+      'value',
+      'createdAt',
+      'email'
+    ])
+    && isString(request.resource.data.participantId, 8, 80)
+    && isString(request.resource.data.participantName, 1, 120)
+    && isString(request.resource.data.slideId, 1, 80)
+    && isSlideType(request.resource.data.type)
+    && request.resource.data.createdAt is timestamp
+    && (
+      (request.resource.data.type == 'structural_form' && request.resource.data.value is map)
+      ||
+      (request.resource.data.type != 'structural_form' && isString(request.resource.data.value, 1, 220))
+    );
+}
 
     function isValidReaction() {
       return request.resource.data.keys().hasOnly([
