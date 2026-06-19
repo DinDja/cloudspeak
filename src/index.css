@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  --cs-canvas: #f4f7fb;
+  --cs-fg: #0f172a;
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -23,24 +25,116 @@ body,
 
 body {
   min-height: 100vh;
-  background: #020617;
+  background: var(--cs-canvas);
+  color: var(--cs-fg);
 }
 
-@keyframes floatUp {
-  0% {
-    transform: translateY(120px) scale(0.7);
-    opacity: 0;
-  }
-  20% {
-    transform: translateY(0) scale(1.05);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-380px) scale(0.9);
-    opacity: 0;
+@layer base {
+  ::selection {
+    background: rgba(11, 95, 174, 0.18);
   }
 }
 
+@layer utilities {
+  .cs-fade-in {
+    animation: fade-in 0.5s ease-out both;
+  }
+  .cs-slide-up {
+    animation: slide-up 0.5s ease-out both;
+  }
+  .cs-slide-down {
+    animation: slide-down 0.4s ease-out both;
+  }
+  .cs-scale-in {
+    animation: scale-in 0.35s ease-out both;
+  }
+  .cs-scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+  }
+  .cs-scroll-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .cs-scroll-thin::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.45);
+    border-radius: 9999px;
+  }
+  .cs-scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .cs-text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Reações flutuantes (host) — extraídas do antigo inline <style> */
 .animate-float-up {
-  animation: floatUp 2.8s ease-out forwards;
+  animation: float-up 4.2s ease-out forwards;
+}
+
+.reaction-pop-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  border-radius: 9999px;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+  animation: pop-burst 4.2s ease-out forwards;
+}
+
+.reaction-pop-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 3px;
+  margin-left: -4px;
+  margin-top: -1.5px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.98);
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+  animation: pop-spark 4.2s ease-out forwards;
+}
+
+.reaction-pop-spark-1 {
+  --spark-end: translate(-22px, -14px) rotate(-25deg);
+  --spark-fade: translate(-34px, -22px) rotate(-25deg);
+}
+.reaction-pop-spark-2 {
+  --spark-end: translate(20px, -17px) rotate(18deg);
+  --spark-fade: translate(32px, -27px) rotate(18deg);
+}
+.reaction-pop-spark-3 {
+  --spark-end: translate(-16px, 18px) rotate(148deg);
+  --spark-fade: translate(-28px, 30px) rotate(148deg);
+}
+.reaction-pop-spark-4 {
+  --spark-end: translate(18px, 16px) rotate(36deg);
+  --spark-fade: translate(30px, 28px) rotate(36deg);
+}
+
+@keyframes float-up {
+  0% { transform: translateY(100px) scale(0.5); opacity: 0; }
+  12% { opacity: 1; transform: translateY(40px) scale(1.2); }
+  38% { transform: translateY(-220px) scale(1) rotate(6deg); }
+  62% { transform: translateY(-460px) scale(1.1) rotate(-6deg); }
+  80% { transform: translateY(-620px) scale(1.2) rotate(10deg); opacity: 1; }
+  88% { transform: translateY(-760px) scale(1.1) rotate(14deg); opacity: 1; }
+  93% { transform: translateY(-780px) scale(1.9) rotate(16deg); opacity: 1; }
+  100% { transform: translateY(-790px) scale(0.08) rotate(16deg); opacity: 0; }
+}
+
+@keyframes pop-burst {
+  0%, 88% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  92% { opacity: 0.95; transform: translate(-50%, -50%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.85); }
+}
+
+@keyframes pop-spark {
+  0%, 89% { opacity: 0; transform: translate(0, 0) scale(0.2); }
+  93% { opacity: 1; transform: var(--spark-end) scale(1); }
+  100% { opacity: 0; transform: var(--spark-fade) scale(0.2); }
 }

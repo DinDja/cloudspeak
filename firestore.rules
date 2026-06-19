@@ -1,192 +1,185 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function isString(value, min, max) {
       return value is string && value.size() >= min && value.size() <= max;
     }
 
     function isSlideType(value) {
-      return value in ['multiple_choice', 'word_cloud', 'open_text', 'team_selection', 'structural_form'];
+      return value in ['multiple_choice', 'word_cloud', 'open_text', 'team_selection'];
     }
 
     function isValidSessionCode(value) {
       return value is string && value.matches('^[A-Z0-9]{6}$');
     }
 
+    function isSectiDomain(email) {
+      return email is string && email.matches('.*@secti\\.ba\\.gov\\.br$');
+    }
+
+    function isSectiUser() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && isSectiDomain(request.auth.token.email);
+    }
+
+    function matchesAuthUser(ownerUid, ownerEmail) {
+      return ownerUid == request.auth.uid
+        && ownerEmail == request.auth.token.email;
+    }
+
+    // Validação de envelope dos slides (validação profunda por slide fica no app).
+    function isValidSlides(slides) {
+      return slides is list && slides.size() > 0 && slides.size() <= 20;
+    }
+
+    function sessionOwner(code) {
+      return isSectiUser()
+        && get(/databases/$(database)/documents/sessions/$(code)).data.ownerUid == request.auth.uid;
+    }
+
+    // ---------- Apresentações (decks salvos e editáveis) ----------
+    match /presentations/{presentationId} {
+      allow read: if isSectiUser() && resource.data.ownerUid == request.auth.uid;
+
+      allow create: if isSectiUser()
+        && request.resource.data.keys().hasOnly(['title', 'slides', 'ownerUid', 'ownerEmail', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['title', 'slides', 'ownerUid', 'ownerEmail', 'createdAt', 'updatedAt'])
+        && matchesAuthUser(request.resource.data.ownerUid, request.resource.data.ownerEmail)
+        && isString(request.resource.data.title, 1, 120)
+        && isValidSlides(request.resource.data.slides)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+
+      allow update: if isSectiUser()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['title', 'slides', 'ownerUid', 'ownerEmail', 'createdAt', 'updatedAt'])
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.ownerEmail == resource.data.ownerEmail
+        && request.resource.data.createdAt == resource.data.createdAt
+        && isString(request.resource.data.title, 1, 120)
+        && isValidSlides(request.resource.data.slides)
+        && request.resource.data.updatedAt is timestamp;
+
+      allow delete: if isSectiUser() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // ---------- Sessões ao vivo ----------
     function isSessionCreate() {
       return request.resource.data.keys().hasOnly([
-          'code',
-          'title',
-          'status',
-          'createdAt',
-          'updatedAt',
-          'currentSlideIndex',
-          'slides'
+          'code', 'title', 'status', 'slides', 'currentSlideIndex',
+          'ownerUid', 'ownerEmail', 'presentationId',
+          'createdAt', 'launchedAt', 'updatedAt'
         ])
         && request.resource.data.keys().hasAll([
-          'code',
-          'title',
-          'status',
-          'createdAt',
-          'updatedAt',
-          'currentSlideIndex',
-          'slides'
+          'code', 'title', 'status', 'slides', 'currentSlideIndex',
+          'ownerUid', 'ownerEmail', 'createdAt', 'launchedAt', 'updatedAt'
         ])
         && isValidSessionCode(request.resource.data.code)
+        && request.resource.data.code == sessionCode
         && isString(request.resource.data.title, 1, 120)
-        && request.resource.data.status in ['live', 'ended']
-        && request.resource.data.createdAt is timestamp
-        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.status == 'live'
+        && isValidSlides(request.resource.data.slides)
         && request.resource.data.currentSlideIndex is int
-        && request.resource.data.currentSlideIndex >= 0
-        && request.resource.data.slides is list
-        && request.resource.data.slides.size() > 0
-        && request.resource.data.slides.size() <= 20;
+        && request.resource.data.currentSlideIndex == 0
+        && matchesAuthUser(request.resource.data.ownerUid, request.resource.data.ownerEmail)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.launchedAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && (!request.resource.data.keys().hasAll(['presentationId'])
+            || request.resource.data.presentationId is null
+            || isString(request.resource.data.presentationId, 1, 80));
     }
 
     function isSessionUpdate() {
-      // Allow advancing a session to 'ended' (to allow cleanup) but otherwise keep the core payload stable.
       return request.resource.data.keys().hasOnly([
-          'code',
-          'title',
-          'status',
-          'createdAt',
-          'updatedAt',
-          'currentSlideIndex',
-          'slides'
+          'code', 'title', 'status', 'slides', 'currentSlideIndex',
+          'ownerUid', 'ownerEmail', 'presentationId',
+          'createdAt', 'launchedAt', 'updatedAt'
         ])
         && request.resource.data.code == resource.data.code
         && request.resource.data.title == resource.data.title
-        && (
-          request.resource.data.status == resource.data.status
-          || (resource.data.status == 'live' && request.resource.data.status == 'ended')
-        )
-        && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.slides == resource.data.slides
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.ownerEmail == resource.data.ownerEmail
+        && request.resource.data.presentationId == resource.data.presentationId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.launchedAt == resource.data.launchedAt
         && request.resource.data.currentSlideIndex is int
         && request.resource.data.currentSlideIndex >= 0
         && request.resource.data.currentSlideIndex < resource.data.slides.size()
+        && (request.resource.data.status == resource.data.status
+            || (resource.data.status == 'live' && request.resource.data.status == 'ended'))
         && request.resource.data.updatedAt is timestamp;
     }
 
-    function isStringList(value, minItems, maxItems) {
-      return value is list
-        && value.size() >= minItems
-        && value.size() <= maxItems;
-    }
-
-  function isValidResponse(responseId) {
-  return request.resource.data.keys().hasAll([
-      'participantId',
-      'participantName',
-      'slideId',
-      'type',
-      'value',
-      'createdAt'
-    ])
-    && request.resource.data.keys().hasOnly([
-      'participantId',
-      'participantName',
-      'slideId',
-      'type',
-      'value',
-      'createdAt',
-      'email'
-    ])
-    && isString(request.resource.data.participantId, 8, 80)
-    && isString(request.resource.data.participantName, 1, 120)
-    && isString(request.resource.data.slideId, 1, 80)
-    && isSlideType(request.resource.data.type)
-    && request.resource.data.createdAt is timestamp
-    && (
-      (request.resource.data.type == 'structural_form' && request.resource.data.value is map)
-      ||
-      (request.resource.data.type != 'structural_form' && isString(request.resource.data.value, 1, 220))
-    );
-}
-
-    function isValidReaction() {
-      return request.resource.data.keys().hasOnly([
-          'type',
-          'left',
-          'participantId',
-          'createdAt'
-        ])
-        && request.resource.data.keys().hasAll([
-          'type',
-          'left',
-          'participantId',
-          'createdAt'
-        ])
-        && request.resource.data.type in ['heart', 'thumb', 'question']
-        && request.resource.data.left is int
-        && request.resource.data.left >= 0
-        && request.resource.data.left <= 100
-        && isString(request.resource.data.participantId, 8, 80)
-        && request.resource.data.createdAt is timestamp;
-    }
-
-    function isValidParticipantPresenceCreate(participantId) {
-      return request.resource.data.keys().hasOnly([
-          'participantId',
-          'participantName',
-          'joinedAt',
-          'lastSeenAt'
-        ])
-        && request.resource.data.keys().hasAll([
-          'participantId',
-          'participantName',
-          'joinedAt',
-          'lastSeenAt'
-        ])
-        && request.resource.data.participantId == participantId
-        && isString(request.resource.data.participantName, 1, 40)
-        && request.resource.data.joinedAt is timestamp
-        && request.resource.data.lastSeenAt is timestamp;
-    }
-
-    function isValidParticipantPresenceUpdate(participantId) {
-      return request.resource.data.keys().hasOnly([
-          'participantId',
-          'participantName',
-          'joinedAt',
-          'lastSeenAt'
-        ])
-        && request.resource.data.participantId == participantId
-        && request.resource.data.participantId == resource.data.participantId
-        && request.resource.data.joinedAt == resource.data.joinedAt
-        && isString(request.resource.data.participantName, 1, 40)
-        && request.resource.data.lastSeenAt is timestamp;
-    }
-
-    function isOldTimestamp(ts) {
-      return ts is timestamp && ts < request.time - duration.value(1, 'd');
-    }
-
     match /sessions/{sessionCode} {
-      allow read: if true;
-      allow create: if isValidSessionCode(sessionCode) && request.resource.data.code == sessionCode && isSessionCreate();
-      allow update: if isSessionUpdate();
-      allow delete: if isValidSessionCode(sessionCode);
+      allow read: if resource.data.status == 'live'
+        || (isSectiUser() && resource.data.ownerUid == request.auth.uid);
+      allow create: if isSectiUser() && isSessionCreate();
+      allow update: if isSectiUser() && resource.data.ownerUid == request.auth.uid && isSessionUpdate();
+      allow delete: if isSectiUser() && resource.data.ownerUid == request.auth.uid;
+
+      function isValidResponse() {
+        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'slideId', 'type', 'value', 'createdAt'])
+          && request.resource.data.keys().hasAll(['participantId', 'participantName', 'slideId', 'type', 'value', 'createdAt'])
+          && isString(request.resource.data.participantId, 8, 80)
+          && isString(request.resource.data.participantName, 1, 40)
+          && isString(request.resource.data.slideId, 1, 80)
+          && isSlideType(request.resource.data.type)
+          && isString(request.resource.data.value, 1, 220)
+          && request.resource.data.createdAt is timestamp;
+      }
+
       match /responses/{responseId} {
         allow read: if true;
-        allow create: if isValidSessionCode(sessionCode) && isValidResponse(responseId);
+        allow create: if isValidSessionCode(sessionCode) && isValidResponse();
         allow update: if false;
-        allow delete: if isValidSessionCode(sessionCode);
+        allow delete: if sessionOwner(sessionCode);
+      }
+
+      function isValidReaction() {
+        return request.resource.data.keys().hasOnly(['type', 'left', 'participantId', 'createdAt'])
+          && request.resource.data.keys().hasAll(['type', 'left', 'participantId', 'createdAt'])
+          && request.resource.data.type in ['heart', 'thumb', 'question']
+          && request.resource.data.left is int
+          && request.resource.data.left >= 0
+          && request.resource.data.left <= 100
+          && isString(request.resource.data.participantId, 8, 80)
+          && request.resource.data.createdAt is timestamp;
       }
 
       match /reactions/{reactionId} {
         allow read: if true;
         allow create: if isValidSessionCode(sessionCode) && isValidReaction();
         allow update: if false;
-        allow delete: if isValidSessionCode(sessionCode);
+        allow delete: if sessionOwner(sessionCode);
+      }
+
+      function isValidParticipantPresenceCreate(participantId) {
+        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'joinedAt', 'lastSeenAt'])
+          && request.resource.data.keys().hasAll(['participantId', 'participantName', 'joinedAt', 'lastSeenAt'])
+          && request.resource.data.participantId == participantId
+          && isString(request.resource.data.participantName, 1, 40)
+          && request.resource.data.joinedAt is timestamp
+          && request.resource.data.lastSeenAt is timestamp;
+      }
+
+      function isValidParticipantPresenceUpdate(participantId) {
+        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'joinedAt', 'lastSeenAt'])
+          && request.resource.data.participantId == participantId
+          && request.resource.data.participantId == resource.data.participantId
+          && request.resource.data.joinedAt == resource.data.joinedAt
+          && isString(request.resource.data.participantName, 1, 40)
+          && request.resource.data.lastSeenAt is timestamp;
       }
 
       match /participants/{participantId} {
         allow read: if true;
         allow create: if isValidSessionCode(sessionCode) && isValidParticipantPresenceCreate(participantId);
         allow update: if isValidSessionCode(sessionCode) && isValidParticipantPresenceUpdate(participantId);
-        allow delete: if isValidSessionCode(sessionCode);
+        allow delete: if sessionOwner(sessionCode);
       }
     }
   }
