@@ -2,7 +2,7 @@ import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged, reload } from 'firebase/auth'
 import { auth } from '../../firebase'
 import { isSectiEmail } from '../lib/validators'
-import { resendVerification, signIn, signOutUser, signUp } from '../lib/firebaseAuth'
+import { resendVerification, signIn, signInWithGoogle, signOutUser, signUp } from '../lib/firebaseAuth'
 
 const AuthContext = createContext(null)
 
@@ -26,6 +26,11 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     const u = await signIn(email, password)
     if (!u.emailVerified) setStatus('unverified')
+    return u
+  }, [])
+
+  const loginWithGoogle = useCallback(async () => {
+    const u = await signInWithGoogle()
     return u
   }, [])
 
@@ -60,12 +65,13 @@ export function AuthProvider({ children }) {
       displayName: user?.displayName ?? null,
       uid: user?.uid ?? null,
       login,
+      loginWithGoogle,
       register,
       logout,
       resend,
       refresh,
     }),
-    [user, status, login, register, logout, resend, refresh],
+    [user, status, login, loginWithGoogle, register, logout, resend, refresh],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

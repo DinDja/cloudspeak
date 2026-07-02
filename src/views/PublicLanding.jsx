@@ -1,94 +1,124 @@
-import { useState } from 'react'
-import { KeyRound, Play, Loader2, ArrowRight, ShieldCheck } from 'lucide-react'
-import Logo from '../components/ui/Logo'
-import SectiMark from '../components/ui/SectiMark'
-import WaveBackground from '../components/ui/WaveBackground'
+import { useState, useEffect } from 'react'
 import { isValidSessionCode } from '../lib/validators'
+import Logo from '../components/ui/Logo'
+import { IconKey, IconLock, IconUser } from '../components/icons/Icons'
 
 export default function PublicLanding({ initialCode = '', onJoin, onPresenterLogin, loading, error }) {
   const [code, setCode] = useState(initialCode)
   const [name, setName] = useState('')
-
   const canJoin = isValidSessionCode(code.trim())
+
+  useEffect(() => {
+    if (initialCode) setCode(initialCode)
+  }, [initialCode])
 
   const submit = (event) => {
     event.preventDefault()
-    if (!canJoin) return
+    if (!canJoin || loading) return
     onJoin(name, code.trim())
   }
 
   return (
-    <div className="relative min-h-[100dvh] overflow-hidden font-sans text-slate-900">
-      <WaveBackground variant="light" />
+    <div
+      className="cs-grid relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#F4F4F0] px-4 py-8"
+      style={{ background: `url(/Group.svg) no-repeat left center / 50%, url(/brasao-bahia.png) no-repeat right 24px bottom 24px / 150px auto, #F4F4F0` }}
+    >
+      <div className="absolute left-6 top-6">
+        <Logo size="sm" />
+      </div>
 
-      <div className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md cs-slide-up">
-          <div className="mb-8 flex flex-col items-center text-center">
-            <Logo size="lg" />
-            <p className="mt-4 max-w-xs text-sm font-semibold text-slate-500">
-              Plataforma de apresentações interativas da SECTI.
-            </p>
-          </div>
+      <div className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-black uppercase tracking-tighter text-[#09090B]">
+            Entrar na sessão
+          </h1>
+          <p className="mt-2 text-sm font-bold uppercase tracking-widest text-[#09090B]/70">
+            Digite o código exibido na tela
+          </p>
+        </div>
 
-          <form
-            onSubmit={submit}
-            className="rounded-5xl bg-white/85 p-7 shadow-float ring-1 ring-white/60 backdrop-blur-xl sm:p-8"
-          >
-            <p className="mb-6 text-center text-base font-bold text-slate-700">
-              Entre na apresentação pelo código exibido na tela.
-            </p>
-
-            <div className="space-y-3">
-              <div className="relative">
-                <KeyRound className="pointer-events-none absolute inset-y-0 left-4 my-auto h-5 w-5 text-slate-400" />
-                <input
-                  value={code}
-                  onChange={(event) => setCode(event.target.value.toUpperCase())}
-                  placeholder="Código da sala"
-                  inputMode="text"
-                  autoCapitalize="characters"
-                  className="w-full rounded-2xl border-0 bg-slate-50 py-4 pl-12 pr-4 text-center text-2xl font-black tracking-[0.3em] text-slate-900 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:font-medium placeholder:tracking-normal placeholder:text-slate-300 focus:bg-white focus:ring-2 focus:ring-brand-600"
-                />
+        <form 
+          onSubmit={submit} 
+          className="cs-card space-y-6 p-6"
+        >
+          <div>
+            <label className="mb-2 ml-1 block text-xs font-black uppercase tracking-widest text-[#09090B]">
+              Código da sala
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-4 my-auto flex items-center text-[#09090B]">
+                <IconKey className="h-6 w-6" strokeWidth={2.5} />
               </div>
-              <div className="relative">
-                <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Seu nome (opcional)"
-                  maxLength={40}
-                  className="w-full rounded-2xl border-0 bg-slate-50 py-3.5 px-4 text-base font-medium text-slate-900 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-brand-600"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading || !canJoin}
-                className="mt-2 flex w-full items-center justify-center gap-2.5 rounded-2xl bg-brand-gradient py-4 text-lg font-black text-white shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-float active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Play className="h-5 w-5 fill-current" />}
-                Entrar na Sessão
-              </button>
+              <input
+                value={code}
+                onChange={(event) => setCode(event.target.value.toUpperCase())}
+                placeholder="EX: 4F9K2A"
+                inputMode="text"
+                autoCapitalize="characters"
+                className="cs-input-base w-full pl-14 text-center text-2xl tracking-[0.3em]"
+                maxLength={6}
+              />
             </div>
-
-            {error && (
-              <p className="mt-4 rounded-xl bg-rose-50 px-4 py-2.5 text-center text-sm font-bold text-rose-600">
-                {error}
-              </p>
-            )}
-          </form>
-
-          <div className="mt-6 flex flex-col items-center gap-4">
-            <button
-              type="button"
-              onClick={onPresenterLogin}
-              className="group inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 transition-colors hover:text-brand-600"
-            >
-              <ShieldCheck className="h-4 w-4 text-slate-400 transition-colors group-hover:text-brand-500" />
-              Sou apresentador
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </button>
-
-            <SectiMark height="h-8" className="opacity-70" />
           </div>
+
+          <div>
+            <label className="mb-2 ml-1 block text-xs font-black uppercase tracking-widest text-[#09090B]">
+              Seu nome (opcional)
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-4 my-auto flex items-center text-[#09090B]">
+                <IconUser className="h-6 w-6" strokeWidth={2.5} />
+              </div>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="COMO DEVEMOS TE CHAMAR?"
+                maxLength={40}
+                className="cs-input-base w-full pl-14 uppercase"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || !canJoin}
+            className="cs-btn-base h-14 w-full gap-2 text-base !bg-[#E2FF32] !text-[#09090B] disabled:translate-x-0 disabled:translate-y-0 disabled:opacity-50 disabled:shadow-[5px_5px_0px_0px_#09090B]"
+          >
+            {loading ? (
+              <>
+                <svg className="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="4" strokeOpacity="0.25" />
+                  <path d="M21 12a9 9 0 01-9 9" stroke="currentColor" strokeWidth="4" strokeLinecap="square" />
+                </svg>
+                ENTRANDO…
+              </>
+            ) : (
+              'ENTRAR NA SESSÃO'
+            )}
+          </button>
+
+          {error && (
+            <p className="border-[3px] border-[#09090B] bg-[#FF0055] px-4 py-3 text-center text-sm font-black uppercase tracking-wide text-white shadow-[4px_4px_0px_0px_#09090B]">
+              {error}
+            </p>
+          )}
+        </form>
+
+        <div className="mt-8 text-center">
+          <button
+            type="button"
+            onClick={onPresenterLogin}
+            className="inline-flex items-center gap-2 border-[3px] border-transparent px-4 py-2 text-sm font-black uppercase tracking-widest text-[#09090B] transition-none hover:border-[#09090B] hover:bg-[#E2FF32] hover:shadow-[4px_4px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          >
+            <IconLock className="h-5 w-5" strokeWidth={2.5} />
+            Sou apresentador
+          </button>
+        </div>
+
+        <div className="mt-8 text-center">
+          <p className="inline-block bg-[#09090B] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#F4F4F0]">
+            Sistema interno SECTI · Uso restrito
+          </p>
         </div>
       </div>
     </div>

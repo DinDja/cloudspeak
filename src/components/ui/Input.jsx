@@ -12,7 +12,7 @@ export default function Input({
   return (
     <div className={['w-full', containerClassName].join(' ')}>
       {label && (
-        <label htmlFor={inputId} className="mb-2 block text-sm font-bold text-slate-700">
+        <label htmlFor={inputId} className="mb-2 block text-xs font-black uppercase tracking-widest text-[#09090B]">
           {label}
         </label>
       )}
@@ -25,19 +25,18 @@ export default function Input({
         <input
           id={inputId}
           className={[
-            'w-full rounded-2xl border-0 bg-slate-50 py-4 text-base font-medium text-slate-900 outline-none ring-1 ring-inset transition-all',
-            'placeholder:text-slate-400 focus:bg-white focus:ring-2',
+            'w-full border-[3px] border-[#09090B] bg-white py-3.5 text-base font-bold text-slate-900 outline-none transition-all duration-100 placeholder:text-slate-500 placeholder:font-medium shadow-[4px_4px_0px_0px_#09090B] focus:shadow-[6px_6px_0px_0px_#09090B] focus:translate-x-[-2px] focus:translate-y-[-2px] focus:bg-[#E2FF32]',
             Icon ? 'pl-12 pr-4' : 'px-4',
-            error ? 'ring-rose-300 focus:ring-rose-500' : 'ring-slate-200 focus:ring-brand-600',
+            error ? 'border-[#FF0055] focus:border-[#FF0055]' : '',
             className,
           ].join(' ')}
           {...props}
         />
       </div>
       {error ? (
-        <p className="mt-1.5 text-xs font-semibold text-rose-600">{error}</p>
+        <p className="mt-1.5 text-xs font-black uppercase tracking-wider text-[#FF0055]">{error}</p>
       ) : hint ? (
-        <p className="mt-1.5 text-xs font-medium text-slate-500">{hint}</p>
+        <p className="mt-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">{hint}</p>
       ) : null}
     </div>
   )

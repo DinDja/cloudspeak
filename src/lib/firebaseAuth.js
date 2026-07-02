@@ -1,10 +1,12 @@
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   sendEmailVerification,
   reload,
   updateProfile,
+  GoogleAuthProvider,
 } from 'firebase/auth'
 import { auth } from '../../firebase'
 import { isSectiEmail, describeAuthError } from './validators'
@@ -65,6 +67,34 @@ export const signUp = async (email, password, displayName) => {
 export const signOutUser = () => signOut(auth)
 
 export const resendVerification = (user) => sendEmailVerification(user)
+
+export const signInWithGoogle = async () => {
+  const provider = new GoogleAuthProvider()
+  provider.addScope('email')
+  provider.addScope('profile')
+  try {
+    const credential = await signInWithPopup(auth, provider)
+    const user = credential.user
+    if (!isSectiEmail(user.email)) {
+      await signOut(auth)
+      const error = new Error('Use um e-mail @secti.ba.gov.br.')
+      error.code = AUTH_ERROR_NOT_SECTI
+      throw error
+    }
+    if (!user.emailVerified) {
+      await signOut(auth)
+      const error = new Error('Confirme seu e-mail antes de continuar.')
+      error.code = AUTH_ERROR_NOT_VERIFIED
+      throw error
+    }
+    return user
+  } catch (error) {
+    if (error.code !== AUTH_ERROR_NOT_SECTI && error.code !== AUTH_ERROR_NOT_VERIFIED) {
+      error.message = describeAuthError(error.code)
+    }
+    throw error
+  }
+}
 
 export const reloadUser = async (user) => {
   await reload(user)

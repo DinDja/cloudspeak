@@ -20,7 +20,7 @@ service cloud.firestore {
 
     function isSectiUser() {
       return request.auth != null
-        && request.auth.token.email_verified == true
+        && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com')
         && isSectiDomain(request.auth.token.email);
     }
 
@@ -88,7 +88,7 @@ service cloud.firestore {
         && request.resource.data.launchedAt is timestamp
         && request.resource.data.updatedAt is timestamp
         && (!request.resource.data.keys().hasAll(['presentationId'])
-            || request.resource.data.presentationId is null
+            || request.resource.data.presentationId == null
             || isString(request.resource.data.presentationId, 1, 80));
     }
 

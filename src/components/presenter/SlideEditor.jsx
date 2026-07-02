@@ -39,23 +39,23 @@ export default function SlideEditor({ slide, index, total, onChange, onRemove, o
     }))
 
   return (
-    <article className="rounded-4xl bg-white p-5 ring-1 ring-slate-200 shadow-soft sm:p-6">
-      <header className="mb-5 flex items-center justify-between gap-3">
+    <article className="border-[3px] border-[#09090B] bg-white p-5 shadow-[6px_6px_0px_0px_#09090B] sm:p-7">
+      <header className="mb-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {onReorder && (
             <button
               type="button"
               onClick={onReorder}
-              className="cursor-grab rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-500 active:cursor-grabbing"
+              className="cursor-grab border-2 border-[#09090B] p-1.5 text-slate-400 hover:bg-[#E2FF32] hover:text-[#09090B] hover:shadow-[2px_2px_0px_0px_#09090B] active:cursor-grabbing"
               title="Arrastar"
             >
               <GripVertical className="h-5 w-5" />
             </button>
           )}
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm font-black text-white shadow-soft">
+          <span className="flex h-10 w-10 items-center justify-center border-2 border-[#09090B] bg-[#09090B] text-sm font-black text-white shadow-[2px_2px_0px_0px_#09090B]">
             {index + 1}
           </span>
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-black uppercase tracking-widest text-slate-500">
             Slide {index + 1} de {total}
           </span>
         </div>
@@ -63,15 +63,15 @@ export default function SlideEditor({ slide, index, total, onChange, onRemove, o
           type="button"
           onClick={onRemove}
           disabled={!canRemove}
-          className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500 disabled:pointer-events-none disabled:opacity-30"
+          className="border-2 border-[#09090B] p-2 text-slate-500 transition-all duration-100 hover:bg-[#FF0055] hover:text-white hover:shadow-[2px_2px_0px_0px_#09090B] disabled:pointer-events-none disabled:opacity-30"
           title="Remover slide"
         >
           <Trash2 className="h-4 w-4" />
         </button>
       </header>
 
-      <div className="mb-5">
-        <p className="mb-2 text-sm font-bold text-slate-700">Tipo de slide</p>
+      <div className="mb-6">
+        <p className="mb-3 text-xs font-black uppercase tracking-widest text-[#09090B]">Tipo de slide</p>
         <SlideTypePicker value={slide.type} onChange={changeType} compact />
       </div>
 
@@ -85,21 +85,21 @@ export default function SlideEditor({ slide, index, total, onChange, onRemove, o
       />
 
       {slide.type === 'multiple_choice' && (
-        <div className="mt-5">
-          <p className="mb-2 text-sm font-bold text-slate-700">Opções</p>
-          <div className="space-y-2 border-l-2 border-brand-100 pl-3">
+        <div className="mt-6">
+          <p className="mb-3 text-xs font-black uppercase tracking-widest text-[#09090B]">Opções</p>
+          <div className="space-y-2.5 border-l-[3px] border-[#09090B] pl-4">
             {(slide.options ?? []).map((option, optionIndex) => (
               <div key={`${slide.id}-opt-${optionIndex}`} className="flex items-center gap-2">
                 <input
                   value={option}
                   onChange={(event) => setOption(optionIndex, event.target.value)}
                   placeholder={`Opção ${optionIndex + 1}`}
-                  className="w-full rounded-xl border-0 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-brand-600"
+                  className="w-full border-[3px] border-[#09090B] bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none shadow-[4px_4px_0px_0px_#09090B] placeholder:text-slate-500 placeholder:font-medium focus:bg-[#E2FF32] focus:shadow-[6px_6px_0px_0px_#09090B] focus:translate-x-[-2px] focus:translate-y-[-2px]"
                 />
                 <button
                   type="button"
                   onClick={() => removeOption(optionIndex)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#09090B] text-slate-500 transition-all duration-100 hover:bg-[#FF0055] hover:text-white hover:shadow-[2px_2px_0px_0px_#09090B]"
                 >
                   ✕
                 </button>
@@ -108,7 +108,7 @@ export default function SlideEditor({ slide, index, total, onChange, onRemove, o
             <button
               type="button"
               onClick={addOption}
-              className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-brand-600 transition-all hover:bg-brand-50"
+              className="mt-1 flex items-center gap-2 border-2 border-[#09090B] px-3 py-2 text-xs font-black uppercase tracking-widest text-[#09090B] transition-all duration-100 hover:bg-[#E2FF32] hover:shadow-[2px_2px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
             >
               <Plus className="h-4 w-4" /> Adicionar opção
             </button>
@@ -117,16 +117,16 @@ export default function SlideEditor({ slide, index, total, onChange, onRemove, o
       )}
 
       {slide.type === TEAM_SELECTION_TYPE && (
-        <div className="mt-5">
-          <p className="mb-2 text-sm font-bold text-slate-700">Clubes e vagas</p>
-          <div className="space-y-2 border-l-2 border-brand-100 pl-3">
+        <div className="mt-6">
+          <p className="mb-3 text-xs font-black uppercase tracking-widest text-[#09090B]">Clubes e vagas</p>
+          <div className="space-y-2.5 border-l-[3px] border-[#09090B] pl-4">
             {(slide.teams ?? []).map((team, teamIndex) => (
               <div key={team.id ?? `${slide.id}-team-${teamIndex}`} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px_auto]">
                 <input
                   value={team.name}
                   onChange={(event) => setTeam(teamIndex, { name: event.target.value })}
                   placeholder={`Clube ${teamIndex + 1}`}
-                  className="w-full rounded-xl border-0 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-brand-600"
+                  className="w-full border-[3px] border-[#09090B] bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none shadow-[4px_4px_0px_0px_#09090B] placeholder:text-slate-500 placeholder:font-medium focus:bg-[#E2FF32] focus:shadow-[6px_6px_0px_0px_#09090B] focus:translate-x-[-2px] focus:translate-y-[-2px]"
                 />
                 <input
                   type="number"
@@ -136,13 +136,13 @@ export default function SlideEditor({ slide, index, total, onChange, onRemove, o
                   value={team.capacity}
                   onChange={(event) => setTeam(teamIndex, { capacity: event.target.value })}
                   placeholder="Vagas"
-                  className="w-full rounded-xl border-0 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-brand-600"
+                  className="w-full border-[3px] border-[#09090B] bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none shadow-[4px_4px_0px_0px_#09090B] placeholder:text-slate-500 placeholder:font-medium focus:bg-[#E2FF32] focus:shadow-[6px_6px_0px_0px_#09090B] focus:translate-x-[-2px] focus:translate-y-[-2px]"
                 />
                 <button
                   type="button"
                   onClick={() => removeTeam(teamIndex)}
                   disabled={(slide.teams ?? []).length <= 2}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500 disabled:pointer-events-none disabled:opacity-30"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center border-2 border-[#09090B] text-slate-500 transition-all duration-100 hover:bg-[#FF0055] hover:text-white hover:shadow-[2px_2px_0px_0px_#09090B] disabled:pointer-events-none disabled:opacity-30"
                 >
                   ✕
                 </button>
@@ -151,12 +151,12 @@ export default function SlideEditor({ slide, index, total, onChange, onRemove, o
             <button
               type="button"
               onClick={addTeam}
-              className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-brand-600 transition-all hover:bg-brand-50"
+              className="mt-1 flex items-center gap-2 border-2 border-[#09090B] px-3 py-2 text-xs font-black uppercase tracking-widest text-[#09090B] transition-all duration-100 hover:bg-[#E2FF32] hover:shadow-[2px_2px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
             >
               <Plus className="h-4 w-4" /> Adicionar clube
             </button>
           </div>
-          <p className="mt-2 text-xs font-medium text-slate-500">Defina o nome de cada clube e o número de vagas (1 a {MAX_TEAM_CAPACITY}).</p>
+          <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-600">Defina o nome de cada clube e o número de vagas (1 a {MAX_TEAM_CAPACITY}).</p>
         </div>
       )}
     </article>

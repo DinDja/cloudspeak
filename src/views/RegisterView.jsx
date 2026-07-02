@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Mail, Lock, User, Loader2, UserPlus } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Mail, Lock, User, ArrowRight, Loader2, Sparkles } from 'lucide-react'
 import AuthLayout from '../components/auth/AuthLayout'
 import { useAuth } from '../hooks/useAuth'
 import { isSectiEmail, describeAuthError } from '../lib/validators'
@@ -46,66 +47,88 @@ export default function RegisterView({ onBack, onGoLogin }) {
 
   return (
     <AuthLayout
-      title="Criar conta"
-      subtitle="Cadastro exclusivo para servidores @secti.ba.gov.br."
+      title="Crie sua conta"
+      subtitle="Acesso exclusivo para servidores @secti.ba.gov.br."
       onBack={onBack}
       footer={
         <button
           type="button"
           onClick={onGoLogin}
-          className="text-sm font-bold text-slate-500 transition-colors hover:text-brand-600"
+          className="inline-flex items-center gap-1.5 border-2 border-transparent px-2 py-1 text-xs font-black uppercase tracking-widest text-[#09090B] transition-all duration-100 hover:border-[#09090B] hover:bg-[#E2FF32] hover:shadow-[2px_2px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
         >
           Já tem conta? Entrar
         </button>
       }
     >
       <form onSubmit={submit} className="space-y-4">
-        <div className="relative">
-          <User className="pointer-events-none absolute inset-y-0 left-4 my-auto h-5 w-5 text-slate-400" />
+        <Field label="Como devemos te chamar?" icon={User}>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Seu nome"
+            placeholder="Seu nome completo"
             maxLength={60}
-            className="w-full rounded-2xl border-0 bg-slate-50 py-4 pl-12 pr-4 text-base font-medium text-slate-900 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-brand-600"
+            className="cs-input-base w-full py-4 pl-12 pr-4 text-base font-bold"
           />
-        </div>
-        <div className="relative">
-          <Mail className="pointer-events-none absolute inset-y-0 left-4 my-auto h-5 w-5 text-slate-400" />
+        </Field>
+        <Field label="E-mail institucional" icon={Mail}>
           <input
-            type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="nome@secti.ba.gov.br"
+            type="email"
             autoCapitalize="none"
             autoCorrect="off"
-            className="w-full rounded-2xl border-0 bg-slate-50 py-4 pl-12 pr-4 text-base font-medium text-slate-900 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-brand-600"
+            className="cs-input-base w-full py-4 pl-12 pr-4 text-base font-bold"
           />
-        </div>
-        <div className="relative">
-          <Lock className="pointer-events-none absolute inset-y-0 left-4 my-auto h-5 w-5 text-slate-400" />
+        </Field>
+        <Field label="Senha" icon={Lock}>
           <input
-            type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="Senha (mín. 6 caracteres)"
-            className="w-full rounded-2xl border-0 bg-slate-50 py-4 pl-12 pr-4 text-base font-medium text-slate-900 outline-none ring-1 ring-inset ring-slate-200 transition-all placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-brand-600"
+            placeholder="Mín. 6 caracteres"
+            type="password"
+            className="cs-input-base w-full py-4 pl-12 pr-4 text-base font-bold"
           />
-        </div>
+        </Field>
 
         {error && (
-          <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-600">{error}</p>
+          <motion.p
+            className="border-[3px] border-[#09090B] bg-[#FF0055] px-4 py-3 text-sm font-black uppercase tracking-wider text-white shadow-[4px_4px_0px_0px_#09090B]"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {error}
+          </motion.p>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-brand-gradient py-4 text-base font-black text-white shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-float active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+          className="cs-btn-base h-14 w-full gap-2 bg-[#E2FF32] text-base font-black text-[#09090B] hover:bg-[#d4f01e]"
         >
-          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserPlus className="h-5 w-5" />}
-          Criar conta
+          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Criar minha conta <ArrowRight className="h-5 w-5" /></>}
         </button>
+
+        <p className="text-center text-xs font-black uppercase tracking-wider text-slate-500">
+          Ao continuar você concorda com o uso dos dados conforme LGPD.
+        </p>
       </form>
     </AuthLayout>
+  )
+}
+
+function Field({ label, icon: Icon, children }) {
+  return (
+    <div>
+      <label className="mb-1.5 ml-1 block text-[10px] font-black uppercase tracking-wider text-slate-400">
+        {label}
+      </label>
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 left-4 my-auto text-slate-400">
+          <Icon className="h-5 w-5" />
+        </div>
+        {children}
+      </div>
+    </div>
   )
 }

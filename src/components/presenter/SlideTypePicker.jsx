@@ -8,6 +8,13 @@ const ICONS = {
   team_selection: Users,
 }
 
+const GRADIENTS = {
+  multiple_choice: 'from-brand-500 to-brand-600',
+  word_cloud: 'from-violet-500 to-violet-600',
+  open_text: 'from-ocean-500 to-ocean-600',
+  team_selection: 'from-sunset-500 to-sunset-600',
+}
+
 export default function SlideTypePicker({ value, onChange, compact = false }) {
   return (
     <div className={compact ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 gap-3 sm:grid-cols-4'}>
@@ -15,27 +22,30 @@ export default function SlideTypePicker({ value, onChange, compact = false }) {
         const type = SLIDE_TYPES[typeId]
         const Icon = ICONS[typeId]
         const active = value === typeId
+        const gradient = GRADIENTS[typeId]
         return (
           <button
             key={typeId}
             type="button"
             onClick={() => onChange(typeId)}
             className={[
-              'group flex flex-col items-start gap-2 rounded-2xl p-4 text-left ring-1 transition-all',
+              'group flex flex-col items-start gap-2 p-4 text-left border-2 border-[#09090B] transition-all duration-100',
               active
-                ? 'bg-brand-50 ring-2 ring-brand-500 shadow-soft'
-                : 'bg-white ring-slate-200 hover:bg-slate-50 hover:ring-brand-200',
+                ? 'bg-[#E2FF32] shadow-[3px_3px_0px_0px_#09090B]'
+                : 'bg-white shadow-[2px_2px_0px_0px_#09090B] hover:shadow-[4px_4px_0px_0px_#09090B] hover:-translate-x-[1px] hover:-translate-y-[1px]',
             ].join(' ')}
           >
             <span
               className={[
-                'flex h-9 w-9 items-center justify-center rounded-xl transition-colors',
-                active ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-600',
+                'flex h-10 w-10 items-center justify-center border-2 border-[#09090B] transition-all duration-100',
+                active
+                  ? 'bg-[#09090B] text-white'
+                  : 'bg-white text-[#09090B] group-hover:bg-[#F4F4F0]',
               ].join(' ')}
             >
               <Icon className="h-5 w-5" />
             </span>
-            <span className={['text-sm font-black tracking-tight', active ? 'text-brand-700' : 'text-slate-800'].join(' ')}>
+            <span className={['text-sm font-black tracking-tight', active ? 'text-[#09090B]' : 'text-[#09090B]'].join(' ')}>
               {type.label}
             </span>
             {!compact && <span className="text-xs font-medium leading-snug text-slate-500">{type.tagline}</span>}

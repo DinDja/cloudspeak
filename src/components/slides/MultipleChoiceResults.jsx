@@ -18,18 +18,16 @@ export default function MultipleChoiceResults({ slide, responses, responseCount 
         const color = CHART_PALETTE[index % CHART_PALETTE.length]
         return (
           <div key={entry.option} className="relative w-full">
-            <div className="mb-3 flex justify-between px-2 text-xl font-bold text-slate-700">
+            <div className="mb-3 flex justify-between px-2 text-xl font-black uppercase tracking-tight text-[#09090B]">
               <span>{entry.option}</span>
               <span className="text-slate-400">{entry.count > 0 ? `${percent}% (${entry.count})` : ''}</span>
             </div>
-            <div className="relative h-16 w-full overflow-hidden rounded-2xl bg-white/50 shadow-inner ring-1 ring-slate-200/50 backdrop-blur-sm">
+            <div className="relative h-16 w-full overflow-hidden border-[3px] border-[#09090B] bg-white shadow-[4px_4px_0px_0px_#09090B]">
               <div
-                className="absolute bottom-0 left-0 top-0 rounded-2xl transition-all duration-1000 ease-out"
+                className="absolute bottom-0 left-0 top-0 transition-all duration-1000 ease-out border-r-[3px] border-[#09090B]"
                 style={{
                   width: `${Math.max(percent, 1.5)}%`,
                   backgroundColor: color,
-                  backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0.05) 100%)',
-                  boxShadow: `0 4px 14px 0 ${color}40`,
                 }}
               />
             </div>

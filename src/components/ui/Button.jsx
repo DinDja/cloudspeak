@@ -1,29 +1,29 @@
-import { Loader2 } from 'lucide-react'
-
 const VARIANTS = {
   primary:
-    'bg-brand-gradient text-white shadow-soft hover:shadow-float hover:-translate-y-0.5 focus-visible:ring-brand-600',
+    'bg-[#E2FF32] text-[#09090B] hover:bg-[#d4f01e] rounded-none',
   solid:
-    'bg-brand-600 text-white shadow-soft hover:bg-brand-700 hover:-translate-y-0.5 focus-visible:ring-brand-600',
+    'bg-[#09090B] text-white hover:bg-[#27272a] rounded-none',
   ocean:
-    'bg-ocean-gradient text-white shadow-soft hover:-translate-y-0.5 focus-visible:ring-ocean-500',
+    'bg-[#0055FF] text-white hover:bg-[#0044dd] rounded-none',
   ghost:
-    'bg-transparent text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-400',
+    'bg-transparent text-[#09090B] hover:bg-[#F4F4F0] rounded-none',
   outline:
-    'bg-white text-slate-800 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 hover:ring-slate-300 focus-visible:ring-slate-400',
+    'bg-white text-[#09090B] hover:bg-[#F4F4F0] rounded-none',
   subtle:
-    'bg-brand-50 text-brand-700 hover:bg-brand-100 focus-visible:ring-brand-300',
+    'bg-[#F4F4F0] text-[#09090B] hover:bg-[#e8e8e3] rounded-none',
   danger:
-    'bg-rose-600 text-white shadow-soft hover:bg-rose-700 focus-visible:ring-rose-600',
+    'bg-[#FF0055] text-white hover:bg-[#dd0049] rounded-none',
   dangerSoft:
-    'bg-rose-50 text-rose-600 hover:bg-rose-100 focus-visible:ring-rose-300',
+    'bg-white text-[#FF0055] hover:bg-[#FFF0F3] rounded-none',
+  neo:
+    'bg-[#FCFBF9] text-[#09090B] hover:bg-[#F4F4F0] rounded-none',
 }
 
 const SIZES = {
-  sm: 'h-9 px-4 text-sm gap-2 rounded-xl',
-  md: 'h-11 px-5 text-sm gap-2 rounded-xl',
-  lg: 'h-14 px-6 text-base gap-2.5 rounded-2xl',
-  xl: 'h-16 px-8 text-lg gap-3 rounded-2xl',
+  sm: 'h-10 px-4 text-sm gap-2',
+  md: 'h-12 px-5 text-sm gap-2.5',
+  lg: 'h-14 px-7 text-base gap-3',
+  xl: 'h-16 px-8 text-lg gap-3.5',
 }
 
 export default function Button({
@@ -45,9 +45,9 @@ export default function Button({
     <Component
       disabled={isDisabled}
       className={[
-        'inline-flex items-center justify-center font-bold tracking-tight transition-all duration-200',
-        'outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
-        'active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none',
+        'inline-flex items-center justify-center font-bold tracking-tight uppercase border-[3px] border-[#09090B] transition-all duration-100',
+        'outline-none shadow-[5px_5px_0px_0px_rgba(9,9,11,1)] hover:shadow-[2px_2px_0px_0px_rgba(9,9,11,1)] hover:translate-x-[3px] hover:translate-y-[3px] active:translate-x-[5px] active:translate-y-[5px] active:shadow-none',
+        'disabled:pointer-events-none disabled:opacity-50',
         VARIANTS[variant] ?? VARIANTS.solid,
         SIZES[size] ?? SIZES.md,
         fullWidth ? 'w-full' : '',
@@ -55,9 +55,20 @@ export default function Button({
       ].join(' ')}
       {...props}
     >
-      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : Icon ? <Icon className="h-5 w-5" /> : null}
+      {loading ? <span className="h-5 w-5 animate-spin"><IconSpinner /></span> : Icon ? <Icon className="h-5 w-5" /> : null}
       {children}
       {IconRight && !loading ? <IconRight className="h-5 w-5" /> : null}
     </Component>
+  )
+}
+
+function IconSpinner({ className = '' }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.2" />
+      <path d="M21 12a9 9 0 01-9 9" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite" />
+      </path>
+    </svg>
   )
 }

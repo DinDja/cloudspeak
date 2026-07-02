@@ -12,12 +12,14 @@ import {
 } from './lib/validators'
 import { getSession, launchPresentationAsSession, submitResponse } from './lib/firebaseSessions'
 import { deletePresentation, duplicatePresentation } from './lib/firebasePresentations'
+import { TEMPLATE_BY_ID } from './lib/templates'
 import { FullPageLoader } from './components/ui/Spinner'
 import PublicLanding from './views/PublicLanding'
 import LoginView from './views/LoginView'
 import RegisterView from './views/RegisterView'
 import VerifyEmailView from './views/VerifyEmailView'
 import PresenterDashboard from './views/PresenterDashboard'
+import TemplatePicker from './views/TemplatePicker'
 import PresentationBuilder from './views/PresentationBuilder'
 import HostView from './views/HostView'
 import ParticipantView from './views/ParticipantView'
@@ -29,6 +31,7 @@ export default function App() {
   const [sessionCode, setSessionCode] = useState('')
   const [participantName, setParticipantName] = useState('')
   const [editingPresentation, setEditingPresentation] = useState(null)
+  const [pendingTitle, setPendingTitle] = useState('')
   const [prefilledCode, setPrefilledCode] = useState('')
   const [joinError, setJoinError] = useState('')
   const [joining, setJoining] = useState(false)
@@ -107,9 +110,10 @@ export default function App() {
     setRoute('dashboard')
     setSessionCode('')
   }
-  const goBuilderNew = () => {
-    setEditingPresentation({ id: null, title: '', slides: [createSlideDraft()] })
-    setRoute('builder')
+  const goTemplatePicker = () => {
+    setEditingPresentation(null)
+    setPendingTitle('')
+    setRoute('templates')
   }
   const goBuilderEdit = (presentation) => {
     setEditingPresentation(presentation)
@@ -211,7 +215,7 @@ export default function App() {
 
   let view = route
   if (status === 'loading') view = 'loading'
-  else if ((route === 'dashboard' || route === 'builder') && status !== 'verified') {
+  else if ((route === 'dashboard' || route === 'builder' || route === 'templates') && status !== 'verified') {
     view = status === 'anonymous' ? 'login' : 'verify'
   } else if (status === 'verified' && (route === 'login' || route === 'register' || route === 'verify')) {
     view = 'dashboard'
@@ -251,12 +255,28 @@ export default function App() {
   if (view === 'dashboard') {
     return (
       <PresenterDashboard
-        onNew={goBuilderNew}
+        onNew={goTemplatePicker}
         onEdit={goBuilderEdit}
         onPresent={handlePresent}
         onDuplicate={handleDuplicate}
         onDelete={handleDelete}
         onLogout={goPublic}
+      />
+    )
+  }
+
+  if (view === 'templates') {
+    return (
+      <TemplatePicker
+        initialTitle={pendingTitle}
+        onBack={goDashboard}
+        onConfirm={({ templateId, title }) => {
+          const template = TEMPLATE_BY_ID[templateId]
+          const slides = template ? template.build() : [createSlideDraft()]
+          setPendingTitle(title)
+          setEditingPresentation({ id: null, title, slides })
+          setRoute('builder')
+        }}
       />
     )
   }
@@ -274,7 +294,8 @@ export default function App() {
   if (view === 'host') {
     if (!session || !currentSlide) {
       return (
-        <div className="flex min-h-[100dvh] items-center justify-center bg-canvas">
+        /* Estilo Neobrutalista no fundo do carregamento */
+        <div className="flex min-h-[100dvh] items-center justify-center bg-[#FFD700] border-8 border-black">
           <FullPageLoader label="Preparando a sala..." />
         </div>
       )
@@ -284,6 +305,7 @@ export default function App() {
         <HostView
           session={session}
           currentSlide={currentSlide}
+          currentSlideIndex={session.currentSlideIndex ?? 0}
           responses={currentSlideResponses}
           reactions={reactions}
           connectedParticipants={connectedParticipants}
@@ -301,7 +323,8 @@ export default function App() {
   if (view === 'participant') {
     if (!session || !currentSlide) {
       return (
-        <div className="flex min-h-[100dvh] items-center justify-center bg-canvas">
+        /* Estilo Neobrutalista no fundo do carregamento */
+        <div className="flex min-h-[100dvh] items-center justify-center bg-[#FFD700] border-8 border-black">
           <FullPageLoader label="Conectando à sala..." />
         </div>
       )
@@ -328,7 +351,8 @@ export default function App() {
 
 function GlobalToast({ message }) {
   return (
-    <div className="fixed left-1/2 top-6 z-[9999] -translate-x-1/2 rounded-full bg-rose-600 px-6 py-3 text-sm font-black tracking-wide text-white shadow-float cs-slide-down">
+    /* Estilo Neobrutalista: Bordas grossas, sombra preta sólida 100% opaca e cores vibrantes */
+    <div className="fixed left-1/2 top-6 z-[9999] -translate-x-1/2 bg-[#FF6B6B] border-4 border-black px-6 py-3 text-base font-black uppercase tracking-wider text-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] cs-slide-down">
       {message}
     </div>
   )

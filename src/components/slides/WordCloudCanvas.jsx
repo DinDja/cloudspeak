@@ -55,13 +55,13 @@ export default function WordCloudCanvas({ words }) {
   return (
     <div
       ref={containerRef}
-      className="relative min-h-[340px] w-full overflow-hidden rounded-4xl bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.98),_rgba(241,245,249,0.82)_58%,_transparent_100%)] p-4 md:min-h-[420px]"
+      className="relative min-h-[340px] w-full overflow-hidden border-[3px] border-[#09090B] bg-[#F4F4F0] p-4 shadow-[6px_6px_0px_0px_#09090B] md:min-h-[420px]"
     >
       {layoutWords.length === 0 ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
-          <WandSparkles className="mb-4 h-12 w-12 opacity-50" />
-          <p className="text-2xl font-bold">A nuvem está vazia.</p>
-          <p className="text-lg font-medium opacity-75">Envie a primeira palavra!</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
+          <WandSparkles className="mb-4 h-12 w-12 opacity-70" />
+          <p className="text-2xl font-black uppercase tracking-tight">A nuvem está vazia.</p>
+          <p className="text-lg font-bold">Envie a primeira palavra!</p>
         </div>
       ) : (
         <svg viewBox={`0 0 ${dimensions.width} ${dimensions.height}`} className="h-full w-full">

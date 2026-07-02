@@ -21,30 +21,29 @@ export default function TeamSelectionResults({ slide, responses }) {
           return (
             <article
               key={team.id ?? team.name}
-              className="rounded-4xl border border-white/50 bg-white/75 p-7 shadow-card backdrop-blur-md"
+              className="border-[3px] border-[#09090B] bg-white p-7 shadow-[4px_4px_0px_0px_#09090B]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-2xl font-black text-slate-900">{team.name}</h3>
-                  <p className="mt-1 text-sm font-bold uppercase tracking-[0.2em] text-slate-400">
+                  <h3 className="text-2xl font-black uppercase tracking-tight text-[#09090B]">{team.name}</h3>
+                  <p className="mt-1 text-sm font-black uppercase tracking-[0.2em] text-slate-500">
                     {team.count} de {team.capacity} vagas ocupadas
                   </p>
                 </div>
                 <span
-                  className="rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.18em]"
+                  className="border-2 border-[#09090B] px-3 py-1 text-xs font-black uppercase tracking-[0.18em]"
                   style={{ color, backgroundColor: `${color}18` }}
                 >
                   {team.isFull ? 'Lotado' : `${team.spotsLeft} vaga${team.spotsLeft === 1 ? '' : 's'}`}
                 </span>
               </div>
 
-              <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200/80">
+              <div className="mt-5 h-3 overflow-hidden border-2 border-[#09090B] bg-white">
                 <div
-                  className="h-full rounded-full transition-all duration-700 ease-out"
+                  className="h-full transition-all duration-700 ease-out border-r-2 border-[#09090B]"
                   style={{
                     width: `${Math.max(fillPercent, team.count > 0 ? 8 : 0)}%`,
                     backgroundColor: color,
-                    boxShadow: `0 0 20px ${color}55`,
                   }}
                 />
               </div>
@@ -53,7 +52,7 @@ export default function TeamSelectionResults({ slide, responses }) {
                 <button
                   type="button"
                   onClick={() => setActiveTeam({ ...team, color })}
-                  className="mt-6 w-full rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-[0.15em] transition-colors"
+                  className="mt-6 w-full border-2 border-[#09090B] px-4 py-3 text-sm font-black uppercase tracking-[0.15em] transition-all duration-100 hover:shadow-[2px_2px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                   style={{ color, backgroundColor: `${color}18` }}
                 >
                   Ver participantes ({team.count})
