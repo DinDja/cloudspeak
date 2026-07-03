@@ -1,9 +1,19 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Cores de base ajustadas para alto contraste (stark contrast) */
+  --cs-canvas: #F4F4F0; /* Off-white mais "cru" */
+  --cs-canvas-dark: #121212;
+  --cs-fg: #09090B; /* Preto quase absoluto */
+  --cs-fg-dark: #FAFAFA;
+  --cs-aurora: radial-gradient(120% 80% at 0% 0%, rgba(37, 82, 240, 0.18), transparent 55%),
+               radial-gradient(90% 60% at 100% 0%, rgba(124, 58, 237, 0.18), transparent 55%),
+               radial-gradient(100% 60% at 50% 100%, rgba(16, 185, 129, 0.12), transparent 55%);
+  /* Fontes mais pesadas funcionam melhor no neobrutalismo, recomendo adicionar Space Grotesk se puder */
+  font-family: 'Space Grotesk', 'Inter', system-ui, -apple-system, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -23,24 +33,282 @@ body,
 
 body {
   min-height: 100vh;
-  background: #020617;
+  background: var(--cs-canvas);
+  color: var(--cs-fg);
+  overflow-x: hidden;
 }
 
-@keyframes floatUp {
-  0% {
-    transform: translateY(120px) scale(0.7);
-    opacity: 0;
+/* Seleção de texto agressiva/neon */
+::selection {
+  background: var(--cs-fg);
+  color: #E2FF32; /* Amarelo neon clássico do estilo */
+}
+
+@layer base {
+  h1, h2, h3, h4 {
+    letter-spacing: -0.04em;
+    font-weight: 800; /* Tipografia mais "bruta" */
   }
-  20% {
-    transform: translateY(0) scale(1.05);
-    opacity: 1;
+  button {
+    font-family: inherit;
   }
-  100% {
-    transform: translateY(-380px) scale(0.9);
-    opacity: 0;
+  input, textarea, select {
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 }
 
-.animate-float-up {
-  animation: floatUp 2.8s ease-out forwards;
+@layer utilities {
+  .cs-fade-in {
+    animation: fade-in 0.5s ease-out both;
+  }
+  .cs-slide-up {
+    animation: slide-up 0.5s ease-out both;
+  }
+  .cs-slide-down {
+    animation: slide-down 0.4s ease-out both;
+  }
+  .cs-scale-in {
+    animation: scale-in 0.35s ease-out both;
+  }
+  .cs-scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cs-fg) transparent;
+  }
+  .cs-scroll-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .cs-scroll-thin::-webkit-scrollbar-thumb {
+    background: var(--cs-fg);
+    border: 2px solid var(--cs-canvas); /* Borda dura até na scrollbar */
+  }
+  .cs-scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .cs-text-balance {
+    text-wrap: balance;
+  }
+
+  /* No neobrutalismo, o glassmorphism é substituído por fundos sólidos ou translúcidos sem desfoque, mas mantive a lógica de filtro caso queira o misto */
+  .cs-glass {
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid var(--cs-fg);
+    box-shadow: 4px 4px 0px 0px var(--cs-fg);
+  }
+  .cs-glass-strong {
+    background: rgba(255, 255, 255, 1);
+    border: 3px solid var(--cs-fg);
+    box-shadow: 6px 6px 0px 0px var(--cs-fg);
+  }
+  .cs-glass-dark {
+    background: var(--cs-fg);
+    border: 2px solid var(--cs-canvas);
+    color: var(--cs-canvas);
+  }
+  .cs-shimmer {
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.8) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+  .cs-aurora {
+    background-image: var(--cs-aurora);
+  }
+  /* Grid mais aparente */
+  .cs-grid {
+    background-image: linear-gradient(to right, rgba(9, 9, 11, 0.15) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(9, 9, 11, 0.15) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .cs-grid-dark {
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .cs-noise {
+    position: relative;
+    isolation: isolate;
+  }
+  .cs-noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.8; /* Noise mais forte */
+    mix-blend-mode: multiply;
+    z-index: -1;
+  }
+  .cs-gradient-text {
+    /* Gradientes muito suaves não combinam. Trocado para um gradiente bloqueado/duro */
+    background-image: linear-gradient(135deg, #FF0055 0%, #FF0055 50%, #0033FF 50%, #0033FF 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .cs-ring-soft {
+    box-shadow: inset 0 0 0 2px var(--cs-fg);
+  }
+  
+  /* Sombras Neobrutalistas: Sólidas, sem blur (desfoque zero) */
+  .cs-elev {
+    box-shadow: 4px 4px 0px 0px var(--cs-fg);
+  }
+  .cs-elev-xl {
+    box-shadow: 8px 8px 0px 0px var(--cs-fg);
+  }
+  
+  .cs-mask-radial {
+    mask-image: radial-gradient(ellipse at center, black 50%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 50%, transparent 100%);
+  }
 }
+
+@layer components {
+  /* Cards Neobrutalistas: Bordas duras e sombras blocadas */
+  .cs-card {
+    @apply border-[3px] border-[#09090B] bg-white transition-transform duration-200;
+    box-shadow: 6px 6px 0px 0px #09090B;
+    border-radius: 0; /* Cantos vivos */
+  }
+  .cs-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0px 0px #09090B;
+  }
+
+  /* Chips em blocos pesados */
+  .cs-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black uppercase tracking-widest border-2 border-[#09090B] bg-[#E2FF32] text-[#09090B];
+    box-shadow: 2px 2px 0px 0px #09090B;
+    border-radius: 0;
+  }
+
+  /* Botões: O efeito tátil é o foco. Quando pressionado (active), a sombra some e ele empurra para baixo */
+  .cs-btn-base {
+    @apply inline-flex items-center justify-center font-bold tracking-tight uppercase border-[3px] border-[#09090B] bg-blue-500 text-white transition-all duration-100 outline-none disabled:pointer-events-none disabled:opacity-50;
+    box-shadow: 5px 5px 0px 0px #09090B;
+    border-radius: 0;
+  }
+  .cs-btn-base:hover {
+    @apply bg-blue-600;
+  }
+  .cs-btn-base:active {
+    transform: translate(5px, 5px);
+    box-shadow: 0px 0px 0px 0px #09090B;
+  }
+
+  /* Inputs: Outline duro e foco marcante */
+  .cs-input-base {
+    @apply w-full border-[3px] border-[#09090B] bg-white py-3.5 px-4 text-base font-bold text-slate-900 outline-none transition-all duration-100 placeholder:text-slate-500 placeholder:font-medium focus:bg-[#E2FF32];
+    box-shadow: 4px 4px 0px 0px #09090B;
+    border-radius: 0;
+  }
+  .cs-input-base:focus {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px 0px #09090B;
+  }
+}
+
+/* Reações - Todas as animações originais preservadas intactas */
+.reaction-pop-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  border-radius: 9999px;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+  animation: pop-burst 4.2s ease-out forwards;
+}
+.reaction-pop-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 3px;
+  margin-left: -4px;
+  margin-top: -1.5px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.98);
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+  animation: pop-spark 4.2s ease-out forwards;
+}
+.reaction-pop-spark-1 { --spark-end: translate(-22px, -14px) rotate(-25deg); --spark-fade: translate(-34px, -22px) rotate(-25deg); }
+.reaction-pop-spark-2 { --spark-end: translate(20px, -17px) rotate(18deg); --spark-fade: translate(32px, -27px) rotate(18deg); }
+.reaction-pop-spark-3 { --spark-end: translate(-16px, 18px) rotate(148deg); --spark-fade: translate(-28px, 30px) rotate(148deg); }
+.reaction-pop-spark-4 { --spark-end: translate(18px, 16px) rotate(36deg); --spark-fade: translate(30px, 28px) rotate(36deg); }
+
+.animate-float-up { animation: float-up 4.2s ease-out forwards; }
+
+@keyframes float-up {
+  0% { transform: translateY(100px) scale(0.5); opacity: 0; }
+  12% { opacity: 1; transform: translateY(40px) scale(1.2); }
+  38% { transform: translateY(-220px) scale(1) rotate(6deg); }
+  62% { transform: translateY(-460px) scale(1.1) rotate(-6deg); }
+  80% { transform: translateY(-620px) scale(1.2) rotate(10deg); opacity: 1; }
+  88% { transform: translateY(-760px) scale(1.1) rotate(14deg); opacity: 1; }
+  93% { transform: translateY(-780px) scale(1.9) rotate(16deg); opacity: 1; }
+  100% { transform: translateY(-790px) scale(0.08) rotate(16deg); opacity: 0; }
+}
+@keyframes pop-burst {
+  0%, 88% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  92% { opacity: 0.95; transform: translate(-50%, -50%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.85); }
+}
+@keyframes pop-spark {
+  0%, 89% { opacity: 0; transform: translate(0, 0) scale(0.2); }
+  93% { opacity: 1; transform: var(--spark-end) scale(1); }
+  100% { opacity: 0; transform: var(--spark-fade) scale(0.2); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes slide-up {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-down {
+  0% { opacity: 0; transform: translateY(-20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes ping-soft {
+  0% { transform: scale(1); opacity: 0.7; }
+  75%,100% { transform: scale(2); opacity: 0; }
+}
+@keyframes pulse-glow {
+  0%,100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+@keyframes bar-grow {
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+@keyframes count-up {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes float-gentle {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes glow-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45); }
+  50% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+}
+
