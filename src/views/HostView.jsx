@@ -16,7 +16,7 @@ import {
   Share2,
   Pause,
   Play as PlayIcon,
-  Sparkles,
+  Maximize2,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { TEAM_SELECTION_TYPE } from '../lib/constants'
@@ -53,6 +53,7 @@ export default function HostView({
   onExit,
 }) {
   const joinUrl = useMemo(() => getJoinUrl(session.code), [session.code])
+  const [fullscreenSlide, setFullscreenSlide] = useState(false)
 
   const responseCount = useMemo(() => {
     if (currentSlide?.type === TEAM_SELECTION_TYPE) {
@@ -62,34 +63,42 @@ export default function HostView({
   }, [currentSlide, responses])
 
   return (
-    <div className="relative grid h-[100dvh] grid-cols-1 overflow-hidden bg-[#F4F4F0] font-sans text-[#09090B] lg:grid-cols-[minmax(0,1fr)_360px]">
-      <BackgroundAurora />
+    <>
+      <div className="relative grid h-[100dvh] grid-cols-1 overflow-hidden bg-[#F4F4F0] font-sans text-[#09090B] lg:grid-cols-[minmax(0,1fr)_380px]">
+        <BackgroundAurora />
 
-      <main className="relative z-10 flex h-full flex-col overflow-hidden">
-        <TopSessionBar code={session.code} sessionTitle={session.title} onExit={onExit} connectedParticipants={connectedParticipants} responseCount={responseCount} />
+        <main className="relative z-10 flex h-full min-w-0 flex-col overflow-hidden">
+          <TopSessionBar code={session.code} sessionTitle={session.title} onExit={onExit} connectedParticipants={connectedParticipants} responseCount={responseCount} />
 
-        <section className="relative flex flex-1 items-center justify-center overflow-y-auto px-6 py-8 cs-scroll-thin">
-          <div className="w-full max-w-6xl text-center">
-            <AnimatePresence mode="wait">
+          <section className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-6 sm:px-6 sm:py-8">
+            <div className="w-full max-w-5xl text-center">
+              <button
+                type="button"
+                onClick={() => setFullscreenSlide(true)}
+                className="absolute right-2 top-2 z-20 flex items-center gap-1.5 border-2 border-slate-400 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-700 transition-all duration-100 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] sm:right-4 sm:top-4 sm:px-3 sm:py-2 sm:text-xs"
+                title="Slide em tela cheia"
+              >
+                <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Tela cheia</span>
+              </button>
+              <AnimatePresence mode="wait">
               <motion.div
                 key={currentSlide?.id ?? 'empty'}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
                 transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-                className="space-y-8"
+                className="space-y-4 sm:space-y-6 md:space-y-8"
               >
                 <motion.p
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="inline-flex items-center gap-2 border-2 border-[#09090B] bg-[#E2FF32] px-4 py-1.5 text-xs font-black uppercase tracking-widest text-[#09090B] shadow-[2px_2px_0px_0px_#09090B]"
+                  className="inline-flex items-center gap-2 border-2 border-slate-400 bg-[#E2FF32] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] sm:px-4 sm:py-1.5 sm:text-xs"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
                   Etapa {currentSlideIndex + 1} · {currentSlide?.type === 'multiple_choice' ? 'Enquete' : currentSlide?.type === 'word_cloud' ? 'Nuvem' : currentSlide?.type === 'open_text' ? 'Q&A' : currentSlide?.type === TEAM_SELECTION_TYPE ? 'Times' : 'Etapa'}
                 </motion.p>
 
                 <motion.h1
-                  className="mx-auto max-w-5xl text-4xl font-black leading-[1.05] uppercase tracking-tight text-[#09090B] md:text-5xl lg:text-6xl"
+                  className="mx-auto max-w-4xl px-2 text-2xl font-black leading-[1.1] uppercase tracking-tight text-slate-800 sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl"
                 >
                   {currentSlide?.question}
                 </motion.h1>
@@ -98,7 +107,7 @@ export default function HostView({
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
-                  className="mx-auto w-full"
+                  className="mx-auto w-full px-2"
                 >
                   {currentSlide?.type === 'multiple_choice' && (
                     <MultipleChoiceResults slide={currentSlide} responses={responses} responseCount={responseCount} />
@@ -112,28 +121,76 @@ export default function HostView({
               </motion.div>
             </AnimatePresence>
           </div>
-        </section>
+          </section>
 
-        <BottomControls
+          <BottomControls
+            session={session}
+            canGoBack={canGoBack}
+            canGoForward={canGoForward}
+            onNext={onNext}
+            onPrevious={onPrevious}
+          />
+
+          <ReactionLayer reactions={reactions} />
+        </main>
+
+        <SidePanel
           session={session}
-          canGoBack={canGoBack}
-          canGoForward={canGoForward}
-          onNext={onNext}
-          onPrevious={onPrevious}
+          currentSlide={currentSlide}
+          responses={responses}
+          connectedParticipants={connectedParticipants}
+          joinUrl={joinUrl}
+          reactionCount={reactions.length}
         />
+      </div>
 
-        <ReactionLayer reactions={reactions} />
-      </main>
+      {fullscreenSlide && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 sm:p-6">
+          <div className="relative flex h-full w-full max-w-7xl flex-col items-center justify-center gap-4 sm:gap-6">
+            <button
+              type="button"
+              onClick={() => setFullscreenSlide(false)}
+              className="absolute right-6 top-6 flex items-center gap-2 border-2 border-white bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition-all duration-100 hover:bg-white/20 sm:right-8 sm:top-8 sm:px-4 sm:py-2 sm:text-sm"
+            >
+              <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
+            </button>
+            <div className="flex w-full flex-col items-center gap-4 sm:gap-6 md:gap-8">
+              <motion.p
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="inline-flex items-center gap-2 border-2 border-white bg-[#E2FF32] px-4 py-2 text-xs font-black uppercase tracking-widest text-[#09090B] shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] sm:px-6 sm:py-3 sm:text-sm"
+              >
+                Etapa {currentSlideIndex + 1} · {currentSlide?.type === 'multiple_choice' ? 'Enquete' : currentSlide?.type === 'word_cloud' ? 'Nuvem' : currentSlide?.type === 'open_text' ? 'Q&A' : currentSlide?.type === TEAM_SELECTION_TYPE ? 'Times' : 'Etapa'}
+              </motion.p>
 
-      <SidePanel
-        session={session}
-        currentSlide={currentSlide}
-        responses={responses}
-        connectedParticipants={connectedParticipants}
-        joinUrl={joinUrl}
-        reactionCount={reactions.length}
-      />
-    </div>
+              <motion.h1
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mx-auto max-w-5xl px-4 text-3xl font-black leading-[1.1] uppercase tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl"
+              >
+                {currentSlide?.question}
+              </motion.h1>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="mx-auto w-full max-w-4xl px-4"
+              >
+                {currentSlide?.type === 'multiple_choice' && (
+                  <MultipleChoiceResults slide={currentSlide} responses={responses} responseCount={responseCount} />
+                )}
+                {currentSlide?.type === 'word_cloud' && <WordCloudResults responses={responses} />}
+                {currentSlide?.type === 'open_text' && <OpenTextResults responses={responses} />}
+                {currentSlide?.type === TEAM_SELECTION_TYPE && (
+                  <TeamSelectionResults slide={currentSlide} responses={responses} responseCount={responseCount} />
+                )}
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -141,7 +198,7 @@ function BackgroundAurora() {
   return (
     <>
       <div className="pointer-events-none absolute inset-0 bg-[#F4F4F0]" />
-      <div className="pointer-events-none absolute inset-0 cs-grid opacity-30 cs-mask-radial" />
+      <div className="pointer-events-none absolute inset-0 cs-grid opacity-20 cs-mask-radial" />
     </>
   )
 }
@@ -160,28 +217,28 @@ function TopSessionBar({ code, sessionTitle, onExit, connectedParticipants, resp
     } catch {}
   }
   return (
-    <header className="relative z-20 grid grid-cols-1 items-center gap-3 border-b-[3px] border-[#09090B] bg-white px-5 py-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:px-7 lg:py-4">
-      <div className="flex items-center gap-3">
-        <span className="flex items-center gap-2 border-2 border-[#09090B] bg-emerald-300 px-3 py-1.5 text-xs font-black uppercase tracking-widest text-[#09090B] shadow-[2px_2px_0px_0px_#09090B]">
-          <span className="relative flex h-2 w-2">
+    <header className="relative z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b-[3px] border-slate-300 bg-white px-3 py-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-5 sm:py-3 lg:px-7 lg:py-4">
+      <div className="flex items-center gap-2">
+        <span className="flex items-center gap-1.5 border-2 border-slate-300 bg-emerald-300 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] sm:px-3 sm:py-1.5 sm:text-xs">
+          <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
             <span className="absolute inline-flex h-full w-full bg-emerald-500 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 bg-emerald-600" />
+            <span className="relative inline-flex h-1.5 w-1.5 sm:h-2 sm:w-2 bg-emerald-600" />
           </span>
-          Ao vivo
+          <span className="hidden sm:inline">Ao vivo</span>
         </span>
-        <p className="hidden truncate text-sm font-bold text-slate-600 lg:block">{sessionTitle}</p>
+        <p className="truncate text-xs font-bold text-slate-600 sm:text-sm lg:block">{sessionTitle}</p>
       </div>
 
-      <div className="flex items-center justify-center gap-3">
-        <div className="flex items-center gap-2 border-[3px] border-[#09090B] bg-white px-4 py-2 shadow-[4px_4px_0px_0px_#09090B]">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Código</span>
-          <span className="text-2xl font-black tracking-[0.25em] text-[#09090B]">
+      <div className="flex items-center justify-center gap-1.5 sm:gap-3">
+        <div className="flex items-center gap-1.5 border-[3px] border-slate-300 bg-white px-2 py-1.5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.1)] sm:px-4 sm:py-2">
+          <span className="hidden text-[9px] font-black uppercase tracking-widest text-slate-500 sm:inline">Código</span>
+          <span className="text-lg font-black tracking-[0.2em] text-slate-800 sm:text-2xl">
             {code}
           </span>
           <button
             type="button"
             onClick={handleCopy}
-            className="flex h-8 w-8 items-center justify-center border-2 border-[#09090B] bg-white text-slate-500 hover:bg-[#E2FF32] hover:text-[#09090B] hover:shadow-[2px_2px_0px_0px_#09090B] transition-all duration-100"
+            className="flex h-7 w-7 items-center justify-center border-2 border-slate-300 bg-white text-slate-500 hover:bg-[#E2FF32] hover:text-[#09090B] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] transition-all duration-100 sm:h-8 sm:w-8"
             title={copied ? 'Copiado!' : 'Copiar código'}
           >
             <AnimatePresence mode="wait">
@@ -199,16 +256,16 @@ function TopSessionBar({ code, sessionTitle, onExit, connectedParticipants, resp
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2 lg:gap-3">
-        <StatChip icon={Users} label="Online" value={connectedParticipants} tone="brand" />
-        <StatChip icon={BarChart3} label="Respostas" value={responseCount} tone="violet" />
+<div className="flex items-center justify-end gap-1.5 sm:gap-2 lg:gap-3">
+        <StatChip icon={Users} label="Online" value={connectedParticipants} tone="brand" size="sm" />
+        <StatChip icon={BarChart3} label="Respostas" value={responseCount} tone="violet" size="sm" />
         <button
           type="button"
           onClick={onExit}
-          className="flex items-center gap-2 border-2 border-[#09090B] bg-white px-3.5 py-2.5 text-sm font-bold text-[#09090B] transition-all duration-100 hover:bg-[#FF0055] hover:text-white hover:shadow-[2px_2px_0px_0px_#09090B] lg:px-4"
+          className="flex items-center gap-1.5 border-2 border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition-all duration-100 hover:bg-[#FF0055] hover:text-white hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] sm:px-3.5 sm:py-2.5 sm:text-sm"
           title="Sair da projeção"
         >
-          <Square className="h-4 w-4 fill-current" />
+          <Square className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current" />
           <span className="hidden lg:inline">Encerrar</span>
         </button>
       </div>
@@ -216,20 +273,24 @@ function TopSessionBar({ code, sessionTitle, onExit, connectedParticipants, resp
   )
 }
 
-function StatChip({ icon: Icon, value, label, tone = 'brand' }) {
+function StatChip({ icon: Icon, value, label, tone = 'brand', size = 'md' }) {
   const bgColors = {
-    brand: 'bg-[#09090B]',
+    brand: 'bg-slate-800',
     ocean: 'bg-[#0055FF]',
     violet: 'bg-[#7C3AED]',
   }
+  const sizeClasses = size === 'sm' 
+    ? 'h-8 w-8 px-2.5 py-2 text-xs' 
+    : 'h-9 w-9 px-3.5 py-2.5 text-sm'
+  
   return (
-    <div className="flex items-center gap-2.5 border-[3px] border-[#09090B] bg-white px-3.5 py-2.5 shadow-[4px_4px_0px_0px_#09090B]">
-      <span className={`flex h-9 w-9 items-center justify-center border-2 border-[#09090B] ${bgColors[tone]} text-white`}>
-        <Icon className="h-4 w-4" />
+    <div className={`flex items-center gap-2 border-[3px] border-slate-300 bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.1)] ${size === 'sm' ? 'px-2 py-1.5' : 'px-3.5 py-2.5'}`}>
+      <span className={`flex items-center justify-center border-2 border-slate-300 ${bgColors[tone]} text-white ${size === 'sm' ? 'h-7 w-7 p-1.5' : 'h-9 w-9 p-2'}`}>
+        <Icon className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
       </span>
-      <div>
-        <p className="text-lg font-black tracking-tight text-[#09090B] leading-none">{value}</p>
-        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</p>
+      <div className="hidden sm:block">
+        <p className={`font-black tracking-tight text-slate-800 leading-none ${size === 'sm' ? 'text-sm' : 'text-lg'}`}>{value}</p>
+        <p className={`font-black uppercase tracking-wider text-slate-500 ${size === 'sm' ? 'text-[9px]' : 'text-[10px]'}`}>{label}</p>
       </div>
     </div>
   )
@@ -239,42 +300,42 @@ function BottomControls({ session, canGoBack, canGoForward, onNext, onPrevious }
   const [paused, setPaused] = useState(false)
 
   return (
-    <div className="absolute inset-x-0 bottom-5 z-30 flex items-center justify-center gap-3 px-4 lg:bottom-6">
+    <div className="relative z-20 flex items-center justify-center gap-2 px-2 sm:px-4 lg:bottom-6">
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="flex items-center gap-1.5 border-[3px] border-[#09090B] bg-[#09090B] p-1.5 shadow-[4px_4px_0px_0px_#09090B]"
+        className="flex items-center gap-1 border-[3px] border-slate-400 bg-white p-1 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.15)] sm:gap-1.5 sm:p-1.5"
       >
         <button
           type="button"
           onClick={onPrevious}
           disabled={!canGoBack}
-          className="group border-2 border-transparent p-3 text-white transition-all duration-100 hover:border-white hover:bg-white/10 disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
+          className="group border-2 border-transparent p-2 text-slate-700 transition-all duration-100 hover:border-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent sm:p-3"
         >
-          <ChevronLeft className="h-6 w-6 transition-transform group-hover:-translate-x-0.5" />
+          <ChevronLeft className="h-5 w-5 transition-transform group-hover:-translate-x-0.5 sm:h-6 sm:w-6" />
         </button>
-        <div className="flex h-10 items-center justify-center border-2 border-white/30 bg-white/10 px-4 font-black text-white">
+        <div className="flex h-8 items-center justify-center border-2 border-slate-300 bg-slate-100 px-3 font-black text-slate-800 sm:h-10 sm:px-4">
           {session.currentSlideIndex + 1} / {session.slides.length}
         </div>
         <button
           type="button"
           onClick={() => setPaused((p) => !p)}
           className={[
-            'border-2 border-transparent p-3 transition-all duration-100',
-            paused ? 'border-amber-500 bg-amber-500/20 text-amber-300' : 'text-white hover:border-white/30 hover:bg-white/10',
+            'border-2 border-transparent p-2 transition-all duration-100 sm:p-3',
+            paused ? 'border-amber-500 bg-amber-500/20 text-amber-700' : 'text-slate-700 hover:border-slate-400 hover:bg-slate-100',
           ].join(' ')}
           title={paused ? 'Retomar recepção' : 'Pausar recepção'}
         >
-          {paused ? <PlayIcon className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+          {paused ? <PlayIcon className="h-4 w-4 sm:h-5 sm:w-5" /> : <Pause className="h-4 w-4 sm:h-5 sm:w-5" />}
         </button>
         <button
           type="button"
           onClick={onNext}
           disabled={!canGoForward}
-          className="group border-2 border-transparent p-3 text-white transition-all duration-100 hover:border-white hover:bg-white/10 disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent"
+          className="group border-2 border-transparent p-2 text-slate-700 transition-all duration-100 hover:border-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent sm:p-3"
         >
-          <ChevronRight className="h-6 w-6 transition-transform group-hover:translate-x-0.5" />
+          <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5 sm:h-6 sm:w-6" />
         </button>
       </motion.div>
     </div>
@@ -283,37 +344,49 @@ function BottomControls({ session, canGoBack, canGoForward, onNext, onPrevious }
 
 function SidePanel({ session, currentSlide, responses, connectedParticipants, joinUrl }) {
   const [feedTab, setFeedTab] = useState('live')
+  const [qrFullscreen, setQrFullscreen] = useState(false)
+
   return (
-    <aside className="relative z-20 hidden h-full flex-col gap-4 overflow-y-auto border-l-[3px] border-[#09090B] bg-white px-5 py-5 cs-scroll-thin lg:flex">
-      <section className="relative overflow-hidden border-[3px] border-[#09090B] bg-[#09090B] p-5 text-white shadow-[6px_6px_0px_0px_#09090B]">
-        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#E2FF32]">Como entrar</p>
-        <p className="mt-1 text-lg font-black tracking-tight">Aponte a câmera do celular</p>
-        <div className="mt-4 flex items-center gap-4">
-          <div className="flex h-28 w-28 shrink-0 items-center justify-center border-2 border-white bg-white p-2">
-            <QRCodeSVG
-              value={joinUrl}
-              size={104}
-              bgColor="transparent"
-              fgColor={COLORS.brand[700]}
-            />
+    <>
+      <aside className="relative z-20 hidden h-full w-full max-w-[380px] flex-col gap-3 overflow-y-auto border-l-[3px] border-[#09090B] bg-white p-3 sm:gap-4 sm:p-5 cs-scroll-thin lg:flex">
+        <section className="relative overflow-hidden border-[3px] border-[#09090B] bg-white p-3 sm:p-5 shadow-[4px_4px_0px_0px_#09090B] sm:shadow-[6px_6px_0px_0px_#09090B]">
+          <div className="flex items-center justify-between">
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#09090B] sm:text-[10px]">Como entrar</p>
+            <button
+              type="button"
+              onClick={() => setQrFullscreen(true)}
+              className="flex items-center gap-1 border-2 border-[#09090B] bg-[#E2FF32] px-1.5 py-1 text-[9px] font-black uppercase tracking-wider text-[#09090B] transition-all duration-100 hover:shadow-[2px_2px_0px_0px_#09090B] sm:px-2 sm:py-1 sm:text-[10px]"
+              title="QR code em tela cheia"
+            >
+              <Maximize2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> <span className="hidden sm:inline">Tela cheia</span>
+            </button>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-300">Acesse</p>
-            <p className="truncate text-base font-black tracking-tight">cloudspeak.com</p>
-            <p className="mt-2 text-xs font-black uppercase tracking-wider text-slate-400">Código</p>
-            <p className="text-2xl font-black tracking-[0.18em] text-[#E2FF32]">
-              {session.code}
-            </p>
+          <p className="mt-1.5 text-sm font-black tracking-tight text-[#09090B] sm:text-lg">Aponte a câmera</p>
+          <div className="mt-3 flex items-center gap-3 sm:gap-4">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center border-2 border-[#09090B] bg-[#F4F4F0] p-1.5 sm:h-28 sm:w-28 sm:p-2">
+              <QRCodeSVG
+                value={joinUrl}
+                size={72}
+                bgColor="transparent"
+                fgColor={COLORS.brand[700]}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold text-slate-600 sm:text-xs">Acesse</p>
+              <p className="mt-1.5 text-[9px] font-black uppercase tracking-wider text-slate-500 sm:mt-2 sm:text-xs">Código</p>
+              <p className="text-xl font-black tracking-[0.18em] text-[#09090B] sm:text-2xl">
+                {session.code}
+              </p>
+            </div>
           </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => navigator.clipboard?.writeText(session.code)}
-          className="mt-4 flex w-full items-center justify-center gap-2 border-2 border-white/30 bg-white/10 py-2 text-xs font-black uppercase tracking-wider text-white transition-all duration-100 hover:bg-white/20 hover:border-white/50"
-        >
-          <Share2 className="h-3.5 w-3.5" /> Compartilhar link
-        </button>
-      </section>
+          <button
+            type="button"
+            onClick={() => navigator.clipboard?.writeText(session.code)}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 border-2 border-[#09090B] bg-[#F4F4F0] py-1.5 text-[10px] font-black uppercase tracking-wider text-[#09090B] transition-all duration-100 hover:bg-[#E2FF32] hover:shadow-[2px_2px_0px_0px_#09090B] sm:mt-4 sm:py-2 sm:text-xs"
+          >
+            <Share2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> <span className="hidden sm:inline">Compartilhar link</span>
+          </button>
+        </section>
 
       <section>
         <div className="flex items-center gap-1 border-[3px] border-[#09090B] bg-white p-1 shadow-[3px_3px_0px_0px_#09090B]">
@@ -323,7 +396,7 @@ function SidePanel({ session, currentSlide, responses, connectedParticipants, jo
               type="button"
               onClick={() => setFeedTab(tab)}
               className={[
-                'flex-1 px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all duration-100 border-2',
+                'flex-1 px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all duration-100 border-2 sm:px-3 sm:py-1.5 sm:text-xs',
                 feedTab === tab
                   ? 'bg-[#09090B] text-white border-[#09090B]'
                   : 'text-slate-500 border-transparent hover:border-[#09090B] hover:bg-[#F4F4F0]',
@@ -334,40 +407,67 @@ function SidePanel({ session, currentSlide, responses, connectedParticipants, jo
           ))}
         </div>
 
-        <div className="mt-3 space-y-2.5">
+        <div className="mt-2 space-y-2 sm:mt-3 sm:space-y-2.5">
           {feedTab === 'live' && <LiveFeed responses={responses} currentSlide={currentSlide} />}
           {feedTab === 'ranking' && <RankingFeed currentSlide={currentSlide} responses={responses} />}
           {feedTab === 'público' && <AudienceFeed connectedParticipants={connectedParticipants} />}
         </div>
       </section>
 
-      <section className="mt-auto border-[3px] border-[#09090B] bg-[#09090B] p-5 text-white shadow-[6px_6px_0px_0px_#09090B]">
+      <section className="mt-auto border-[3px] border-[#09090B] bg-white p-3 text-[#09090B] shadow-[4px_4px_0px_0px_#09090B] sm:p-5 sm:shadow-[6px_6px_0px_0px_#09090B]">
         <Badge2>Modo apresentador</Badge2>
-        <p className="mt-2 text-sm font-bold leading-relaxed text-slate-300">
-          A plateia está respondendo em tempo real. Você controla o avanço das etapas.
+        <p className="mt-1.5 text-xs font-bold leading-relaxed text-slate-700 sm:text-sm">
+          A plateia está respondendo em tempo real. Você controla o avanço.
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-2">
           <MiniStat label="Conexões" value={connectedParticipants} />
           <MiniStat label="Etapa" value={`${session.currentSlideIndex + 1}/${session.slides.length}`} />
         </div>
       </section>
     </aside>
+
+      {qrFullscreen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4">
+          <div className="relative flex max-h-[90vh] w-full max-w-xl flex-col items-center gap-4 sm:gap-6">
+            <button
+              type="button"
+              onClick={() => setQrFullscreen(false)}
+              className="absolute -top-10 right-0 flex items-center gap-2 border-2 border-white bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition-all duration-100 hover:bg-white/20 sm:-top-12 sm:px-4 sm:py-2 sm:text-sm"
+            >
+              <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
+            </button>
+            <div className="flex h-64 w-64 items-center justify-center border-4 border-white bg-white p-4 shadow-2xl sm:h-80 sm:w-80 sm:p-6">
+              <QRCodeSVG
+                value={joinUrl}
+                size={200}
+                bgColor="transparent"
+                fgColor={COLORS.brand[700]}
+              />
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-black tracking-[0.25em] text-white sm:text-2xl">{session.code}</p>
+              <p className="mt-1 text-xs font-bold text-slate-300 sm:text-sm">falasecti.com</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
 function Badge2({ children }) {
   return (
-    <span className="inline-flex items-center gap-1.5 border-2 border-white/30 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white">
-      <Eye className="h-3 w-3" /> {children}
+    <span className="inline-flex items-center gap-1.5 border-2 border-[#09090B] bg-[#F4F4F0] px-2 py-1 text-[9px] font-black uppercase tracking-wider text-[#09090B] sm:px-3 sm:py-1 sm:text-[10px]">
+      <Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> {children}
     </span>
   )
 }
 
 function MiniStat({ label, value }) {
   return (
-    <div className="border-2 border-white/30 bg-white/10 px-3 py-2">
-      <p className="text-lg font-black leading-tight">{value}</p>
-      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p>
+    <div className="border-2 border-[#09090B] bg-[#F4F4F0] px-2 py-1.5 sm:px-3 sm:py-2">
+      <p className="text-base font-black leading-tight text-[#09090B] sm:text-lg">{value}</p>
+      <p className="text-[9px] font-black uppercase tracking-wider text-slate-600 sm:text-[10px]">{label}</p>
     </div>
   )
 }
@@ -375,7 +475,7 @@ function MiniStat({ label, value }) {
 function LiveFeed({ responses, currentSlide }) {
   if (!responses.length) {
     return (
-      <div className="border-[3px] border-dashed border-[#09090B] bg-white p-5 text-center text-xs font-black uppercase tracking-wider text-slate-500">
+      <div className="border-[3px] border-dashed border-slate-300 bg-[#F4F4F0] p-5 text-center text-xs font-black uppercase tracking-wider text-slate-500">
         Aguardando a primeira resposta…
       </div>
     )
@@ -390,7 +490,7 @@ function LiveFeed({ responses, currentSlide }) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 0.95 }}
           transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
-          className="overflow-hidden border-2 border-[#09090B] bg-white p-3 shadow-[2px_2px_0px_0px_#09090B]"
+          className="overflow-hidden border-2 border-slate-300 bg-white p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]"
         >
           <div className="flex items-center justify-between">
             <p className="truncate text-xs font-black text-slate-800">{entry.participantName || 'Anônimo'}</p>
@@ -400,7 +500,7 @@ function LiveFeed({ responses, currentSlide }) {
           </div>
           <p className="mt-1 line-clamp-2 text-sm font-bold text-slate-700">
             {currentSlide?.type === 'multiple_choice' && (
-              <span className="inline-flex items-center gap-2 border border-[#09090B] bg-brand-200 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-[#09090B]">
+              <span className="inline-flex items-center gap-2 border border-slate-300 bg-brand-200 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-[#09090B]">
                 <Check className="h-3 w-3" /> {entry.value}
               </span>
             )}
@@ -415,7 +515,7 @@ function LiveFeed({ responses, currentSlide }) {
 function RankingFeed({ currentSlide, responses }) {
   if (!currentSlide || currentSlide.type !== 'multiple_choice') {
     return (
-      <div className="border-[3px] border-dashed border-[#09090B] bg-white p-5 text-center text-xs font-black uppercase tracking-wider text-slate-500">
+      <div className="border-[3px] border-dashed border-slate-300 bg-[#F4F4F0] p-5 text-center text-xs font-black uppercase tracking-wider text-slate-500">
         Ranking aparece em enquetes.
       </div>
     )
@@ -432,18 +532,18 @@ function RankingFeed({ currentSlide, responses }) {
       {ranked.map((row, index) => (
         <div
           key={row.option}
-          className="border-2 border-[#09090B] bg-white p-3 shadow-[2px_2px_0px_0px_#09090B]"
+          className="border-2 border-slate-300 bg-white p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]"
         >
           <div className="flex items-center justify-between">
             <p className="flex items-center gap-2 truncate text-xs font-black text-slate-800">
-              <span className={`flex h-6 w-6 items-center justify-center border-2 border-[#09090B] text-[10px] font-black ${['bg-[#09090B] text-white', 'bg-slate-200 text-[#09090B]', 'bg-slate-200 text-[#09090B]'][Math.min(index, 2)]}`}>
+              <span className={`flex h-6 w-6 items-center justify-center border-2 border-slate-300 text-[10px] font-black ${['bg-[#09090B] text-white', 'bg-slate-200 text-[#09090B]', 'bg-slate-200 text-[#09090B]'][Math.min(index, 2)]}`}>
                 {index + 1}
               </span>
               {row.option}
             </p>
             <p className="text-xs font-black text-slate-500">{row.count} votos</p>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden border border-[#09090B] bg-white">
+          <div className="mt-2 h-1.5 overflow-hidden border border-slate-300 bg-white">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${(row.count / total) * 100}%` }}
@@ -465,12 +565,12 @@ function AudienceFeed({ connectedParticipants }) {
       {visible.map((name, i) => {
         const gradient = ['from-brand-500 to-violet-500', 'from-ocean-500 to-ocean-700', 'from-sunset-500 to-coral-500', 'from-violet-500 to-coral-500'][i % 4]
         return (
-          <div key={name + i} className="flex items-center gap-3 border-2 border-[#09090B] bg-white px-3 py-2 shadow-[2px_2px_0px_0px_#09090B]">
-            <span className={`flex h-9 w-9 items-center justify-center border-2 border-[#09090B] bg-[#09090B] text-sm font-black text-white`}>
+          <div key={name + i} className="flex items-center gap-3 border-2 border-slate-300 bg-white px-3 py-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]">
+            <span className={`flex h-9 w-9 items-center justify-center border-2 border-slate-300 bg-gradient-to-br ${gradient} text-sm font-black text-white`}>
               {name[0]}
             </span>
             <p className="truncate text-xs font-bold text-[#09090B]">{name}</p>
-            <span className="ml-auto h-2 w-2 border border-[#09090B] bg-emerald-400" />
+            <span className="ml-auto h-2 w-2 border border-emerald-500 bg-emerald-400" />
           </div>
         )
       })}
@@ -478,7 +578,7 @@ function AudienceFeed({ connectedParticipants }) {
         <div className="text-center text-xs font-black uppercase tracking-wider text-slate-500">+{connectedParticipants - visible.length} outros</div>
       )}
       {visible.length === 0 && (
-        <div className="border-[3px] border-dashed border-[#09090B] bg-white p-5 text-center text-xs font-black uppercase tracking-wider text-slate-500">
+        <div className="border-[3px] border-dashed border-slate-300 bg-[#F4F4F0] p-5 text-center text-xs font-black uppercase tracking-wider text-slate-500">
           Aguardando conexão do público…
         </div>
       )}

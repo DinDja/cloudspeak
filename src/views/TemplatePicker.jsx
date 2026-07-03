@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft,
   ArrowRight,
-  Sparkles,
   Check,
   Rocket,
   Flag,
@@ -19,7 +18,6 @@ import { TEMPLATES } from '../lib/templates'
 import { SLIDE_TYPES } from '../lib/constants'
 
 const ICONS = {
-  sparkles: Sparkles,
   rocket: Rocket,
   flag: Flag,
   book: BookOpen,
@@ -94,7 +92,7 @@ export default function TemplatePicker({ onBack, onConfirm, initialTitle = '' })
           animate="visible"
         >
           {TEMPLATES.map((template) => {
-            const Icon = ICONS[template.icon] ?? Sparkles
+            const Icon = ICONS[template.icon] ?? Rocket
             const isActive = template.id === selectedId
             return (
               <motion.button

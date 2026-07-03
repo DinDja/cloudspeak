@@ -17,10 +17,10 @@ export const generateCode = () =>
   Math.random().toString(36).slice(2, 8).toUpperCase()
 
 export const getParticipantId = () => {
-  const existing = sessionStorage.getItem('cloudspeak-participant-id')
+  const existing = sessionStorage.getItem('falasecti-participant-id')
   if (existing) return existing
   const created = crypto.randomUUID()
-  sessionStorage.setItem('cloudspeak-participant-id', created)
+  sessionStorage.setItem('falasecti-participant-id', created)
   return created
 }
 

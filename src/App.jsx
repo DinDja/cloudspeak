@@ -157,7 +157,13 @@ export default function App() {
       const code = await launchPresentationAsSession({ presentation, ownerUid: uid, ownerEmail: email })
       goHost(code)
     } catch (err) {
-      setGlobalError(err.message || 'Não foi possível lançar a apresentação.')
+      console.error('Launch presentation error:', err)
+      const message = err.code === 'permission-denied'
+        ? 'Permissão negada. Verifique se você está logado com e-mail @secti.ba.gov.br.'
+        : err.message?.includes('ERR_BLOCKED_BY_CLIENT') || err.code === 'unavailable'
+          ? 'Conexão bloqueada. Desative adblockers ou verifique seu firewall/antivírus.'
+          : err.message || 'Não foi possível lançar a apresentação.'
+      setGlobalError(message)
     }
   }
 
@@ -223,7 +229,7 @@ export default function App() {
     view = 'verify'
   }
 
-  if (view === 'loading') return <FullPageLoader label="Carregando CloudSpeak..." />
+  if (view === 'loading') return <FullPageLoader label="Carregando Fala Secti..." />
 
   if (view === 'public') {
     return (

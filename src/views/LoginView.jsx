@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react'
 import AuthLayout from '../components/auth/AuthLayout'
 import { useAuth } from '../hooks/useAuth'
 import { isSectiEmail, describeAuthError } from '../lib/validators'
@@ -14,6 +14,24 @@ export default function LoginView({ onBack, onGoRegister }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
+  const handleEmailChange = (value) => {
+    setEmail(value)
+    if (value && !value.includes('@')) {
+      setSuggestions([`${value}@secti.ba.gov.br`])
+      setShowSuggestions(true)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }
+
+  const selectSuggestion = (suggestion) => {
+    setEmail(suggestion)
+    setShowSuggestions(false)
+  }
 
   const handleGoogleLogin = async () => {
     setError('')
@@ -73,21 +91,39 @@ export default function LoginView({ onBack, onGoRegister }) {
           onClick={onGoRegister}
           className="inline-flex items-center gap-1.5 border-[3px] border-transparent px-3 py-1.5 text-xs font-black uppercase tracking-widest text-[#09090B] transition-none hover:border-[#09090B] hover:bg-[#E2FF32] hover:shadow-[4px_4px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
         >
-          <Sparkles className="h-4 w-4" /> Não tem conta? Criar
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-id-card-lanyard-icon lucide-id-card-lanyard"><path d="M13.5 8h-3"/><path d="m15 2-1 2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"/><path d="M16.899 22A5 5 0 0 0 7.1 22"/><path d="m9 2 3 6"/><circle cx="12" cy="15" r="3" className='w-4'/></svg> Não tem conta? Criar
         </button>
       }
     >
       <form onSubmit={submit} className="space-y-6">
-        <Field
-          label="E-mail institucional"
-          icon={Mail}
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="nome@secti.ba.gov.br"
-          autoCapitalize="none"
-          autoCorrect="off"
-        />
+        <div className="relative">
+          <Field
+            label="E-mail institucional"
+            icon={Mail}
+            type="email"
+            value={email}
+            onChange={(event) => handleEmailChange(event.target.value)}
+            onFocus={() => email && !email.includes('@') && setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            placeholder="nome@secti.ba.gov.br"
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="email"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-10 mt-1 w-full border-[3px] border-[#09090B] bg-white shadow-[4px_4px_0px_0px_#09090B]">
+              {suggestions.map((suggestion, idx) => (
+                <li
+                  key={idx}
+                  onMouseDown={() => selectSuggestion(suggestion)}
+                  className="cursor-pointer border-b-[2px] border-[#09090B]/20 px-4 py-3 text-sm font-bold text-[#09090B] last:border-b-0 hover:bg-[#E2FF32]"
+                >
+                  {suggestion}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <Field
           label="Senha"
           icon={Lock}

@@ -4,7 +4,6 @@ import {
   Heart,
   ThumbsUp,
   HelpCircle,
-  Sparkles,
   Users,
   Check,
   Loader2,
@@ -222,7 +221,7 @@ export default function ParticipantView({
                       disabled={sending || !value.trim()}
                       className="cs-btn-base w-full gap-2 bg-[#09090B] py-4 text-base font-black text-white"
                     >
-                      {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                      {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                       Enviar palavra
                     </button>
                     {hasSubmittedThisSlide && (

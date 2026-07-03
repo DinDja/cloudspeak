@@ -7,7 +7,6 @@ import {
   Loader2,
   Send,
   Inbox,
-  Sparkles,
 } from 'lucide-react'
 import AuthLayout from '../components/auth/AuthLayout'
 import { useAuth } from '../hooks/useAuth'
@@ -122,7 +121,6 @@ export default function VerifyEmailView({ onBackToPublic }) {
         </div>
 
         <div className="flex items-center gap-2 border-2 border-[#09090B] bg-white px-4 py-3 text-xs font-black uppercase tracking-wider text-[#09090B] shadow-[2px_2px_0px_0px_#09090B]">
-          <Sparkles className="h-3.5 w-3.5 text-[#09090B]" />
           Dica: o e-mail pode cair na sua pasta de spam.
         </div>
       </div>

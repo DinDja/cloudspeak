@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus,
   Search,
-  Sparkles,
   LogOut,
   ChevronRight,
   Calendar,
@@ -153,7 +152,6 @@ export default function PresenterDashboard({ onNew, onEdit, onPresent, onDuplica
         >
           <div>
             <div className="inline-flex items-center gap-2 border-[2px] border-[#09090B] bg-white px-3 py-1.5 text-xs font-black uppercase tracking-widest text-[#09090B] shadow-[2px_2px_0px_0px_#09090B]">
-              <Sparkles className="h-4 w-4" />
               OLÁ, {greeting}
             </div>
             <h1 className="mt-6 text-4xl font-black uppercase tracking-tighter text-[#09090B] sm:text-6xl">
@@ -353,7 +351,7 @@ function EmptyDashboard({ onNew }) {
   return (
     <div className="cs-card border-[4px] bg-white p-12 text-center">
       <div className="mx-auto flex h-24 w-24 items-center justify-center border-[4px] border-[#09090B] bg-[#FF90E8] text-[#09090B] shadow-[8px_8px_0px_0px_#09090B] -rotate-3">
-        <Sparkles className="h-12 w-12" strokeWidth={2.5} />
+        <Plus className="h-12 w-12" strokeWidth={2.5} />
       </div>
       
       <h2 className="mt-8 text-3xl font-black uppercase tracking-tight text-[#09090B]">

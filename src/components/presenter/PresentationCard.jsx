@@ -1,9 +1,9 @@
-import { FilePenLine, Presentation } from 'lucide-react'
+import { FilePenLine, Presentation, Copy, Trash2 } from 'lucide-react'
 
-export default function PresentationCard({ presentation }) {
+export default function PresentationCard({ presentation, onEdit, onPresent, onDuplicate, onDelete, formatRelativeDate }) {
   const { title, slides, updatedAt } = presentation
   const slidesCount = slides?.length || 0
-  const lastUpdated = new Date(updatedAt?.seconds * 1000).toLocaleDateString('pt-BR')
+  const lastUpdated = formatRelativeDate(updatedAt)
 
   return (
     <div className="flex h-full flex-col border-[3px] border-[#09090B] bg-white p-5 shadow-[6px_6px_0px_0px_#09090B]">
@@ -16,13 +16,35 @@ export default function PresentationCard({ presentation }) {
         </div>
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <button className="cs-btn-base h-11 gap-2 bg-[#FCFBF9] px-4 text-sm font-bold text-[#09090B]">
+        <button 
+          onClick={() => onEdit(presentation)}
+          className="cs-btn-base h-11 gap-2 bg-[#FCFBF9] px-4 text-sm font-bold text-[#09090B]"
+        >
           <FilePenLine className="h-4 w-4" />
           Editar
         </button>
-        <button className="cs-btn-base h-11 gap-2 bg-[#09090B] px-4 text-sm font-black text-white">
+        <button 
+          onClick={() => onPresent(presentation)}
+          className="cs-btn-base h-11 gap-2 bg-[#09090B] px-4 text-sm font-black text-white"
+        >
           <Presentation className="h-4 w-4" />
           Apresentar
+        </button>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <button 
+          onClick={() => onDuplicate(presentation)}
+          className="flex items-center justify-center gap-2 border-[2px] border-[#09090B] bg-white px-3 py-2 text-xs font-black uppercase tracking-wider text-[#09090B] hover:bg-[#F4F4F0] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+        >
+          <Copy className="h-4 w-4" strokeWidth={2.5} />
+          Duplicar
+        </button>
+        <button 
+          onClick={() => onDelete(presentation)}
+          className="flex items-center justify-center gap-2 border-[2px] border-[#09090B] bg-[#FF0055] px-3 py-2 text-xs font-black uppercase tracking-wider text-white hover:bg-[#FF4081] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+        >
+          <Trash2 className="h-4 w-4" strokeWidth={2.5} />
+          Apagar
         </button>
       </div>
     </div>

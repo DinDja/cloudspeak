@@ -10,7 +10,6 @@ import {
   Loader2,
   LayoutGrid,
   Eye,
-  Sparkles,
   Check,
   MonitorPlay,
   Smartphone,
@@ -517,7 +516,7 @@ function RightPanelSwitch({ value, onChange }) {
   return (
     <div className="flex items-center rounded-none border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
       {[
-        { id: 'properties', label: 'Propriedades', icon: Sparkles },
+        { id: 'properties', label: 'Propriedades', icon: Cpu },
         { id: 'editor', label: 'Componentes', icon: Cpu },
       ].map((opt) => {
         const Icon = opt.icon

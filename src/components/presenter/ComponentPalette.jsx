@@ -4,7 +4,6 @@ import {
   MessageSquareText,
   Users,
   Plus,
-  Sparkles,
   Layers,
   Box,
 } from 'lucide-react'
@@ -71,7 +70,7 @@ export default function ComponentPalette() {
         ))}
       </div>
 
-      <SectionHeader icon={Sparkles} title="Templates rápidos" />
+      <SectionHeader icon={Layers} title="Templates rápidos" />
       <div className="border-[3px] border-[#09090B] bg-white p-4 shadow-[4px_4px_0px_0px_#09090B]">
         <p className="text-xs font-bold leading-relaxed text-slate-700">
           Precisa de estrutura? Aplique um template na etapa atual para preencher opções automaticamente.
@@ -80,7 +79,7 @@ export default function ComponentPalette() {
           type="button"
           className="mt-3 inline-flex items-center gap-1.5 border-2 border-[#09090B] bg-[#09090B] px-3 py-2 text-xs font-black text-white shadow-[3px_3px_0px_0px_#09090B] hover:shadow-[2px_2px_0px_0px_#09090B] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
         >
-          <Sparkles className="h-3.5 w-3.5" /> Aplicar template
+          <Layers className="h-3.5 w-3.5" /> Aplicar template
         </button>
       </div>
     </div>

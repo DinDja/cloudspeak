@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { ArrowLeft, Sparkles, ShieldCheck, Wifi, BarChart3, Cloud, MessageSquareText, Users } from 'lucide-react'
+import { ArrowLeft, ShieldCheck, Wifi, BarChart3, Cloud, MessageSquareText, Users } from 'lucide-react'
 import Logo from '../ui/Logo'
 import Badge from '../ui/Badge'
 import {
@@ -20,10 +20,9 @@ export default function AuthLayout({ title, subtitle, onBack, children, footer }
             transition={{ duration: 0.6 }}
             className="max-w-lg"
           >
-            <Badge tone="brand" dot className="mb-5"><ShieldCheck className="h-3.5 w-3.5" /> Área institucional</Badge>
             <h2 className="text-4xl font-black uppercase tracking-tight text-[#09090B] sm:text-5xl">
               Faça parte do{' '}
-              <span className="cs-gradient-text">estúdio CloudSpeak</span>
+              <span className="cs-gradient-text">estúdio Fala Secti</span>
             </h2>
             <p className="mt-4 text-base font-bold leading-relaxed text-slate-600">
               Acesso dedicado para a equipe da SECTI Bahia. Crie apresentações profissionais, engaje o público em tempo real e colete dados para suas decisões.
@@ -59,9 +58,6 @@ export default function AuthLayout({ title, subtitle, onBack, children, footer }
           >
             <div className="mb-8 flex flex-col items-center text-center">
               <Logo size="md" />
-              <div className="mt-5 inline-flex items-center gap-2 border-2 border-[#09090B] bg-[#E2FF32] px-4 py-2 text-xs font-black uppercase tracking-widest text-[#09090B] shadow-[2px_2px_0px_0px_#09090B]">
-                <IconShield className="h-4 w-4" /> Acesso restrito SECTI
-              </div>
             </div>
 
             <div className="relative border-[3px] border-[#09090B] bg-white p-7 shadow-[8px_8px_0px_0px_#09090B] sm:p-9">

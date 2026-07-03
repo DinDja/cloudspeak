@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, Lock, User, ArrowRight, Loader2, Sparkles } from 'lucide-react'
+import { Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react'
 import AuthLayout from '../components/auth/AuthLayout'
 import { useAuth } from '../hooks/useAuth'
 import { isSectiEmail, describeAuthError } from '../lib/validators'
@@ -13,6 +13,24 @@ export default function RegisterView({ onBack, onGoLogin }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
+  const handleEmailChange = (value) => {
+    setEmail(value)
+    if (value && !value.includes('@')) {
+      setSuggestions([`${value}@secti.ba.gov.br`])
+      setShowSuggestions(true)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }
+
+  const selectSuggestion = (suggestion) => {
+    setEmail(suggestion)
+    setShowSuggestions(false)
+  }
 
   const submit = async (event) => {
     event.preventDefault()
@@ -73,13 +91,29 @@ export default function RegisterView({ onBack, onGoLogin }) {
         <Field label="E-mail institucional" icon={Mail}>
           <input
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => handleEmailChange(event.target.value)}
+            onFocus={() => email && !email.includes('@') && setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             placeholder="nome@secti.ba.gov.br"
             type="email"
             autoCapitalize="none"
             autoCorrect="off"
+            autoComplete="email"
             className="cs-input-base w-full py-4 pl-12 pr-4 text-base font-bold"
           />
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-10 mt-1 w-full border-[3px] border-[#09090B] bg-white shadow-[4px_4px_0px_0px_#09090B]">
+              {suggestions.map((suggestion, idx) => (
+                <li
+                  key={idx}
+                  onMouseDown={() => selectSuggestion(suggestion)}
+                  className="cursor-pointer border-b-[2px] border-[#09090B]/20 px-4 py-3 text-sm font-bold text-[#09090B] last:border-b-0 hover:bg-[#E2FF32]"
+                >
+                  {suggestion}
+                </li>
+              ))}
+            </ul>
+          )}
         </Field>
         <Field label="Senha" icon={Lock}>
           <input
@@ -119,7 +153,7 @@ export default function RegisterView({ onBack, onGoLogin }) {
 
 function Field({ label, icon: Icon, children }) {
   return (
-    <div>
+    <div className="relative">
       <label className="mb-1.5 ml-1 block text-[10px] font-black uppercase tracking-wider text-slate-400">
         {label}
       </label>
