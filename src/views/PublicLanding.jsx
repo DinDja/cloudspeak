@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { ArrowRight, ArrowUpRight } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ArrowRight, ArrowUpRight, ChevronDown, Search, X } from 'lucide-react'
 import { isValidSessionCode } from '../lib/validators'
 import Logo from '../components/ui/Logo'
 import SectiMark from '../components/ui/SectiMark'
 import ConversationArtwork from '../components/ui/ConversationArtwork'
-import { EDUCATION_EVENT } from '../lib/eventData'
+import { ATTENDANCE_INSTITUTIONS } from '../lib/eventData'
 
 export default function PublicLanding({
   initialCode = '',
@@ -17,12 +17,26 @@ export default function PublicLanding({
   const [entry, setEntry] = useState({ initialCode, code: initialCode })
   const [name, setName] = useState('')
   const [institution, setInstitution] = useState('')
+  const [institutionSearch, setInstitutionSearch] = useState('')
+  const [institutionOpen, setInstitutionOpen] = useState(false)
   // A QR link may arrive after the authentication gate resolves.
   const code = entry.initialCode === initialCode ? entry.code : initialCode
-  const canJoin = isValidSessionCode(code.trim()) && (!initialAttendance || name.trim().length >= 3)
+  const filteredInstitutions = useMemo(() => {
+    const query = institutionSearch.trim().toLocaleLowerCase('pt-BR')
+    if (!query) return ATTENDANCE_INSTITUTIONS
+    return ATTENDANCE_INSTITUTIONS.filter((item) => item.toLocaleLowerCase('pt-BR').includes(query))
+  }, [institutionSearch])
+  const canJoin =
+    isValidSessionCode(code.trim()) &&
+    (!initialAttendance || (name.trim().length >= 3 && institution.trim().length > 0))
   const submit = (event) => {
     event.preventDefault()
     if (canJoin && !loading) onJoin(name, code.trim(), { attendance: initialAttendance, institution })
+  }
+  const chooseInstitution = (item) => {
+    setInstitution(item)
+    setInstitutionSearch('')
+    setInstitutionOpen(false)
   }
 
   return (
@@ -69,7 +83,7 @@ export default function PublicLanding({
               aria-invalid={Boolean(error)}
             />
             <label htmlFor="participant-name" className="join-name-label">
-              Seu nome {!initialAttendance && <span>opcional</span>}
+              Seu nome {initialAttendance ? <span>obrigatório</span> : <span>opcional</span>}
             </label>
             <input
               id="participant-name"
@@ -79,25 +93,79 @@ export default function PublicLanding({
               maxLength={40}
               autoComplete="given-name"
               placeholder={initialAttendance ? 'Nome completo' : 'Como você quer aparecer?'}
+              required={initialAttendance}
             />
             {initialAttendance && (
               <>
                 <label htmlFor="participant-institution" className="join-name-label">
-                  Órgão, escola ou instituição <span>opcional</span>
+                  Órgão, escola ou instituição <span>obrigatório</span>
                 </label>
-                <input
-                  id="participant-institution"
-                  className="join-name"
-                  value={institution}
-                  onChange={(event) => setInstitution(event.target.value)}
-                  maxLength={120}
-                  autoComplete="organization"
-                  list="event-institution-suggestions"
-                  placeholder="Ex.: SEC, NTE ou escola"
-                />
-                <datalist id="event-institution-suggestions">
-                  {EDUCATION_EVENT.schools.map((school) => <option key={school} value={school} />)}
-                </datalist>
+                <div className="institution-picker">
+                  <button
+                    id="participant-institution"
+                    type="button"
+                    className={`institution-trigger${institution ? ' institution-trigger--selected' : ''}`}
+                    onClick={() => setInstitutionOpen((open) => !open)}
+                    aria-haspopup="listbox"
+                    aria-expanded={institutionOpen}
+                    aria-required="true"
+                  >
+                    <span>{institution || 'Pesquisar e selecionar na lista'}</span>
+                    <ChevronDown size={16} className={institutionOpen ? 'rotate-180' : ''} />
+                  </button>
+                  {institutionOpen && (
+                    <div className="institution-popover">
+                      <div className="institution-search-wrap">
+                        <Search size={15} />
+                        <input
+                          autoFocus
+                          className="institution-search"
+                          value={institutionSearch}
+                          onChange={(event) => setInstitutionSearch(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Escape') setInstitutionOpen(false)
+                            if (event.key === 'Enter' && filteredInstitutions.length === 1) {
+                              event.preventDefault()
+                              chooseInstitution(filteredInstitutions[0])
+                            }
+                          }}
+                          placeholder="Pesquisar escola ou órgão..."
+                          aria-label="Pesquisar instituição"
+                          aria-controls="institution-options"
+                          aria-autocomplete="list"
+                        />
+                        {institutionSearch && (
+                          <button
+                            type="button"
+                            className="institution-search-clear"
+                            onClick={() => setInstitutionSearch('')}
+                            aria-label="Limpar pesquisa"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <div id="institution-options" className="institution-options" role="listbox" aria-label="Instituições disponíveis">
+                        {filteredInstitutions.length ? (
+                          filteredInstitutions.map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              role="option"
+                              aria-selected={institution === item}
+                              className={`institution-option${institution === item ? ' institution-option--selected' : ''}`}
+                              onClick={() => chooseInstitution(item)}
+                            >
+                              {item}
+                            </button>
+                          ))
+                        ) : (
+                          <p className="institution-empty">Nenhuma instituição encontrada.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             )}
             <button type="submit" disabled={!canJoin || loading} className="fala-button join-submit">
@@ -111,7 +179,9 @@ export default function PublicLanding({
             )}
           </form>
           <p className="join-note">
-            {initialAttendance ? 'Seu registro será usado apenas na ata e na lista de frequência do evento.' : 'Para participar, você não precisa criar uma conta.'}
+            {initialAttendance
+              ? 'Nome e instituição são obrigatórios. O registro será usado na ata e na lista de frequência do evento.'
+              : 'Para participar, você não precisa criar uma conta.'}
           </p>
         </section>
         <ConversationArtwork interactive />

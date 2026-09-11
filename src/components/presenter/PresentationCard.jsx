@@ -12,13 +12,18 @@ export default function PresentationCard({
 }) {
   const { title, slides, updatedAt } = presentation
   const count = slides?.length || 0
+  const edit = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onEdit?.(presentation)
+  }
   return (
     <article className="deck-row">
-      <button type="button" onClick={() => onEdit(presentation)} aria-label={`Editar ${title}`}>
+      <button type="button" onClick={edit} aria-label={`Editar ${title}`}>
         <SlideThumbnail slide={slides?.[0]} compact />
       </button>
       <div>
-        <button type="button" className="deck-row__title" onClick={() => onEdit(presentation)}>
+        <button type="button" className="deck-row__title" onClick={edit}>
           {title}
         </button>
         <p className="deck-row__meta">
@@ -30,7 +35,7 @@ export default function PresentationCard({
           type="button"
           className="fala-button fala-button--secondary"
           disabled={busy}
-          onClick={() => onEdit(presentation)}
+          onClick={edit}
           aria-label={`Editar ${title}`}
           title="Editar apresentação"
         >

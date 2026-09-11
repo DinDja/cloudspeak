@@ -13,6 +13,7 @@ import {
 import { endSession, getSession, launchPresentationAsSession, submitResponse } from './lib/firebaseSessions'
 import { deletePresentation, duplicatePresentation } from './lib/firebasePresentations'
 import { TEMPLATE_BY_ID } from './lib/templates'
+import { isAttendanceInstitution } from './lib/eventData'
 import { FullPageLoader } from './components/ui/Spinner'
 import PublicLanding from './views/PublicLanding'
 import LoginView from './views/LoginView'
@@ -152,6 +153,10 @@ export default function App() {
       const normalizedInstitution = normalizeText(metadata.institution ?? '')
       if (metadata.attendance && normalizedName.length < 3) {
         setJoinError('Informe seu nome completo para registrar a presença.')
+        return
+      }
+      if (metadata.attendance && !isAttendanceInstitution(normalizedInstitution)) {
+        setJoinError('Selecione seu órgão, escola ou instituição na lista.')
         return
       }
       setParticipantName(normalizedName)

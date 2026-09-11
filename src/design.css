@@ -329,6 +329,93 @@
 .join-name::placeholder {
   color: #91958b;
 }
+.institution-picker {
+  position: relative;
+  margin-top: 2px;
+}
+.institution-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--fala-rule);
+  background: transparent;
+  color: #91958b;
+  font-size: 14px;
+  text-align: left;
+}
+.institution-trigger--selected {
+  color: var(--fala-ink);
+}
+.institution-trigger:focus-visible {
+  outline: 2px solid var(--fala-blue);
+  outline-offset: 4px;
+}
+.institution-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--fala-rule);
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(23, 24, 29, 0.14);
+}
+.institution-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--fala-rule);
+  color: var(--fala-muted);
+}
+.institution-search {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--fala-ink);
+  font-size: 13px;
+}
+.institution-search::placeholder {
+  color: #91958b;
+}
+.institution-search-clear {
+  display: inline-grid;
+  place-items: center;
+  color: var(--fala-muted);
+}
+.institution-options {
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.institution-option {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--fala-ink);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+}
+.institution-option:hover,
+.institution-option--selected {
+  background: #eef5ff;
+  color: var(--fala-blue);
+}
+.institution-empty {
+  padding: 14px 10px;
+  color: var(--fala-muted);
+  font-size: 12px;
+}
 .join-submit {
   justify-content: space-between;
   margin-top: 22px;

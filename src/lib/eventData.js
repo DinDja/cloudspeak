@@ -148,6 +148,42 @@ export const EDUCATION_EVENT = {
 const openQuestion = (question) => ({ ...createSlideDraft('open_text'), question })
 const wordQuestion = (question) => ({ ...createSlideDraft('word_cloud'), question })
 
+export const ATTENDANCE_INSTITUTIONS = Array.from(new Set([
+  ...EDUCATION_EVENT.schools,
+  'APLB',
+  'FEEBA',
+  'UNDIME',
+  'UNCME',
+  'CEE-BA',
+  'UNEB',
+  'UFBA',
+  'Universidades estaduais da Bahia',
+  'Universidades federais da Bahia',
+  'IFBA',
+  'IF Baiano',
+  'Núcleos Territoriais de Educação (NTEs)',
+  'Gestão escolar',
+  'Coordenação pedagógica',
+  'CASA CIVIL',
+  'COJUV',
+  'SECTI',
+  'SDE',
+  'SEPROMI',
+  'SPM',
+  'SJDH',
+  'FAPESB',
+  'SETRE',
+  'SECULT',
+  'SEI',
+  'SEPLAN',
+  'SETUR',
+  'SEC',
+  'SESI',
+  'ACB',
+])).sort((left, right) => left.localeCompare(right, 'pt-BR'))
+
+export const isAttendanceInstitution = (value) => ATTENDANCE_INSTITUTIONS.includes(String(value ?? '').trim())
+
 export const buildEducationEventSlides = () => [
   ...guidedQuestions.map(openQuestion),
   wordQuestion('Em uma palavra, qual legado este seminário deve deixar para a Educação da Bahia?'),

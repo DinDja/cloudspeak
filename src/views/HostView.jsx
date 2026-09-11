@@ -17,6 +17,7 @@ import {
   Maximize2,
   FileText,
   QrCode,
+  Download,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { TEAM_SELECTION_TYPE } from '../lib/constants'
@@ -536,15 +537,16 @@ function SidePanel({
 function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, onOpenReport }) {
   const [selectedQr, setSelectedQr] = useState(null)
   const entries = [
-    { label: 'Participar', hint: 'Entrada geral', value: joinUrl },
-    { label: 'Presença', hint: 'Lista de frequência', value: presenceUrl },
-    { label: 'Pergunta atual', hint: 'Resposta do painel', value: slideJoinUrl },
+    { label: 'Participar', hint: 'Entrada geral', value: joinUrl, filename: `qrcode-${code.toLowerCase()}-participar` },
+    { label: 'Presença', hint: 'Lista de frequência', value: presenceUrl, filename: `qrcode-${code.toLowerCase()}-presenca` },
+    { label: 'Pergunta atual', hint: 'Resposta do painel', value: slideJoinUrl, filename: `qrcode-${code.toLowerCase()}-pergunta-atual` },
   ]
   const questionEntries = slides.map((slide, index) => ({
     label: `Pergunta ${index + 1}`,
     hint: 'QR da etapa',
     detail: slide.question,
     value: getSlideJoinUrl(code, slide.id),
+    filename: `qrcode-${code.toLowerCase()}-pergunta-${index + 1}`,
   }))
 
   return (
@@ -596,7 +598,7 @@ function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, o
           </div>
         )}
         <p className="mt-3 text-[10px] leading-4 text-slate-500">
-          O QR de presença exige nome completo e registra também a instituição informada.
+          O QR de presença exige nome completo e instituição escolhida na lista. Clique em qualquer QR para ampliar e baixar.
         </p>
         <button
           type="button"
@@ -622,15 +624,43 @@ function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, o
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">{selectedQr.hint}</p>
             <h2 className="mt-2 text-2xl font-semibold text-slate-900">{selectedQr.label}</h2>
             {selectedQr.detail && <p className="mt-2 max-w-sm text-sm leading-5 text-slate-600">{selectedQr.detail}</p>}
-            <div className="mx-auto mt-5 flex aspect-square w-64 items-center justify-center rounded-xl border-8 border-slate-900 bg-white p-3">
+            <div data-event-qr-modal className="mx-auto mt-5 flex aspect-square w-64 items-center justify-center rounded-xl border-8 border-slate-900 bg-white p-3">
               <QRCodeSVG value={selectedQr.value} size={220} fgColor={COLORS.brand[700]} />
             </div>
             <p className="mt-4 break-all text-[10px] leading-4 text-slate-500">{selectedQr.value}</p>
+            <button
+              type="button"
+              onClick={() => downloadQrCode(selectedQr)}
+              className="fala-button mt-4 w-full justify-center"
+            >
+              <Download size={15} />
+              Baixar QR code (SVG)
+            </button>
           </div>
         </div>
       )}
     </>
   )
+}
+
+function downloadQrCode(entry) {
+  const svg = document.querySelector('[data-event-qr-modal] svg')
+  if (!svg) return
+  const clone = svg.cloneNode(true)
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+  const source = new XMLSerializer().serializeToString(clone)
+  const blob = new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n${source}`], {
+    type: 'image/svg+xml;charset=utf-8',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${entry.filename || 'qrcode-evento'}.svg`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
 }
 
 function Badge2({ children }) {
