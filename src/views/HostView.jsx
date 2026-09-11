@@ -630,8 +630,8 @@ function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, o
       </section>
 
       {selectedQr && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4">
-          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 text-center">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-3 sm:p-6">
+          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 text-center sm:max-h-[calc(100dvh-3rem)] sm:p-8">
             <button
               type="button"
               onClick={() => setSelectedQr(null)}
@@ -641,10 +641,15 @@ function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, o
               <X className="h-5 w-5" />
             </button>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">{selectedQr.hint}</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-900">{selectedQr.label}</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">{selectedQr.label}</h2>
             {selectedQr.detail && <p className="mt-2 max-w-sm text-sm leading-5 text-slate-600">{selectedQr.detail}</p>}
-            <div data-event-qr-modal className="mx-auto mt-5 flex aspect-square w-64 items-center justify-center rounded-xl border-8 border-slate-900 bg-white p-3">
-              <QRCodeSVG value={selectedQr.value} size={220} fgColor={selectedQr.color ?? BAHIA_QR_COLORS[0]} />
+            <div data-event-qr-modal className="mx-auto mt-6 flex aspect-square w-[min(82vw,32rem)] max-w-full items-center justify-center rounded-2xl border-[10px] border-slate-900 bg-white p-4 sm:p-5">
+              <QRCodeSVG
+                value={selectedQr.value}
+                size={480}
+                className="h-full w-full"
+                fgColor={selectedQr.color ?? BAHIA_QR_COLORS[0]}
+              />
             </div>
             <p className="mt-4 break-all text-[10px] leading-4 text-slate-500">{selectedQr.value}</p>
             <button
