@@ -223,6 +223,53 @@ export const getAttendanceParticipants = (participants = []) =>
       text(left.participantName || 'Anônimo').localeCompare(text(right.participantName || 'Anônimo'), 'pt-BR'),
     )
 
+export const createAttendancePdf = async ({ session, participants = [], authorName = '' }) => {
+  const event = getEventForSession(session)
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
+  const crest = await imageToDataUrl('/brasao-bahia.png')
+  const writer = makeWriter(pdf, crest)
+  const participantRows = getAttendanceParticipants(participants)
+  const eventDate = parseEventDate(event.date) || toDate(session?.launchedAt)
+  const eventDateLabel = text(event.date) || formatDate(eventDate)
+  const eventTimeLabel = text(event.time) || 'horário não informado'
+
+  writer.centeredTitle('LISTA DE PRESENÇA')
+  writer.paragraph(event.title, { bold: true, size: 11, after: 1 })
+  writer.paragraph(`Data do evento: ${eventDateLabel}. Horário: ${eventTimeLabel}. Local: ${event.location}.`)
+  writer.paragraph(`Código da sessão: ${text(session?.code) || 'sem código'}.`)
+  writer.paragraph(
+    'Documento emitido a partir dos registros de presença confirmados pelo QR Code específico de presença. Cada linha corresponde a um participante registrado no Firestore.',
+  )
+  writer.paragraph(`Total de presenças confirmadas: ${participantRows.length}.`, { bold: true })
+
+  if (participantRows.length) {
+    writer.table(
+      ['Nº', 'Nome registrado', 'Órgão, escola ou instituição', 'Entrada'],
+      participantRows.map((entry, index) => [
+        String(index + 1),
+        text(entry.participantName) || 'Nome não informado',
+        text(entry.participantInstitution) || 'Órgão ou instituição não informado',
+        entry.joinedAt ? `${formatDate(entry.joinedAt)} às ${formatTime(entry.joinedAt)}` : 'Não informado',
+      ]),
+      { columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 48 }, 2: { cellWidth: 84 }, 3: { cellWidth: 30 } } },
+    )
+  } else {
+    writer.paragraph('Não houve registro confirmado pelo QR Code de presença.')
+  }
+
+  writer.paragraph(
+    `Lista gerada pelo CloudSpeak${text(authorName) ? ` para ${text(authorName)}` : ''}. A conferência e a assinatura do documento permanecem sob responsabilidade da organização do evento.`,
+    { size: 8 },
+  )
+
+  const totalPages = pdf.getNumberOfPages()
+  for (let page = 1; page <= totalPages; page += 1) {
+    pdf.setPage(page)
+    drawFooter(pdf, page, totalPages)
+  }
+  return pdf
+}
+
 const responseEntries = (slide, responses, participantMap) =>
   responses
     .filter((entry) => entry.slideId === slide.id)
@@ -336,5 +383,12 @@ export const downloadMinutesPdf = async (options) => {
   const pdf = await createMinutesPdf(options)
   const code = text(options?.session?.code) || 'evento'
   pdf.save(`ata-${code.toLowerCase()}.pdf`)
+  return pdf
+}
+
+export const downloadAttendancePdf = async (options) => {
+  const pdf = await createAttendancePdf(options)
+  const code = text(options?.session?.code) || 'evento'
+  pdf.save(`lista-presenca-${code.toLowerCase()}.pdf`)
   return pdf
 }

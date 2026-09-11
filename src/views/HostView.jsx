@@ -18,6 +18,7 @@ import {
   FileText,
   QrCode,
   Download,
+  Loader2,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { TEAM_SELECTION_TYPE } from '../lib/constants'
@@ -28,6 +29,8 @@ import WordCloudResults from '../components/slides/WordCloudResults'
 import OpenTextResults from '../components/slides/OpenTextResults'
 import TeamSelectionResults from '../components/slides/TeamSelectionResults'
 import MinutesReportModal from '../components/host/MinutesReportModal'
+import { downloadAttendancePdf } from '../lib/eventMinutes'
+import { getParticipantsWithRetry } from '../lib/firebaseSessions'
 
 const REACTION_ICON = {
   heart: Heart,
@@ -62,6 +65,8 @@ export default function HostView({
   const slideJoinUrl = useMemo(() => getSlideJoinUrl(session.code, currentSlide?.id), [session.code, currentSlide?.id])
   const [fullscreenSlide, setFullscreenSlide] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+  const [attendanceDownloading, setAttendanceDownloading] = useState(false)
+  const [attendanceError, setAttendanceError] = useState('')
 
   const responseCount = useMemo(() => {
     if (currentSlide?.type === TEAM_SELECTION_TYPE) {
@@ -69,6 +74,20 @@ export default function HostView({
     }
     return responses.length
   }, [currentSlide, responses])
+
+  const downloadAttendance = async () => {
+    setAttendanceDownloading(true)
+    setAttendanceError('')
+    try {
+      const latestParticipants = await getParticipantsWithRetry(session.code)
+      await downloadAttendancePdf({ session, participants: latestParticipants })
+    } catch (error) {
+      console.error('attendance report failed', error)
+      setAttendanceError('Não foi possível gerar a lista de presença. Tente novamente.')
+    } finally {
+      setAttendanceDownloading(false)
+    }
+  }
 
   return (
     <>
@@ -175,6 +194,9 @@ export default function HostView({
           slideJoinUrl={slideJoinUrl}
           reactionCount={reactions.length}
           onOpenReport={() => setReportOpen(true)}
+          onDownloadAttendance={downloadAttendance}
+          attendanceDownloading={attendanceDownloading}
+          attendanceError={attendanceError}
         />
       </div>
 
@@ -406,6 +428,9 @@ function SidePanel({
   presenceUrl,
   slideJoinUrl,
   onOpenReport,
+  onDownloadAttendance,
+  attendanceDownloading,
+  attendanceError,
 }) {
   const [feedTab, setFeedTab] = useState('live')
   const [qrFullscreen, setQrFullscreen] = useState(false)
@@ -472,6 +497,9 @@ function SidePanel({
           presenceUrl={presenceUrl}
           slideJoinUrl={slideJoinUrl}
           onOpenReport={onOpenReport}
+          onDownloadAttendance={onDownloadAttendance}
+          attendanceDownloading={attendanceDownloading}
+          attendanceError={attendanceError}
         />
 
         <section>
@@ -534,7 +562,17 @@ function SidePanel({
   )
 }
 
-function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, onOpenReport }) {
+function EventQrTools({
+  code,
+  slides = [],
+  joinUrl,
+  presenceUrl,
+  slideJoinUrl,
+  onOpenReport,
+  onDownloadAttendance,
+  attendanceDownloading,
+  attendanceError,
+}) {
   const [selectedQr, setSelectedQr] = useState(null)
   const entries = [
     {
@@ -627,6 +665,16 @@ function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, o
           <FileText className="h-4 w-4" />
           Encerrar e gerar ata
         </button>
+        <button
+          type="button"
+          onClick={onDownloadAttendance}
+          disabled={attendanceDownloading}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800 transition-colors hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60"
+        >
+          {attendanceDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {attendanceDownloading ? 'Gerando lista…' : 'Baixar lista de presença (PDF)'}
+        </button>
+        {attendanceError && <p className="mt-2 text-[10px] leading-4 text-red-700" role="alert">{attendanceError}</p>}
       </section>
 
       {selectedQr && (

@@ -1,6 +1,26 @@
 import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, TEAM_SELECTION_TYPE } from './constants'
 
 export const normalizeText = (value) => value.trim().replace(/\s+/g, ' ')
+
+export const getFirebaseErrorCode = (error) => {
+  const code = String(error?.code ?? '').trim()
+  return code.includes('/') ? code.split('/').at(-1) : code || 'unknown'
+}
+
+export const isRetryableFirebaseError = (error) =>
+  ['aborted', 'deadline-exceeded', 'internal', 'unavailable', 'unknown'].includes(getFirebaseErrorCode(error))
+
+export const describeFirebaseError = (error, fallback) => {
+  const code = getFirebaseErrorCode(error)
+  const messages = {
+    'permission-denied': 'Acesso negado. Confirme se a apresentação ainda está ativa e use o código atual.',
+    unavailable: 'Não foi possível conectar ao Firestore. Verifique a internet do celular.',
+    'deadline-exceeded': 'A conexão demorou mais que o esperado. Tente novamente.',
+    'failed-precondition': 'O serviço ainda não está pronto para esta operação. Tente novamente.',
+    aborted: 'A operação foi interrompida pela conexão. Tente novamente.',
+  }
+  return `${messages[code] || fallback} (código técnico: ${code})`
+}
 export const getParticipantDisplayName = (value) => normalizeText(value) || 'Anônimo'
 
 export const isSecEmail = (email) => {
@@ -13,15 +33,31 @@ export const isSecEmail = (email) => {
 export const isValidSessionCode = (code) =>
   typeof code === 'string' && SESSION_CODE_REGEX.test(code)
 
-export const generateCode = () =>
-  Math.random().toString(36).slice(2, 8).toUpperCase()
+export const generateCode = () => {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  return Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('')
+}
+
+const generateParticipantId = () => {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID()
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16)
+    globalThis.crypto.getRandomValues(bytes)
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
+}
 
 export const getParticipantId = () => {
-  const existing = sessionStorage.getItem('falasec-participant-id')
-  if (existing) return existing
-  const created = crypto.randomUUID()
-  sessionStorage.setItem('falasec-participant-id', created)
-  return created
+  try {
+    const existing = globalThis.sessionStorage?.getItem('falasec-participant-id')
+    if (existing) return existing
+    const created = generateParticipantId()
+    globalThis.sessionStorage?.setItem('falasec-participant-id', created)
+    return created
+  } catch {
+    return generateParticipantId()
+  }
 }
 
 export const getJoinUrl = (code) => {

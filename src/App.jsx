@@ -9,8 +9,15 @@ import {
   getParticipantId,
   isValidSessionCode,
   normalizeText,
+  describeFirebaseError,
 } from './lib/validators'
-import { endSession, getSession, launchPresentationAsSession, submitResponse } from './lib/firebaseSessions'
+import {
+  endSession,
+  getSessionWithRetry,
+  launchPresentationAsSession,
+  submitResponse,
+  syncPresenceWithRetry,
+} from './lib/firebaseSessions'
 import { deletePresentation, duplicatePresentation } from './lib/firebasePresentations'
 import { TEMPLATE_BY_ID } from './lib/templates'
 import { isAttendanceInstitution, OTHER_ATTENDANCE_INSTITUTION } from './lib/eventData'
@@ -46,10 +53,19 @@ export default function App() {
 
   const participantId = useMemo(() => getParticipantId(), [])
 
-  const { session, responses, participants, loading: sessionLoading, next, previous } = useSession(sessionCode)
+  const {
+    session,
+    responses,
+    participants,
+    error: sessionError,
+    loading: sessionLoading,
+    next,
+    previous,
+    retry: retrySession,
+  } = useSession(sessionCode)
   const { reactions, react } = useReactions(sessionCode)
 
-  usePresence({
+  const { error: presenceError, retry: retryPresence } = usePresence({
     enabled: route === 'participant' && Boolean(sessionCode),
     code: sessionCode,
     participantId,
@@ -75,6 +91,7 @@ export default function App() {
 
   useEffect(() => {
     if (sessionLoading || !sessionCode) return
+    if (sessionError) return
     if (session) return
     if (route === 'participant') {
       setGlobalError('Sessão não encontrada ou finalizada.')
@@ -85,7 +102,7 @@ export default function App() {
       setRoute('dashboard')
       setSessionCode('')
     }
-  }, [session, sessionLoading, sessionCode, route])
+  }, [session, sessionError, sessionLoading, sessionCode, route])
 
   const currentSlide = useMemo(() => {
     if (!session?.slides?.length) return null
@@ -117,6 +134,8 @@ export default function App() {
   const goPublic = () => {
     setRoute('public')
     setSessionCode('')
+    setPrefilledCode('')
+    setPrefilledAttendance(false)
     setRequestedSlideId('')
     setAttendanceMode(false)
     setJoinError('')
@@ -128,6 +147,12 @@ export default function App() {
     setSessionCode('')
     setRequestedSlideId('')
     setAttendanceMode(false)
+  }
+  const leaveHost = () => {
+    setRoute('dashboard')
+    setRequestedSlideId('')
+    setAttendanceMode(false)
+    setJoinError('')
   }
   const goTemplatePicker = (templateId = 'blank') => {
     setEditingPresentation(null)
@@ -157,9 +182,9 @@ export default function App() {
     }
     setJoining(true)
     try {
-      const found = await getSession(code)
-      if (!found) {
-        setJoinError('Código inválido. Verifique e tente novamente.')
+      const found = await getSessionWithRetry(code)
+      if (!found || found.status !== 'live') {
+        setJoinError('A apresentação foi encerrada ou o código não está mais disponível.')
         return
       }
       const normalizedName = normalizeText(name)
@@ -179,6 +204,16 @@ export default function App() {
         setJoinError('Selecione seu órgão, escola ou instituição na lista.')
         return
       }
+      if (metadata.attendance) {
+        await syncPresenceWithRetry({
+          code,
+          participantId,
+          participantName: normalizedName,
+          participantInstitution: finalInstitution,
+          attendance: true,
+          includeJoinedAt: true,
+        })
+      }
       if (requestedSlideId && !found.slides?.some((slide) => slide.id === requestedSlideId)) {
         setRequestedSlideId('')
       }
@@ -186,8 +221,9 @@ export default function App() {
       setParticipantName(normalizedName)
       setParticipantInstitution(finalInstitution)
       goParticipant(code)
-    } catch {
-      setJoinError('Erro ao entrar na sessão. Verifique sua conexão.')
+    } catch (error) {
+      console.error('Join session error', error)
+      setJoinError(describeFirebaseError(error, 'Erro ao entrar na sessão. Verifique sua conexão e tente novamente.'))
     } finally {
       setJoining(false)
     }
@@ -201,6 +237,18 @@ export default function App() {
   const handlePresent = async (presentation) => {
     setGlobalError('')
     try {
+      const canResumeSession =
+        sessionCode &&
+        session?.status === 'live' &&
+        session.ownerUid === uid &&
+        session.presentationId === presentation.id &&
+        session.title === presentation.title &&
+        (session.eventKey ?? null) === (presentation.eventKey ?? null) &&
+        JSON.stringify(session.slides ?? []) === JSON.stringify(presentation.slides ?? [])
+      if (canResumeSession) {
+        goHost(sessionCode)
+        return
+      }
       const code = await launchPresentationAsSession({ presentation, ownerUid: uid, ownerEmail: email })
       goHost(code)
     } catch (err) {
@@ -353,9 +401,14 @@ export default function App() {
   if (view === 'host') {
     if (!session || !currentSlide) {
       return (
-        <div className="flex min-h-[100dvh] items-center justify-center bg-[#f6f4ef]">
-          <FullPageLoader label="Preparando a sala..." />
-        </div>
+        <>
+          <div className="flex min-h-[100dvh] items-center justify-center bg-[#f6f4ef]">
+            <FullPageLoader label="Preparando a sala..." />
+          </div>
+          {sessionError && (
+            <ConnectionToast messages={[sessionError]} code={sessionCode} onRetry={retrySession} />
+          )}
+        </>
       )
     }
     return (
@@ -371,17 +424,37 @@ export default function App() {
           onPrevious={previous}
           canGoBack={session.currentSlideIndex > 0}
           canGoForward={session.currentSlideIndex < session.slides.length - 1}
-          onExit={goDashboard}
+          onExit={leaveHost}
           allResponses={responses}
           participants={participants}
           onFinalize={handleFinalizeSession}
         />
         {globalError && <GlobalToast message={globalError} />}
+        {(sessionError || presenceError) && (
+          <ConnectionToast
+            messages={[sessionError, presenceError].filter(Boolean)}
+            code={sessionCode}
+            onRetry={() => {
+              retrySession()
+              retryPresence()
+            }}
+          />
+        )}
       </>
     )
   }
 
   if (view === 'participant') {
+    if (sessionError && (!session || !currentSlide)) {
+      return (
+        <>
+          <div className="flex min-h-[100dvh] items-center justify-center bg-[#f6f4ef]">
+            <FullPageLoader label="Conectando..." />
+          </div>
+          <ConnectionToast messages={[sessionError]} code={sessionCode} onRetry={retrySession} />
+        </>
+      )
+    }
     if (!session || !currentSlide) {
       return (
         <div className="flex min-h-[100dvh] items-center justify-center bg-[#f6f4ef]">
@@ -402,6 +475,16 @@ export default function App() {
           onExit={goPublic}
         />
         {globalError && <GlobalToast message={globalError} />}
+        {(sessionError || presenceError) && (
+          <ConnectionToast
+            messages={[sessionError, presenceError].filter(Boolean)}
+            code={sessionCode}
+            onRetry={() => {
+              retrySession()
+              retryPresence()
+            }}
+          />
+        )}
       </>
     )
   }
@@ -422,6 +505,43 @@ function GlobalToast({ message }) {
   return (
     <div role="alert" className="fixed left-1/2 top-6 z-[9999] w-[calc(100%-32px)] max-w-lg -translate-x-1/2 border border-red-200 bg-white px-5 py-4 text-sm leading-6 text-red-800 shadow-lg">
       {message}
+    </div>
+  )
+}
+
+function ConnectionToast({ messages, code, onRetry }) {
+  const [copied, setCopied] = useState(false)
+  const diagnostic = [
+    ...messages,
+    `Código da sessão: ${code || 'não informado'}`,
+    `Internet do dispositivo: ${navigator.onLine ? 'conectado' : 'offline'}`,
+    `Horário: ${new Date().toISOString()}`,
+  ].join(' | ')
+
+  const copyDiagnostic = async () => {
+    try {
+      await navigator.clipboard.writeText(diagnostic)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <div role="alert" className="fixed bottom-4 left-1/2 z-[10001] w-[calc(100%-24px)] max-w-lg -translate-x-1/2 rounded-xl border border-amber-200 bg-white p-4 text-sm text-amber-950 shadow-xl">
+      <p className="font-bold">Problema de conexão</p>
+      <div className="mt-1 space-y-1 text-xs leading-5">
+        {messages.map((message) => <p key={message}>{message}</p>)}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" onClick={onRetry} className="rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white hover:bg-amber-800">
+          Tentar novamente
+        </button>
+        <button type="button" onClick={copyDiagnostic} className="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50">
+          {copied ? 'Detalhes copiados' : 'Copiar detalhes'}
+        </button>
+      </div>
     </div>
   )
 }

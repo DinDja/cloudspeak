@@ -20,6 +20,7 @@ import {
   generateCode,
   getParticipantDisplayName,
   getTeamSelectionResponseId,
+  isRetryableFirebaseError,
   normalizeText,
 } from './validators'
 
@@ -28,11 +29,34 @@ const responsesRef = (code) => collection(db, 'sessions', code, 'responses')
 const participantsRef = (code) => collection(db, 'sessions', code, 'participants')
 const reactionsRef = (code) => collection(db, 'sessions', code, 'reactions')
 
+const retryFirestoreOperation = async (operation, attempts = 3) => {
+  let lastError
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await operation()
+    } catch (error) {
+      lastError = error
+      if (!isRetryableFirebaseError(error) || attempt === attempts - 1) throw error
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 250 * 2 ** attempt))
+    }
+  }
+  throw lastError
+}
+
 export const getSession = async (code) => {
   const snapshot = await getDoc(sessionRef(code))
   if (!snapshot.exists()) return null
   return { id: snapshot.id, ...snapshot.data() }
 }
+
+export const getSessionWithRetry = (code) => retryFirestoreOperation(() => getSession(code))
+
+export const getParticipants = async (code) => {
+  const snapshot = await getDocs(participantsRef(code))
+  return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
+}
+
+export const getParticipantsWithRetry = (code) => retryFirestoreOperation(() => getParticipants(code))
 
 export const createSession = async ({ code, title, slides, ownerUid, ownerEmail, presentationId, eventKey = null }) => {
   const payload = {
@@ -161,6 +185,7 @@ export const syncPresence = async ({
   attendance = false,
   includeJoinedAt = false,
 }) => {
+  const participantReference = doc(participantsRef(code), participantId)
   const payload = {
     participantId,
     participantName: getParticipantDisplayName(participantName),
@@ -168,9 +193,14 @@ export const syncPresence = async ({
     lastSeenAt: serverTimestamp(),
   }
   if (attendance) payload.attendance = true
-  if (includeJoinedAt) payload.joinedAt = serverTimestamp()
-  await setDoc(doc(participantsRef(code), participantId), payload, { merge: true })
+  if (includeJoinedAt) {
+    const existing = await getDoc(participantReference)
+    if (!existing.exists()) payload.joinedAt = serverTimestamp()
+  }
+  await setDoc(participantReference, payload, { merge: true })
 }
+
+export const syncPresenceWithRetry = (options) => retryFirestoreOperation(() => syncPresence(options))
 
 export const subscribeSession = (code, onNext, onError) =>
   onSnapshot(sessionRef(code), (snapshot) => {
@@ -181,15 +211,15 @@ export const subscribeSession = (code, onNext, onError) =>
     onNext({ id: snapshot.id, ...snapshot.data() })
   }, onError)
 
-export const subscribeResponses = (code, onNext) =>
+export const subscribeResponses = (code, onNext, onError) =>
   onSnapshot(query(responsesRef(code), orderBy('createdAt', 'desc')), (snapshot) => {
     onNext(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })))
-  })
+  }, onError)
 
-export const subscribeParticipants = (code, onNext) =>
+export const subscribeParticipants = (code, onNext, onError) =>
   onSnapshot(participantsRef(code), (snapshot) => {
     onNext(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })))
-  })
+  }, onError)
 
 export const subscribeReactions = (code, onNext) => {
   const q = query(reactionsRef(code), orderBy('createdAt', 'desc'))
