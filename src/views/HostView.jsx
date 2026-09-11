@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { TEAM_SELECTION_TYPE } from '../lib/constants'
-import { COLORS } from '../lib/colors'
+import { BAHIA_QR_COLORS, COLORS } from '../lib/colors'
 import { buildTeamSelectionStats, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
 import MultipleChoiceResults from '../components/slides/MultipleChoiceResults'
 import WordCloudResults from '../components/slides/WordCloudResults'
@@ -442,7 +442,7 @@ function SidePanel({
           </p>
           <div className="mt-3 flex items-center gap-3 sm:gap-4">
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-1.5 sm:h-28 sm:w-28 sm:p-2">
-              <QRCodeSVG value={joinUrl} size={72} bgColor="transparent" fgColor={COLORS.brand[700]} />
+              <QRCodeSVG value={joinUrl} size={72} bgColor="transparent" fgColor={BAHIA_QR_COLORS[0]} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold text-slate-600 sm:text-xs">Acesse</p>
@@ -521,7 +521,7 @@ function SidePanel({
               <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
             </button>
             <div className="flex h-64 w-64 items-center justify-center border-4 border-white bg-white p-4 shadow-2xl sm:h-80 sm:w-80 sm:p-6">
-              <QRCodeSVG value={joinUrl} size={200} bgColor="transparent" fgColor={COLORS.brand[700]} />
+              <QRCodeSVG value={joinUrl} size={200} bgColor="transparent" fgColor={BAHIA_QR_COLORS[0]} />
             </div>
             <div className="text-center">
               <p className="text-xl font-black tracking-[0.25em] text-white sm:text-2xl">{session.code}</p>
@@ -537,15 +537,34 @@ function SidePanel({
 function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, onOpenReport }) {
   const [selectedQr, setSelectedQr] = useState(null)
   const entries = [
-    { label: 'Participar', hint: 'Entrada geral', value: joinUrl, filename: `qrcode-${code.toLowerCase()}-participar` },
-    { label: 'Presença', hint: 'Lista de frequência', value: presenceUrl, filename: `qrcode-${code.toLowerCase()}-presenca` },
-    { label: 'Pergunta atual', hint: 'Resposta do painel', value: slideJoinUrl, filename: `qrcode-${code.toLowerCase()}-pergunta-atual` },
+    {
+      label: 'Participar',
+      hint: 'Entrada geral',
+      value: joinUrl,
+      color: BAHIA_QR_COLORS[0],
+      filename: `qrcode-${code.toLowerCase()}-participar`,
+    },
+    {
+      label: 'Presença',
+      hint: 'Lista de frequência',
+      value: presenceUrl,
+      color: BAHIA_QR_COLORS[1],
+      filename: `qrcode-${code.toLowerCase()}-presenca`,
+    },
+    {
+      label: 'Pergunta atual',
+      hint: 'Resposta do painel',
+      value: slideJoinUrl,
+      color: BAHIA_QR_COLORS[0],
+      filename: `qrcode-${code.toLowerCase()}-pergunta-atual`,
+    },
   ]
   const questionEntries = slides.map((slide, index) => ({
     label: `Pergunta ${index + 1}`,
     hint: 'QR da etapa',
     detail: slide.question,
     value: getSlideJoinUrl(code, slide.id),
+    color: BAHIA_QR_COLORS[(index + 3) % BAHIA_QR_COLORS.length],
     filename: `qrcode-${code.toLowerCase()}-pergunta-${index + 1}`,
   }))
 
@@ -569,7 +588,7 @@ function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, o
               title={`Ampliar QR code: ${entry.label}`}
             >
               <span className="flex aspect-square items-center justify-center rounded-md bg-white p-1">
-                <QRCodeSVG value={entry.value} size={82} className="h-full w-full" fgColor={COLORS.brand[700]} />
+                <QRCodeSVG value={entry.value} size={82} className="h-full w-full" fgColor={entry.color} />
               </span>
               <span className="mt-2 block truncate text-[10px] font-bold text-slate-800">{entry.label}</span>
               <span className="mt-0.5 block truncate text-[9px] text-slate-500">{entry.hint}</span>
@@ -589,7 +608,7 @@ function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, o
                   title={`Ampliar ${entry.label}`}
                 >
                   <span className="flex aspect-square items-center justify-center rounded-md bg-white p-1">
-                    <QRCodeSVG value={entry.value} size={66} className="h-full w-full" fgColor={COLORS.brand[700]} />
+                    <QRCodeSVG value={entry.value} size={66} className="h-full w-full" fgColor={entry.color} />
                   </span>
                   <span className="mt-1 block truncate text-center text-[9px] font-bold text-slate-800">{entry.label}</span>
                 </button>
@@ -625,7 +644,7 @@ function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, o
             <h2 className="mt-2 text-2xl font-semibold text-slate-900">{selectedQr.label}</h2>
             {selectedQr.detail && <p className="mt-2 max-w-sm text-sm leading-5 text-slate-600">{selectedQr.detail}</p>}
             <div data-event-qr-modal className="mx-auto mt-5 flex aspect-square w-64 items-center justify-center rounded-xl border-8 border-slate-900 bg-white p-3">
-              <QRCodeSVG value={selectedQr.value} size={220} fgColor={COLORS.brand[700]} />
+              <QRCodeSVG value={selectedQr.value} size={220} fgColor={selectedQr.color ?? BAHIA_QR_COLORS[0]} />
             </div>
             <p className="mt-4 break-all text-[10px] leading-4 text-slate-500">{selectedQr.value}</p>
             <button

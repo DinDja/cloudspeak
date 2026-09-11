@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CheckCircle2, Download, FileText, Loader2, ShieldCheck } from 'lucide-react'
 import Modal from '../ui/Modal'
-import { downloadMinutesPdf } from '../../lib/eventMinutes'
+import { downloadMinutesPdf, getAttendanceParticipants } from '../../lib/eventMinutes'
 
 export default function MinutesReportModal({
   open,
@@ -15,6 +15,7 @@ export default function MinutesReportModal({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [completed, setCompleted] = useState(false)
+  const attendanceCount = getAttendanceParticipants(participants).length
 
   const download = async (finalize) => {
     setBusy(true)
@@ -67,7 +68,7 @@ export default function MinutesReportModal({
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Summary label="Presenças" value={participants.length} />
+            <Summary label="Presenças registradas" value={attendanceCount} />
             <Summary label="Respostas" value={responses.length} />
             <Summary label="Slides" value={session?.slides?.length ?? 0} />
           </div>

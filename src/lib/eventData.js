@@ -148,6 +148,8 @@ export const EDUCATION_EVENT = {
 const openQuestion = (question) => ({ ...createSlideDraft('open_text'), question })
 const wordQuestion = (question) => ({ ...createSlideDraft('word_cloud'), question })
 
+export const OTHER_ATTENDANCE_INSTITUTION = 'Outros'
+
 export const ATTENDANCE_INSTITUTIONS = Array.from(new Set([
   ...EDUCATION_EVENT.schools,
   'APLB',
@@ -180,6 +182,7 @@ export const ATTENDANCE_INSTITUTIONS = Array.from(new Set([
   'SEC',
   'SESI',
   'ACB',
+  OTHER_ATTENDANCE_INSTITUTION,
 ])).sort((left, right) => left.localeCompare(right, 'pt-BR'))
 
 export const isAttendanceInstitution = (value) => ATTENDANCE_INSTITUTIONS.includes(String(value ?? '').trim())

@@ -2,7 +2,14 @@ import { useEffect } from 'react'
 import { PRESENCE_HEARTBEAT_MS } from '../lib/constants'
 import { syncPresence } from '../lib/firebaseSessions'
 
-export function usePresence({ enabled, code, participantId, participantName, participantInstitution = '' }) {
+export function usePresence({
+  enabled,
+  code,
+  participantId,
+  participantName,
+  participantInstitution = '',
+  attendance = false,
+}) {
   useEffect(() => {
     if (!enabled || !code || !participantId) return undefined
 
@@ -11,8 +18,30 @@ export function usePresence({ enabled, code, participantId, participantName, par
     const run = async (includeJoinedAt) => {
       if (!active) return
       try {
-        await syncPresence({ code, participantId, participantName, participantInstitution, includeJoinedAt })
+        await syncPresence({
+          code,
+          participantId,
+          participantName,
+          participantInstitution,
+          attendance,
+          includeJoinedAt,
+        })
       } catch (error) {
+        if (includeJoinedAt) {
+          try {
+            await syncPresence({
+              code,
+              participantId,
+              participantName,
+              participantInstitution,
+              attendance,
+              includeJoinedAt: false,
+            })
+            return
+          } catch {
+            // Preserve the original error below when the retry also fails.
+          }
+        }
         console.error('syncPresence failed', error)
       }
     }
@@ -35,5 +64,5 @@ export function usePresence({ enabled, code, participantId, participantName, par
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('focus', handleFocus)
     }
-  }, [enabled, code, participantId, participantName, participantInstitution])
+  }, [enabled, code, participantId, participantName, participantInstitution, attendance])
 }

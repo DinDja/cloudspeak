@@ -175,25 +175,32 @@ service cloud.firestore {
       }
 
       function isValidParticipantPresenceCreate(participantId) {
-        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'participantInstitution', 'joinedAt', 'lastSeenAt'])
+        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'participantInstitution', 'attendance', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.keys().hasAll(['participantId', 'participantName', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.participantId == participantId
           && isString(request.resource.data.participantName, 1, 40)
           && request.resource.data.joinedAt is timestamp
           && request.resource.data.lastSeenAt is timestamp
           && (!request.resource.data.keys().hasAll(['participantInstitution'])
-              || isString(request.resource.data.participantInstitution, 0, 120));
+              || isString(request.resource.data.participantInstitution, 0, 120))
+          && (!request.resource.data.keys().hasAll(['attendance'])
+              || request.resource.data.attendance is bool);
       }
 
       function isValidParticipantPresenceUpdate(participantId) {
-        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'participantInstitution', 'joinedAt', 'lastSeenAt'])
+        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'participantInstitution', 'attendance', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.participantId == participantId
           && request.resource.data.participantId == resource.data.participantId
           && request.resource.data.joinedAt == resource.data.joinedAt
           && isString(request.resource.data.participantName, 1, 40)
           && request.resource.data.lastSeenAt is timestamp
           && (!request.resource.data.keys().hasAll(['participantInstitution'])
-              || isString(request.resource.data.participantInstitution, 0, 120));
+              || isString(request.resource.data.participantInstitution, 0, 120))
+          && (!request.resource.data.keys().hasAll(['attendance'])
+              || request.resource.data.attendance is bool)
+          && (!resource.data.keys().hasAll(['attendance'])
+              || resource.data.attendance == false
+              || (request.resource.data.keys().hasAll(['attendance']) && request.resource.data.attendance == true));
       }
 
       match /participants/{participantId} {

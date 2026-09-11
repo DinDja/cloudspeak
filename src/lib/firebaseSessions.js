@@ -158,6 +158,7 @@ export const syncPresence = async ({
   participantId,
   participantName,
   participantInstitution = '',
+  attendance = false,
   includeJoinedAt = false,
 }) => {
   const payload = {
@@ -166,6 +167,7 @@ export const syncPresence = async ({
     participantInstitution: normalizeText(participantInstitution ?? '').slice(0, 120),
     lastSeenAt: serverTimestamp(),
   }
+  if (attendance) payload.attendance = true
   if (includeJoinedAt) payload.joinedAt = serverTimestamp()
   await setDoc(doc(participantsRef(code), participantId), payload, { merge: true })
 }

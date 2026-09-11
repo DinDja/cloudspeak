@@ -4,7 +4,7 @@ import { isValidSessionCode } from '../lib/validators'
 import Logo from '../components/ui/Logo'
 import SectiMark from '../components/ui/SectiMark'
 import ConversationArtwork from '../components/ui/ConversationArtwork'
-import { ATTENDANCE_INSTITUTIONS } from '../lib/eventData'
+import { ATTENDANCE_INSTITUTIONS, OTHER_ATTENDANCE_INSTITUTION } from '../lib/eventData'
 
 export default function PublicLanding({
   initialCode = '',
@@ -17,6 +17,7 @@ export default function PublicLanding({
   const [entry, setEntry] = useState({ initialCode, code: initialCode })
   const [name, setName] = useState('')
   const [institution, setInstitution] = useState('')
+  const [otherInstitution, setOtherInstitution] = useState('')
   const [institutionSearch, setInstitutionSearch] = useState('')
   const [institutionOpen, setInstitutionOpen] = useState(false)
   // A QR link may arrive after the authentication gate resolves.
@@ -26,15 +27,24 @@ export default function PublicLanding({
     if (!query) return ATTENDANCE_INSTITUTIONS
     return ATTENDANCE_INSTITUTIONS.filter((item) => item.toLocaleLowerCase('pt-BR').includes(query))
   }, [institutionSearch])
+  const isOtherInstitution = institution === OTHER_ATTENDANCE_INSTITUTION
+  const selectedInstitution = isOtherInstitution ? otherInstitution.trim() : institution.trim()
   const canJoin =
     isValidSessionCode(code.trim()) &&
-    (!initialAttendance || (name.trim().length >= 3 && institution.trim().length > 0))
+    (!initialAttendance || (name.trim().length >= 3 && selectedInstitution.length > 0))
   const submit = (event) => {
     event.preventDefault()
-    if (canJoin && !loading) onJoin(name, code.trim(), { attendance: initialAttendance, institution })
+    if (canJoin && !loading) {
+      onJoin(name, code.trim(), {
+        attendance: initialAttendance,
+        institution,
+        institutionOther: isOtherInstitution ? otherInstitution : '',
+      })
+    }
   }
   const chooseInstitution = (item) => {
     setInstitution(item)
+    if (item !== OTHER_ATTENDANCE_INSTITUTION) setOtherInstitution('')
     setInstitutionSearch('')
     setInstitutionOpen(false)
   }
@@ -166,6 +176,23 @@ export default function PublicLanding({
                     </div>
                   )}
                 </div>
+                {isOtherInstitution && (
+                  <>
+                    <label htmlFor="participant-institution-other" className="join-name-label">
+                      Especifique o outro órgão, escola ou instituição <span>obrigatório</span>
+                    </label>
+                    <input
+                      id="participant-institution-other"
+                      className="join-name institution-other-input"
+                      value={otherInstitution}
+                      onChange={(event) => setOtherInstitution(event.target.value)}
+                      maxLength={120}
+                      placeholder="Digite o nome do órgão, escola ou instituição"
+                      autoComplete="organization"
+                      required
+                    />
+                  </>
+                )}
               </>
             )}
             <button type="submit" disabled={!canJoin || loading} className="fala-button join-submit">

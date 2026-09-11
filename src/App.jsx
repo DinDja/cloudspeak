@@ -13,7 +13,7 @@ import {
 import { endSession, getSession, launchPresentationAsSession, submitResponse } from './lib/firebaseSessions'
 import { deletePresentation, duplicatePresentation } from './lib/firebasePresentations'
 import { TEMPLATE_BY_ID } from './lib/templates'
-import { isAttendanceInstitution } from './lib/eventData'
+import { isAttendanceInstitution, OTHER_ATTENDANCE_INSTITUTION } from './lib/eventData'
 import { FullPageLoader } from './components/ui/Spinner'
 import PublicLanding from './views/PublicLanding'
 import LoginView from './views/LoginView'
@@ -37,6 +37,8 @@ export default function App() {
   const [pendingTemplateId, setPendingTemplateId] = useState('blank')
   const [prefilledCode, setPrefilledCode] = useState('')
   const [prefilledAttendance, setPrefilledAttendance] = useState(false)
+  const [requestedSlideId, setRequestedSlideId] = useState('')
+  const [attendanceMode, setAttendanceMode] = useState(false)
   const [joinError, setJoinError] = useState('')
   const [joining, setJoining] = useState(false)
   const [globalError, setGlobalError] = useState('')
@@ -53,12 +55,15 @@ export default function App() {
     participantId,
     participantName,
     participantInstitution,
+    attendance: attendanceMode,
   })
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const codeFromUrl = params.get('code')?.trim().toUpperCase() ?? ''
+    const slideFromUrl = params.get('slide')?.trim() ?? ''
     if (codeFromUrl) setPrefilledCode(codeFromUrl)
+    if (slideFromUrl) setRequestedSlideId(slideFromUrl)
     setPrefilledAttendance(params.get('mode') === 'attendance' || params.get('presence') === '1')
   }, [])
 
@@ -84,8 +89,12 @@ export default function App() {
 
   const currentSlide = useMemo(() => {
     if (!session?.slides?.length) return null
+    if (route === 'participant' && requestedSlideId) {
+      const requestedSlide = session.slides.find((slide) => slide.id === requestedSlideId)
+      if (requestedSlide) return requestedSlide
+    }
     return session.slides[session.currentSlideIndex] ?? session.slides[0]
-  }, [session])
+  }, [session, requestedSlideId, route])
 
   const currentSlideResponses = useMemo(() => {
     if (!currentSlide) return []
@@ -108,6 +117,8 @@ export default function App() {
   const goPublic = () => {
     setRoute('public')
     setSessionCode('')
+    setRequestedSlideId('')
+    setAttendanceMode(false)
     setJoinError('')
   }
   const goLogin = () => setRoute('login')
@@ -115,6 +126,8 @@ export default function App() {
   const goDashboard = () => {
     setRoute('dashboard')
     setSessionCode('')
+    setRequestedSlideId('')
+    setAttendanceMode(false)
   }
   const goTemplatePicker = (templateId = 'blank') => {
     setEditingPresentation(null)
@@ -151,16 +164,27 @@ export default function App() {
       }
       const normalizedName = normalizeText(name)
       const normalizedInstitution = normalizeText(metadata.institution ?? '')
+      const normalizedOtherInstitution = normalizeText(metadata.institutionOther ?? '')
+      const isOtherInstitution = normalizedInstitution === OTHER_ATTENDANCE_INSTITUTION
+      const finalInstitution = isOtherInstitution ? normalizedOtherInstitution : normalizedInstitution
       if (metadata.attendance && normalizedName.length < 3) {
         setJoinError('Informe seu nome completo para registrar a presença.')
+        return
+      }
+      if (metadata.attendance && isOtherInstitution && !finalInstitution) {
+        setJoinError('Informe qual é o outro órgão, escola ou instituição.')
         return
       }
       if (metadata.attendance && !isAttendanceInstitution(normalizedInstitution)) {
         setJoinError('Selecione seu órgão, escola ou instituição na lista.')
         return
       }
+      if (requestedSlideId && !found.slides?.some((slide) => slide.id === requestedSlideId)) {
+        setRequestedSlideId('')
+      }
+      setAttendanceMode(Boolean(metadata.attendance))
       setParticipantName(normalizedName)
-      setParticipantInstitution(normalizedInstitution)
+      setParticipantInstitution(finalInstitution)
       goParticipant(code)
     } catch {
       setJoinError('Erro ao entrar na sessão. Verifique sua conexão.')

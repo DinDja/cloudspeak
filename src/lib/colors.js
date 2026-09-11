@@ -78,6 +78,19 @@ export const COLORS = {
   },
 }
 
+// Tons inspirados no azul e no vermelho da bandeira da Bahia, mantidos escuros
+// para preservar a leitura do QR code em fundos claros.
+export const BAHIA_QR_COLORS = [
+  '#003B73',
+  '#005CA9',
+  '#0072BC',
+  '#0B4F71',
+  '#7F1024',
+  '#A30F2D',
+  '#C8102E',
+  '#D83A3A',
+]
+
 export const CHART_PALETTE = [
   COLORS.brand[600],
   COLORS.violet[500],

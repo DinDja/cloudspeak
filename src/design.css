@@ -333,6 +333,9 @@
   position: relative;
   margin-top: 2px;
 }
+.institution-other-input {
+  margin-top: 8px;
+}
 .institution-trigger {
   display: flex;
   width: 100%;

@@ -37,6 +37,13 @@ const parseEventDate = (value) => {
 
 const text = (value) => String(value ?? '').trim()
 
+const joinNatural = (values) => {
+  const items = values.map((value) => text(value)).filter(Boolean)
+  if (items.length <= 1) return items[0] || ''
+  if (items.length === 2) return `${items[0]} e ${items[1]}`
+  return `${items.slice(0, -1).join('; ')} e ${items.at(-1)}`
+}
+
 const genericEvent = (session) => ({
   ...EDUCATION_EVENT,
   key: null,
@@ -54,7 +61,23 @@ const genericEvent = (session) => ({
   coordinators: [],
 })
 
-export const getEventForSession = (session) => getEventData(session?.eventKey) || genericEvent(session)
+const isEducationEventTitle = (value) => {
+  const normalized = text(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+  return normalized.includes('educacao integral') && normalized.includes('bahia')
+}
+
+export const getEventForSession = (session) => {
+  const event = getEventData(session?.eventKey)
+  if (event) return event
+  const hasEducationQuestion = (session?.slides ?? []).some((slide) =>
+    EDUCATION_EVENT.guidedQuestions.includes(text(slide?.question)),
+  )
+  if (isEducationEventTitle(session?.title) || hasEducationQuestion) return EDUCATION_EVENT
+  return genericEvent(session)
+}
 
 const imageToDataUrl = async (url) => {
   try {
@@ -188,53 +211,30 @@ const makeWriter = (pdf, crest) => {
   }
 }
 
-const presenceRows = (participants, responses) => {
-  const map = new Map()
-  for (const participant of participants ?? []) {
-    const id = text(participant.participantId || participant.id)
-    if (!id) continue
-    map.set(id, { ...participant, participantId: id })
-  }
-  for (const response of responses ?? []) {
-    const id = text(response.participantId)
-    if (!id || map.has(id)) continue
-    map.set(id, {
-      participantId: id,
-      participantName: response.participantName,
-      participantInstitution: '',
-      joinedAt: null,
-      inferredFromResponse: true,
-    })
-  }
-  return [...map.values()].sort((left, right) =>
-    text(left.participantName || 'Anônimo').localeCompare(text(right.participantName || 'Anônimo'), 'pt-BR'),
-  )
-}
+export const getAttendanceParticipants = (participants = []) =>
+  (participants ?? [])
+    .filter((participant) => participant?.attendance === true)
+    .map((participant) => ({
+      ...participant,
+      participantId: text(participant.participantId || participant.id),
+    }))
+    .filter((participant) => participant.participantId)
+    .sort((left, right) =>
+      text(left.participantName || 'Anônimo').localeCompare(text(right.participantName || 'Anônimo'), 'pt-BR'),
+    )
 
-const responseRows = (slide, responses, participantMap) =>
+const responseEntries = (slide, responses, participantMap) =>
   responses
     .filter((entry) => entry.slideId === slide.id)
     .sort((left, right) => (toDate(left.createdAt)?.getTime() ?? 0) - (toDate(right.createdAt)?.getTime() ?? 0))
-    .map((entry, index) => {
+    .map((entry) => {
       const participant = participantMap.get(text(entry.participantId))
-      return [
-        String(index + 1),
-        text(entry.participantName) || 'Anônimo',
-        text(participant?.participantInstitution) || 'Não informado',
-        text(entry.value),
-      ]
+      return {
+        participantName: text(entry.participantName) || 'Anônimo',
+        participantInstitution: text(participant?.participantInstitution),
+        value: text(entry.value),
+      }
     })
-
-const countAnswers = (slide, responses) => {
-  const values = responses.filter((entry) => entry.slideId === slide.id).map((entry) => text(entry.value)).filter(Boolean)
-  if (!values.length) return 'Nenhuma resposta registrada.'
-  const counts = new Map()
-  values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1))
-  return [...counts.entries()]
-    .sort((left, right) => right[1] - left[1])
-    .map(([value, count]) => `${value}: ${count}`)
-    .join(' · ')
-}
 
 export const createMinutesPdf = async ({ session, responses = [], participants = [], authorName = '' }) => {
   const event = getEventForSession(session)
@@ -242,122 +242,87 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
   const crest = await imageToDataUrl('/brasao-bahia.png')
   const writer = makeWriter(pdf, crest)
   const slides = Array.isArray(session?.slides) ? session.slides : []
-  const participantRows = presenceRows(participants, responses)
+  const participantRows = getAttendanceParticipants(participants)
   const participantMap = new Map(participantRows.map((entry) => [text(entry.participantId), entry]))
-  const eventDate = event.key ? parseEventDate(event.date) : toDate(session?.launchedAt)
+  const eventDate = parseEventDate(event.date) || toDate(session?.launchedAt)
   const openingDate = formatDate(eventDate)
-  const launchedAt = session?.launchedAt ? ` às ${formatTime(session.launchedAt)}` : ''
-  const endedAt = session?.endedAt ? ` às ${formatTime(session.endedAt)}` : ''
+  const eventDateLabel = text(event.date) || openingDate
+  const eventTimeLabel = text(event.time) || 'horário não informado'
 
-  writer.centeredTitle('ATA DO EVENTO')
+  writer.centeredTitle('ATA')
   writer.paragraph(event.title, { bold: true, size: 11, after: 1 })
-  writer.paragraph(`Data: ${event.date || openingDate} · Horário previsto: ${event.time || 'não informado'} · Local: ${event.location}`)
-  writer.paragraph(`Código da sessão: ${text(session?.code) || 'não informado'} · Gerada em: ${formatDate(new Date())}`)
-  writer.paragraph(`Público previsto no documento-base: ${event.expectedAudience || 'não informado'}`)
-
-  writer.heading('1. IDENTIFICAÇÃO E ABERTURA')
+  writer.paragraph('À Secretaria da Educação do Estado da Bahia,')
+  writer.paragraph(`Data do evento: ${eventDateLabel}. Horário: ${eventTimeLabel}. Local: ${event.location}.`)
   writer.paragraph(
-    `Aos ${openingDate}, no ${event.location}, realizou-se o evento “${event.title}”, promovido pela ${event.organizer}. A programação tinha início previsto para ${event.time || 'horário não informado'}${launchedAt ? ` e foi aberta digitalmente${launchedAt}` : ''}. A presente ata foi gerada a partir dos registros de presença e das contribuições enviadas na sessão interativa, mantendo as respostas em sua forma literal.`,
+    `Aos ${openingDate}, no ${event.location}, realizou-se o evento “${event.title}”, promovido pela ${event.organizer}, no período previsto de ${eventTimeLabel}. Esta ata registra, em forma de carta e sem substituição das manifestações por sínteses automáticas, o desenvolvimento do encontro e as contribuições enviadas pela plataforma interativa.`,
   )
-  if (event.objective) writer.paragraph(`Objetivo: ${event.objective}`)
-  writer.paragraph(`Metodologia: ${event.methodology}`)
-
-  writer.heading('2. PÚBLICO PARTICIPANTE E FREQUÊNCIA')
-  writer.paragraph(
-    `A lista de frequência digital reúne ${participantRows.length} registro${participantRows.length === 1 ? '' : 's'} de participante${participantRows.length === 1 ? '' : 's'}. Registros marcados como “inferidos” correspondem a respostas que não tinham um documento de presença associado no momento da geração e devem ser conferidos pela equipe responsável.`,
-  )
-  writer.table(
-    ['Nº', 'Nome registrado', 'Órgão, escola ou instituição', 'Registro'],
-    participantRows.map((entry, index) => [
-      String(index + 1),
-      text(entry.participantName) || 'Anônimo',
-      text(entry.participantInstitution) || 'Não informado',
-      entry.inferredFromResponse ? 'Inferido de resposta' : 'Presença registrada',
-    ]),
-    { columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 48 }, 2: { cellWidth: 82 }, 3: { cellWidth: 30 } } },
-  )
-
-  writer.heading('3. PAUTA E PROGRAMAÇÃO')
-  if (event.publicProfile.length) {
-    writer.paragraph('O público previsto no documento-base compreendia:')
-    event.publicProfile.forEach((item) => writer.paragraph(`• ${item}`, { after: 0 }))
-    writer.y += 2
-  }
-  if (event.program.length) {
-    writer.table(
-      ['Horário', 'Tema', 'Painelistas / condução'],
-      event.program.map((item) => [item.time, item.theme, item.speakers]),
-      { columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 94 }, 2: { cellWidth: 56 } } },
+  if (event.objective) writer.paragraph(`O objetivo do encontro foi ${event.objective.toLocaleLowerCase('pt-BR')}`)
+  writer.paragraph(`A metodologia adotada consistiu em ${event.methodology.toLocaleLowerCase('pt-BR')}`)
+  if (event.expectedAudience || event.publicProfile.length) {
+    writer.paragraph(
+      `O público previsto era de ${event.expectedAudience || 'representantes do ecossistema educacional baiano'}. Foram consideradas as seguintes representações: ${joinNatural(event.publicProfile)}.`,
     )
   }
-
-  writer.heading('4. DESENVOLVIMENTO E CONTRIBUIÇÕES')
+  if (event.program.length) {
+    writer.paragraph(
+      `A programação ocorreu da seguinte forma: ${event.program
+        .map((item) => `às ${item.time}, ${item.theme}, com condução de ${item.speakers}`)
+        .join('; ')}.`,
+    )
+  }
   writer.paragraph(
-    'Os participantes foram convidados a contribuir com análises, desafios, prioridades, proposições e compromissos relacionados à educação pública baiana. O quadro abaixo registra a apuração por etapa; as tabelas seguintes transcrevem todas as manifestações recebidas.',
-  )
-  writer.table(
-    ['Etapa', 'Pergunta / proposição', 'Respostas'],
-    slides.map((slide, index) => [String(index + 1), text(slide.question), countAnswers(slide, responses)]),
-    { fontSize: 7.5, columnStyles: { 0: { cellWidth: 13 }, 1: { cellWidth: 89 }, 2: { cellWidth: 68 } } },
+    `Ao longo da sessão, foram recebidas ${responses.length} contribuição${responses.length === 1 ? '' : 'ões'} distribuída${responses.length === 1 ? '' : 's'} entre ${slides.length} pergunta${slides.length === 1 ? '' : 's'}. As manifestações foram preservadas abaixo em sua forma literal para conferência e validação pela Secretaria.`,
   )
 
   slides.forEach((slide, index) => {
-    writer.heading(`4.${index + 1} ${text(slide.question)}`, 2)
-    const slideResponses = responseRows(slide, responses, participantMap)
+    const slideResponses = responseEntries(slide, responses, participantMap)
+    writer.paragraph(
+      `Na ${index + 1}ª pergunta, “${text(slide.question)}”, foram registradas ${slideResponses.length} contribuição${slideResponses.length === 1 ? '' : 'ões'}.`,
+      { bold: true },
+    )
     if (!slideResponses.length) {
       writer.paragraph('Não houve resposta registrada para esta etapa.')
       return
     }
-    writer.table(
-      ['Nº', 'Participante', 'Instituição', 'Resposta literal'],
-      slideResponses,
-      { fontSize: 7.5, columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 37 }, 2: { cellWidth: 48 }, 3: { cellWidth: 75 } } },
-    )
+    slideResponses.forEach((entry) => {
+      const institution = entry.participantInstitution ? `, vinculado a ${entry.participantInstitution}` : ''
+      writer.paragraph(
+        `${entry.participantName}${institution} registrou a seguinte contribuição: “${entry.value}”.`,
+      )
+    })
   })
-
-  writer.heading('5. SISTEMATIZAÇÃO E PRODUTO FINAL')
   writer.paragraph(
-    'As contribuições foram organizadas nas dimensões de desafios identificados, prioridades estratégicas e proposições para o futuro, conforme o documento-base do seminário. Para preservar a precisão documental, esta ata não substitui as manifestações por uma interpretação automática: as respostas acima são a fonte literal para a leitura e validação pela Secretaria.',
+    'As contribuições apresentadas foram organizadas nas dimensões de desafios identificados, prioridades estratégicas e proposições para o futuro, conforme o documento-base do seminário. O conteúdo registrado nesta ata constitui a fonte literal para a leitura, sistematização e validação pela Secretaria.',
   )
-  writer.paragraph(
-    `Foram contabilizadas ${responses.length} resposta${responses.length === 1 ? '' : 's'} em ${slides.length} etapa${slides.length === 1 ? '' : 's'} interativa${slides.length === 1 ? '' : 's'}.`,
-    { bold: true },
-  )
-
-  writer.heading('6. REFERÊNCIAS DA AGENDA')
   if (event.schools.length) {
     writer.paragraph(
-      'A relação abaixo foi transcrita da planilha “AGENDA REITORES - Lista de escolas”. Ela representa a referência de escolas participantes/convidadas e não substitui a lista de frequência digital registrada na seção 2.',
-    )
-    writer.table(
-      ['Nº', 'Escola prevista na agenda'],
-      event.schools.map((school, index) => [String(index + 1), school]),
-      { columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 154 } } },
+      `A documentação de referência do evento também relaciona ${event.schools.length} unidades escolares e registra a coordenação de ${joinNatural(event.coordinators.map((coordinator) => coordinator.name))}. Essas referências integram o documento-base e não substituem a frequência registrada pelo QR Code específico de presença.`,
     )
   }
-  if (event.coordinators.length) {
-    writer.heading('6.1 Coordenação registrada na planilha', 2)
-    if (event.coordinatorSourceNote) writer.paragraph(event.coordinatorSourceNote, { size: 8, after: 2 })
-    writer.table(
-      ['Nº', 'Nome', 'Município'],
-      event.coordinators.map((coordinator, index) => [String(index + 1), coordinator.name, coordinator.municipality]),
-      { columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 100 }, 2: { cellWidth: 54 } } },
-    )
-  }
-
-  writer.heading('7. ENCERRAMENTO')
   writer.paragraph(
-    `A sessão foi finalizada digitalmente${endedAt || ' sem horário de encerramento informado no registro'}. Nada mais havendo a registrar nesta versão eletrônica, a ata é encaminhada para conferência do secretário responsável, complementação de nomes e assinaturas, quando cabível.`,
+    `Nada mais havendo a registrar, esta ata é encaminhada para conferência da Secretaria da Educação do Estado da Bahia, complementação de informações e assinatura, quando cabível.`,
   )
-  writer.y += 10
-  writer.ensure(30)
-  writer.table(
-    ['Responsável pela lavratura', 'Conferência / assinatura'],
-    [[text(authorName) || '________________________________', '________________________________']],
-    { fontSize: 8, columnStyles: { 0: { cellWidth: 82 }, 1: { cellWidth: 82 } } },
-  )
-  writer.paragraph(`Nome informado para a lavratura: ${text(authorName) || 'não informado'}`, { size: 8, after: 0 })
+  writer.paragraph('Atenciosamente,')
+  writer.paragraph(text(authorName) || 'Responsável pela lavratura')
   writer.paragraph(`Documento gerado para a sessão ${text(session?.code) || 'sem código'}, com brasão do Estado da Bahia e registros coletados pelo CloudSpeak.`, { size: 7.5 })
+
+  writer.paragraph('Participantes com presença registrada pelo QR Code específico de presença:', { bold: true })
+  writer.paragraph(
+    `A lista abaixo reúne ${participantRows.length} registro${participantRows.length === 1 ? '' : 's'} confirmado${participantRows.length === 1 ? '' : 's'} no formulário de presença, que exigiu nome completo e órgão, escola ou instituição. Respostas anônimas ou participantes que entraram apenas pelo QR Code geral não compõem esta frequência.`,
+  )
+  if (participantRows.length) {
+    writer.table(
+      ['Nº', 'Nome registrado', 'Órgão, escola ou instituição'],
+      participantRows.map((entry, index) => [
+        String(index + 1),
+        text(entry.participantName) || 'Nome não informado',
+        text(entry.participantInstitution) || 'Órgão ou instituição não informado',
+      ]),
+      { columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 62 }, 2: { cellWidth: 98 } } },
+    )
+  } else {
+    writer.paragraph('Não houve registro confirmado pelo QR Code de presença.')
+  }
 
   const totalPages = pdf.getNumberOfPages()
   for (let page = 1; page <= totalPages; page += 1) {
