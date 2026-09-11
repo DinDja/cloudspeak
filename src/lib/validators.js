@@ -3,7 +3,7 @@ import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, SESSION_CODE_REGEX, 
 export const normalizeText = (value) => value.trim().replace(/\s+/g, ' ')
 export const getParticipantDisplayName = (value) => normalizeText(value) || 'Anônimo'
 
-export const isSectiEmail = (email) => {
+export const isSecEmail = (email) => {
   if (typeof email !== 'string') return false
   const at = email.lastIndexOf('@')
   if (at < 1) return false
@@ -17,10 +17,10 @@ export const generateCode = () =>
   Math.random().toString(36).slice(2, 8).toUpperCase()
 
 export const getParticipantId = () => {
-  const existing = sessionStorage.getItem('falasecti-participant-id')
+  const existing = sessionStorage.getItem('falasec-participant-id')
   if (existing) return existing
   const created = crypto.randomUUID()
-  sessionStorage.setItem('falasecti-participant-id', created)
+  sessionStorage.setItem('falasec-participant-id', created)
   return created
 }
 

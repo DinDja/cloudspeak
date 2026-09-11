@@ -9,25 +9,25 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth'
 import { auth } from '../../firebase'
-import { isSectiEmail, describeAuthError } from './validators'
+import { isSecEmail, describeAuthError } from './validators'
 import { AUTH_DOMAIN_LABEL } from './constants'
 
-const AUTH_ERROR_NOT_SECTI = 'auth/not-secti-domain'
+const AUTH_ERROR_NOT_SEC = 'auth/not-sec-domain'
 const AUTH_ERROR_NOT_VERIFIED = 'auth/email-not-verified'
 
 export const AuthErrorCode = {
-  NOT_SECTI: AUTH_ERROR_NOT_SECTI,
+  NOT_SEC: AUTH_ERROR_NOT_SEC,
   NOT_VERIFIED: AUTH_ERROR_NOT_VERIFIED,
 }
 
-export const isAuthedSectiUser = (user) =>
-  Boolean(user) && isSectiEmail(user.email) && user.emailVerified
+export const isAuthedSecUser = (user) =>
+  Boolean(user) && isSecEmail(user.email) && user.emailVerified
 
 export const signIn = async (email, password) => {
   const trimmedEmail = (email ?? '').trim().toLowerCase()
-  if (!isSectiEmail(trimmedEmail)) {
+  if (!isSecEmail(trimmedEmail)) {
     const error = new Error(`Use um e-mail de um destes domínios: ${AUTH_DOMAIN_LABEL}.`)
-    error.code = AUTH_ERROR_NOT_SECTI
+    error.code = AUTH_ERROR_NOT_SEC
     throw error
   }
   try {
@@ -41,9 +41,9 @@ export const signIn = async (email, password) => {
 
 export const signUp = async (email, password, displayName) => {
   const trimmedEmail = (email ?? '').trim().toLowerCase()
-  if (!isSectiEmail(trimmedEmail)) {
+  if (!isSecEmail(trimmedEmail)) {
     const error = new Error(`Cadastre-se com um e-mail de um destes domínios: ${AUTH_DOMAIN_LABEL}.`)
-    error.code = AUTH_ERROR_NOT_SECTI
+    error.code = AUTH_ERROR_NOT_SEC
     throw error
   }
   if (!password || password.length < 6) {
@@ -76,10 +76,10 @@ export const signInWithGoogle = async () => {
   try {
     const credential = await signInWithPopup(auth, provider)
     const user = credential.user
-    if (!isSectiEmail(user.email)) {
+    if (!isSecEmail(user.email)) {
       await signOut(auth)
       const error = new Error(`Use um e-mail de um destes domínios: ${AUTH_DOMAIN_LABEL}.`)
-      error.code = AUTH_ERROR_NOT_SECTI
+      error.code = AUTH_ERROR_NOT_SEC
       throw error
     }
     if (!user.emailVerified) {
@@ -90,7 +90,7 @@ export const signInWithGoogle = async () => {
     }
     return user
   } catch (error) {
-    if (error.code !== AUTH_ERROR_NOT_SECTI && error.code !== AUTH_ERROR_NOT_VERIFIED) {
+    if (error.code !== AUTH_ERROR_NOT_SEC && error.code !== AUTH_ERROR_NOT_VERIFIED) {
       error.message = describeAuthError(error.code)
     }
     throw error

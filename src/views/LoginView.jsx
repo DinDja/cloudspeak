@@ -3,7 +3,7 @@ import { motion as Motion } from 'framer-motion'
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react'
 import AuthLayout from '../components/auth/AuthLayout'
 import { useAuth } from '../hooks/useAuth'
-import { isSectiEmail, describeAuthError } from '../lib/validators'
+import { isSecEmail, describeAuthError } from '../lib/validators'
 import { ALLOWED_AUTH_DOMAINS, AUTH_DOMAIN_LABEL } from '../lib/constants'
 import { AuthErrorCode } from '../lib/firebaseAuth'
 
@@ -42,7 +42,7 @@ export default function LoginView({ onBack, onGoRegister }) {
     try {
       await loginWithGoogle()
     } catch (err) {
-      if (err.code === AuthErrorCode.NOT_SECTI) {
+      if (err.code === AuthErrorCode.NOT_SEC) {
         setError(AUTH_DOMAIN_ERROR)
       } else if (err.code === AuthErrorCode.NOT_VERIFIED) {
         setError('Confirme seu e-mail antes de continuar.')
@@ -58,7 +58,7 @@ export default function LoginView({ onBack, onGoRegister }) {
     event.preventDefault()
     setError('')
 
-    if (!isSectiEmail(email.trim())) {
+    if (!isSecEmail(email.trim())) {
       setError(AUTH_DOMAIN_ERROR)
       return
     }
@@ -71,7 +71,7 @@ export default function LoginView({ onBack, onGoRegister }) {
     try {
       await login(email.trim(), password)
     } catch (err) {
-      if (err.code === AuthErrorCode.NOT_SECTI) {
+      if (err.code === AuthErrorCode.NOT_SEC) {
         setError(AUTH_DOMAIN_ERROR)
       } else if (err.code === 'auth/email-not-verified') {
         setError('Confirme seu e-mail antes de continuar.')

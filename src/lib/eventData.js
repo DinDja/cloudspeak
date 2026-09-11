@@ -27,7 +27,7 @@ export const EDUCATION_EVENT = {
     'APLB, FEEBA, UNDIME, UNCME e CEE-BA',
     'Pró-Reitores das universidades estaduais e federais da Bahia e dos Institutos Federais (IFBA e IF Baiano)',
     'Diretores dos Núcleos Territoriais de Educação, gestores escolares e representantes de coordenação pedagógica',
-    'CASA CIVIL, COJUV, SECTI, SDE, SEPROMI, SPM, SJDH, FAPESB, SETRE, SECULT, SEI, SEPLAN e SETUR',
+    'CASA CIVIL, COJUV, SDE, SEPROMI, SPM, SJDH, FAPESB, SETRE, SECULT, SEI, SEPLAN e SETUR',
   ],
   guidedQuestions,
   program: [
@@ -58,7 +58,7 @@ export const EDUCATION_EVENT = {
     {
       time: '15h',
       theme: 'Produção do conhecimento e soberania',
-      speakers: 'Edson Porto (SECTI), Handerson Leite (FAPESB), Eracy Maciel (Casa Civil) e Manoel Barral (ACB)',
+      speakers: 'Edson Porto, Handerson Leite (FAPESB), Eracy Maciel (Casa Civil) e Manoel Barral (ACB)',
     },
     { time: '15h20', theme: 'Interação', speakers: 'Mediação — Nivaldo Milet' },
     {
@@ -168,7 +168,6 @@ export const ATTENDANCE_INSTITUTIONS = Array.from(new Set([
   'Coordenação pedagógica',
   'CASA CIVIL',
   'COJUV',
-  'SECTI',
   'SDE',
   'SEPROMI',
   'SPM',

@@ -14,14 +14,14 @@ service cloud.firestore {
       return value is string && value.matches('^[A-Z0-9]{6}$');
     }
 
-    function isSectiDomain(email) {
+    function isSecDomain(email) {
       return email is string
         && email.matches('.*@(secti\\.ba\\.gov\\.br|enova\\.educacao\\.ba\\.gov\\.br|gmail\\.com)$');
     }
 
-    function isSectiUser() {
+    function isSecUser() {
       return request.auth != null
-        && isSectiDomain(request.auth.token.email);
+        && isSecDomain(request.auth.token.email);
     }
 
     function matchesAuthUser(ownerUid, ownerEmail) {
@@ -35,15 +35,15 @@ service cloud.firestore {
     }
 
     function sessionOwner(code) {
-      return isSectiUser()
+      return isSecUser()
         && get(/databases/$(database)/documents/sessions/$(code)).data.ownerUid == request.auth.uid;
     }
 
     // ---------- Apresentações (decks salvos e editáveis) ----------
     match /presentations/{presentationId} {
-      allow read: if isSectiUser() && resource.data.ownerUid == request.auth.uid;
+      allow read: if isSecUser() && resource.data.ownerUid == request.auth.uid;
 
-      allow create: if isSectiUser()
+      allow create: if isSecUser()
         && request.resource.data.keys().hasOnly(['title', 'slides', 'ownerUid', 'ownerEmail', 'eventKey', 'createdAt', 'updatedAt'])
         && request.resource.data.keys().hasAll(['title', 'slides', 'ownerUid', 'ownerEmail', 'createdAt', 'updatedAt'])
         && matchesAuthUser(request.resource.data.ownerUid, request.resource.data.ownerEmail)
@@ -56,7 +56,7 @@ service cloud.firestore {
         && request.resource.data.updatedAt is timestamp;
         // eventKey identifies an institutional event template and is optional for old decks.
 
-      allow update: if isSectiUser()
+      allow update: if isSecUser()
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.keys().hasOnly(['title', 'slides', 'ownerUid', 'ownerEmail', 'eventKey', 'createdAt', 'updatedAt'])
         && request.resource.data.ownerUid == resource.data.ownerUid
@@ -69,7 +69,7 @@ service cloud.firestore {
             || isString(request.resource.data.eventKey, 1, 80))
         && request.resource.data.updatedAt is timestamp;
 
-      allow delete: if isSectiUser() && resource.data.ownerUid == request.auth.uid;
+      allow delete: if isSecUser() && resource.data.ownerUid == request.auth.uid;
     }
 
     // ---------- Sessões ao vivo ----------
@@ -129,10 +129,10 @@ service cloud.firestore {
 
     match /sessions/{sessionCode} {
       allow read: if resource.data.status == 'live'
-        || (isSectiUser() && resource.data.ownerUid == request.auth.uid);
-      allow create: if isSectiUser() && isSessionCreate();
-      allow update: if isSectiUser() && resource.data.ownerUid == request.auth.uid && isSessionUpdate();
-      allow delete: if isSectiUser() && resource.data.ownerUid == request.auth.uid;
+        || (isSecUser() && resource.data.ownerUid == request.auth.uid);
+      allow create: if isSecUser() && isSessionCreate();
+      allow update: if isSecUser() && resource.data.ownerUid == request.auth.uid && isSessionUpdate();
+      allow delete: if isSecUser() && resource.data.ownerUid == request.auth.uid;
 
       function isLiveSession() {
         return get(/databases/$(database)/documents/sessions/$(sessionCode)).data.status == 'live';

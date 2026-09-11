@@ -17,7 +17,7 @@ export default function ConversationArtwork({ interactive = false }) {
     <section
       className="conversation-print"
       aria-label={
-        interactive ? 'Demonstração de nuvem de palavras' : 'Arte tipográfica sobre ciência e participação'
+        interactive ? 'Demonstração de nuvem de palavras' : 'Arte tipográfica sobre educação e participação'
       }
     >
       <div className="conversation-print__heading">
@@ -26,7 +26,7 @@ export default function ConversationArtwork({ interactive = false }) {
       </div>
       <p className="conversation-print__question">
         O que move
-        <br />a ciência?
+        <br />a educação?
       </p>
       <div className="conversation-print__words" aria-hidden="true">
         {WORDS.map((item, index) => (

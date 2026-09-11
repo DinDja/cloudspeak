@@ -1,7 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged, reload } from 'firebase/auth'
 import { auth } from '../../firebase'
-import { isSectiEmail } from '../lib/validators'
+import { isSecEmail } from '../lib/validators'
 import { resendVerification, signIn, signInWithGoogle, signOutUser, signUp } from '../lib/firebaseAuth'
 
 const AuthContext = createContext(null)
@@ -18,7 +18,7 @@ export function AuthProvider({ children }) {
         return
       }
       setUser(firebaseUser)
-      setStatus(firebaseUser.emailVerified && isSectiEmail(firebaseUser.email) ? 'verified' : 'unverified')
+      setStatus(firebaseUser.emailVerified && isSecEmail(firebaseUser.email) ? 'verified' : 'unverified')
     })
     return () => unsubscribe()
   }, [])
@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
     if (!auth.currentUser) return
     await reload(auth.currentUser)
     const u = auth.currentUser
-    setStatus(u.emailVerified && isSectiEmail(u.email) ? 'verified' : 'unverified')
+    setStatus(u.emailVerified && isSecEmail(u.email) ? 'verified' : 'unverified')
   }, [])
 
   const value = useMemo(
@@ -60,7 +60,7 @@ export function AuthProvider({ children }) {
       user,
       status,
       isVerified: status === 'verified',
-      isSecti: Boolean(user) && isSectiEmail(user.email),
+      isSec: Boolean(user) && isSecEmail(user.email),
       email: user?.email ?? null,
       displayName: user?.displayName ?? null,
       uid: user?.uid ?? null,

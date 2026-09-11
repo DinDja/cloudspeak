@@ -10,7 +10,7 @@ export default function SlideCanvas({ slide, index, total, mode = 'stage' }) {
   if (mode === 'audience')
     return (
       <div className="phone-preview">
-        <p>Fala SECTI / Prévia do público</p>
+        <p>Fala SEC / Prévia do público</p>
         <h2>{slide.question || 'Sua pergunta'}</h2>
         {slide.type === 'multiple_choice' &&
           (slide.options || []).map((option, i) => (

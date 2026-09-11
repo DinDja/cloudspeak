@@ -1,6 +1,5 @@
 import { FolderClosed, PanelsTopLeft, LogOut } from 'lucide-react'
 import Logo from './Logo'
-import SectiMark from './SectiMark'
 
 export default function WorkspaceShell({
   children,
@@ -44,7 +43,7 @@ export default function WorkspaceShell({
           </div>
           <span>Estúdio / {active === 'templates' ? 'Modelos' : 'Apresentações'}</span>
           <div className="workspace-account">
-            <span title={email}>{name || 'Fala SECTI'}</span>
+            <span title={email}>{name || 'Fala SEC'}</span>
             {onLogout && (
               <button type="button" onClick={onLogout} aria-label="Sair da conta" title="Sair da conta">
                 <LogOut size={16} />

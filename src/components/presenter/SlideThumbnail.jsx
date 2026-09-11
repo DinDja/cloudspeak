@@ -5,7 +5,7 @@ export default function SlideThumbnail({ slide, className = '', compact = false,
     <div className={`slide-print ${compact ? 'slide-print--compact' : ''} ${className}`}>
       <div className="slide-print__inner">
         <div className="slide-print__top">
-          <span>Fala SECTI</span>
+          <span>Fala SEC</span>
           <span>{SLIDE_TYPES[slide?.type]?.label || 'Apresentação'}</span>
         </div>
         <p className="slide-print__question">{slide?.question || 'Escreva sua pergunta'}</p>

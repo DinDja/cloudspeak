@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { ArrowRight, ArrowUpRight, ChevronDown, Search, X } from 'lucide-react'
 import { isValidSessionCode } from '../lib/validators'
 import Logo from '../components/ui/Logo'
-import SectiMark from '../components/ui/SectiMark'
 import ConversationArtwork from '../components/ui/ConversationArtwork'
 import { ATTENDANCE_INSTITUTIONS, OTHER_ATTENDANCE_INSTITUTION } from '../lib/eventData'
 

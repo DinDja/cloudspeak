@@ -3,7 +3,7 @@ import { motion as Motion } from 'framer-motion'
 import { Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react'
 import AuthLayout from '../components/auth/AuthLayout'
 import { useAuth } from '../hooks/useAuth'
-import { isSectiEmail, describeAuthError } from '../lib/validators'
+import { isSecEmail, describeAuthError } from '../lib/validators'
 import { ALLOWED_AUTH_DOMAINS, AUTH_DOMAIN_LABEL } from '../lib/constants'
 import { AuthErrorCode } from '../lib/firebaseAuth'
 
@@ -43,7 +43,7 @@ export default function RegisterView({ onBack, onGoLogin }) {
       setError('Informe seu nome.')
       return
     }
-    if (!isSectiEmail(email.trim())) {
+    if (!isSecEmail(email.trim())) {
       setError(AUTH_DOMAIN_ERROR)
       return
     }
@@ -56,7 +56,7 @@ export default function RegisterView({ onBack, onGoLogin }) {
     try {
       await register(email.trim(), password, name.trim())
     } catch (err) {
-      if (err.code === AuthErrorCode.NOT_SECTI) {
+      if (err.code === AuthErrorCode.NOT_SEC) {
         setError(AUTH_DOMAIN_ERROR)
       } else {
         setError(err.message || describeAuthError(err.code))

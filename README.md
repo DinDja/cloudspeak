@@ -2,7 +2,7 @@
 
 # CloudSpeak
 
-**Plataforma de apresentações interativas em tempo real da SECTI — crie enquetes, nuvens de palavras, Q&A e seleção de times que o público responde ao vivo pelo celular.**
+**Plataforma de apresentações interativas em tempo real da SEC — crie enquetes, nuvens de palavras, Q&A e seleção de times que o público responde ao vivo pelo celular.**
 
 [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev)
@@ -15,7 +15,7 @@
 
 ## Visão geral
 
-O CloudSpeak transforma qualquer apresentação em uma experiência bidirecional. O **apresentador** (servidor SECTI autenticado) monta uma apresentação no estúdio, lança ao vivo e projeta um código/QR Code. O **público** entra pelo celular — sem login — e responde em tempo real, com resultados atualizados instantaneamente na tela principal via Firestore.
+O CloudSpeak transforma qualquer apresentação em uma experiência bidirecional. O **apresentador** (servidor SEC autenticado) monta uma apresentação no estúdio, lança ao vivo e projeta um código/QR Code. O **público** entra pelo celular — sem login — e responde em tempo real, com resultados atualizados instantaneamente na tela principal via Firestore.
 
 ### Tipos de slide
 
@@ -105,7 +105,7 @@ src/
     useSavedPresentations.js  lista de decks do usuário
   components/
     ui/                    Button, Card, Input, Textarea, Badge, Logo, Spinner,
-                           Modal, EmptyState, WaveBackground, SectiMark
+                           Modal, EmptyState, WaveBackground
     auth/                  AuthLayout, AuthGuard
     presenter/             PresentationCard, SlideEditor, SlideTypePicker
     slides/                WordCloudCanvas, WordCloudResults, MultipleChoiceResults,
@@ -170,9 +170,9 @@ npm run lint     # ESLint
 - **Apresentador**: precisa estar autenticado com e-mail `@secti.ba.gov.br`, `@enova.educacao.ba.gov.br` ou `@gmail.com` **verificado**.
 
 O domínio é validado em **três camadas**:
-1. **UI** (`validators.isSectiEmail`) — bloqueia antes de enviar.
+1. **UI** (`validators.isSecEmail`) — bloqueia antes de enviar.
 2. **`firebaseAuth.js`** — bloqueia `signIn`/`signUp` de outros domínios.
-3. **`firestore.rules`** (`isSectiUser()`) — valida `request.auth.token.email` + `email_verified` no servidor.
+3. **`firestore.rules`** (`isSecUser()`) — valida `request.auth.token.email` + `email_verified` no servidor.
 
 Fluxos de tela: `PublicLanding → "Sou apresentador" → Login → (cadastro) → VerifyEmail → Dashboard → Builder → Host`.
 
@@ -180,7 +180,7 @@ Fluxos de tela: `PublicLanding → "Sou apresentador" → Login → (cadastro) �
 
 ## Regras de segurança (`firestore.rules`)
 
-- `isSectiUser()` — autenticado, e-mail verificado e domínio permitido (`@secti.ba.gov.br`, `@enova.educacao.ba.gov.br` ou `@gmail.com`).
+- `isSecUser()` — autenticado, e-mail verificado e domínio permitido (`@secti.ba.gov.br`, `@enova.educacao.ba.gov.br` ou `@gmail.com`).
 - `presentations/{id}` — read/update/delete apenas pelo `ownerUid`; create exige `ownerUid == auth.uid` e `ownerEmail == token.email`; `ownerUid`/`ownerEmail` imutáveis após criação.
 - `sessions/{code}` — read pública apenas se `status == 'live'` (ou dono); create/update/delete apenas pelo dono; update permite avançar slides e `live → ended`.
 - `responses` / `reactions` / `participants` — escrita pública com schema estritamente validado (tipos, tamanhos, IDs); delete apenas pelo dono da sessão (`sessionOwner()` via `get()`).
@@ -209,7 +209,7 @@ firebase deploy --only firestore:rules,firestore:indexes
 3. Confirme o e-mail pelo link recebido e clique em "Já verifiquei — atualizar".
 4. Acesse o dashboard, crie uma apresentação e clique em **Apresentar**.
 
-> Para testar com domínios diferentes sem deploy das regras, o frontend já bloqueia. Para validar o bloqueio no Firestore, faça deploy das regras e tente criar uma sessão com um usuário não-SECTI — a escrita será negada.
+> Para testar com domínios diferentes sem deploy das regras, o frontend já bloqueia. Para validar o bloqueio no Firestore, faça deploy das regras e tente criar uma sessão com um usuário não autorizado — a escrita será negada.
 
 ---
 
@@ -226,4 +226,4 @@ npm run build       # gera dist/
 
 ## Licença
 
-Projeto institucional da SECTI. Uso interno.
+Projeto institucional da SEC. Uso interno.

@@ -16,7 +16,7 @@ src/
   context/AuthContext.jsx
   lib/
     constants.js        → SLIDE_TYPES, TEAM_SELECTION_TYPE, TTLs, regex
-    validators.js       → sanitizeSlides, sanitizeTitle, isSectiEmail, getParticipantId, buildTeamSelectionStats
+    validators.js       → sanitizeSlides, sanitizeTitle, isSecEmail, getParticipantId, buildTeamSelectionStats
     colors.js           → COLORS + CHART_PALETTE
     templates.js        → TEMPLATES (9 templates) + TEMPLATE_BY_ID
     firebaseAuth.js     → signIn, signUp, signOutUser, resendVerification, reloadUser
@@ -29,7 +29,7 @@ src/
     usePresence.js      → heartbeat 15s, TTL 45s
     useSavedPresentations.js → subscribe presentations do owner
   components/
-    ui/                 → Button, Card, Input, Textarea, Badge, Logo, Modal, Spinner, EmptyState, WaveBackground, SectiMark
+    ui/                 → Button, Card, Input, Textarea, Badge, Logo, Modal, Spinner, EmptyState, WaveBackground
     auth/               → AuthLayout, AuthGuard
     presenter/          → SlideEditor, SlideCanvas, SlideTypePicker, PresentationCard, ComponentPalette, PropertiesPanel
     slides/             → MultipleChoiceResults, WordCloudResults, WordCloudCanvas, OpenTextResults, TeamSelectionResults, TeamReportModal
@@ -100,7 +100,7 @@ Para `team_selection`, o responseId é `${slideId}__${participantId}` (impede mu
 | lastSeenAt | timestamp | atualizado a cada heartbeat |
 
 ### Regras de seguranca (`firestore.rules`)
-- 3 camadas de validacao de dominio: UI (`isSectiEmail`) → `firebaseAuth.js` → `firestore.rules` (`isSectiUser()`)
+- 3 camadas de validacao de dominio: UI (`isSecEmail`) → `firebaseAuth.js` → `firestore.rules` (`isSecUser()`)
 - `presentations` — CRUD apenas owner, campos imutaveis (ownerUid, ownerEmail, createdAt) no update
 - `sessions` — read publico apenas se `status == 'live'`; update so permite `live → ended`; create valida schema completo
 - `responses` / `reactions` — create publico (sem auth), delete apenas session owner
