@@ -1,5 +1,6 @@
 import { createSlideDraft, createTeamDraft } from './validators'
 import { TEAM_SELECTION_TYPE } from './constants'
+import { EDUCATION_EVENT_KEY, EDUCATION_EVENT, buildEducationEventSlides } from './eventData'
 
 const mc = (question, options) => ({ ...createSlideDraft('multiple_choice'), question, options: [...options] })
 const wc = (question) => ({ ...createSlideDraft('word_cloud'), question })
@@ -27,11 +28,21 @@ export const TEMPLATES = [
     ],
   },
   {
+    id: EDUCATION_EVENT_KEY,
+    name: EDUCATION_EVENT.shortTitle,
+    summary: 'Roteiro institucional com as perguntas orientadoras, a escuta do público e a agenda da SEC.',
+    accent: 'from-blue-700 to-cyan-500',
+    badge: 'Evento especial',
+    icon: 'landmark',
+    eventKey: EDUCATION_EVENT_KEY,
+    build: buildEducationEventSlides,
+  },
+  {
     id: 'pitch',
-    name: 'Pitch de Produto',
-    summary: 'Aqueça a audiência, colete percepções e encerre com Q&A aberto.',
+    name: 'Apresentação de projeto',
+    summary: 'Apresente uma ideia e ouça a avaliação de quem participa.',
     accent: 'from-brand-500 to-violet-600',
-    badge: 'Mais usado',
+    badge: 'Projetos',
     icon: 'rocket',
     build: () => [
       ot('Em uma frase: qual problema você precisa resolver hoje?'),
@@ -47,23 +58,23 @@ export const TEMPLATES = [
   },
   {
     id: 'kickoff',
-    name: 'Kick-off de Evento',
-    summary: 'Meça a energia da plateia, organize squads e abra perguntas.',
+    name: 'Abertura de encontro',
+    summary: 'Conheça as expectativas do público antes de começar.',
     accent: 'from-brand-500 via-violet-500 to-ocean-500',
-    badge: 'Empresas',
+    badge: 'Encontros',
     icon: 'flag',
     build: () => [
       mc('Em uma escala de 0 a 10, qual a probabilidade de você recomendar este evento?', [
         '0–3', '4–6', '7–8', '9–10',
       ]),
-      ts('Em qual squad você vai contribuir neste trimestre?', [
-        { name: 'Produto', capacity: 12 },
-        { name: 'Engenharia', capacity: 14 },
-        { name: 'Design', capacity: 10 },
-        { name: 'Operações', capacity: 8 },
+      ts('Em qual grupo você quer participar?', [
+        { name: 'Pesquisa', capacity: 12 },
+        { name: 'Tecnologia', capacity: 14 },
+        { name: 'Educação', capacity: 10 },
+        { name: 'Comunicação', capacity: 8 },
       ]),
-      wc('Qual palavra define o que você espera desse quarter?'),
-      ot('Qual dúvida você quer levar para o CEO?'),
+      wc('Qual palavra define o que você espera deste encontro?'),
+      ot('Qual pergunta você quer trazer para a conversa?'),
     ],
   },
   {
@@ -86,17 +97,17 @@ export const TEMPLATES = [
   },
   {
     id: 'workshop',
-    name: 'Workshop Colaborativo',
-    summary: 'Brainstorm inicial, escolha de mesas e feedback final.',
+    name: 'Oficina colaborativa',
+    summary: 'Reúna ideias, forme os grupos e defina os próximos passos.',
     accent: 'from-sunset-500 to-coral-600',
     badge: 'Workshops',
     icon: 'wrench',
     build: () => [
       wc('Quais temas trazem você até este workshop?'),
       ts('Em qual mesa você quer se sentar?', [
-        { name: 'Mesa Idea Lab', capacity: 6 },
-        { name: 'Mesa Discovery', capacity: 6 },
-        { name: 'Mesa Delivery', capacity: 6 },
+        { name: 'Mesa de ideias', capacity: 6 },
+        { name: 'Mesa de pesquisa', capacity: 6 },
+        { name: 'Mesa de execução', capacity: 6 },
       ]),
       mc('Quão provável você está de aplicar algo nas próximas 72h?', [
         'Nada provável', 'Pouco provável', 'Provável', 'Muito provável',
@@ -117,14 +128,14 @@ export const TEMPLATES = [
         'Pode melhorar', 'Boa', 'Excelente', 'Extraordinária',
       ]),
       wc('Em uma palavra, descreva o próximo ciclo'),
-      mc('Qual energia você quer levar para o próximo sprint?', [
+      mc('Qual prioridade você quer levar para o próximo ciclo?', [
         'Foco total', 'Colaboração', 'Experimentação', 'Pausa estratégica',
       ]),
     ],
   },
   {
     id: 'townhall',
-    name: 'Townhall / Assembleia',
+    name: 'Assembleia aberta',
     summary: 'Perguntas abertas, escala de humor e nuvem de expectativas.',
     accent: 'from-coral-500 to-coral-700',
     badge: 'Comunidade',

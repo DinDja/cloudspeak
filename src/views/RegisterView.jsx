@@ -1,10 +1,13 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion as Motion } from 'framer-motion'
 import { Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react'
 import AuthLayout from '../components/auth/AuthLayout'
 import { useAuth } from '../hooks/useAuth'
 import { isSectiEmail, describeAuthError } from '../lib/validators'
+import { ALLOWED_AUTH_DOMAINS, AUTH_DOMAIN_LABEL } from '../lib/constants'
 import { AuthErrorCode } from '../lib/firebaseAuth'
+
+const AUTH_DOMAIN_ERROR = `Cadastre-se com um e-mail de um destes domínios: ${AUTH_DOMAIN_LABEL}.`
 
 export default function RegisterView({ onBack, onGoLogin }) {
   const { register } = useAuth()
@@ -19,7 +22,7 @@ export default function RegisterView({ onBack, onGoLogin }) {
   const handleEmailChange = (value) => {
     setEmail(value)
     if (value && !value.includes('@')) {
-      setSuggestions([`${value}@secti.ba.gov.br`])
+      setSuggestions(ALLOWED_AUTH_DOMAINS.map((domain) => `${value}@${domain}`))
       setShowSuggestions(true)
     } else {
       setSuggestions([])
@@ -41,7 +44,7 @@ export default function RegisterView({ onBack, onGoLogin }) {
       return
     }
     if (!isSectiEmail(email.trim())) {
-      setError('Cadastre-se apenas com e-mail @secti.ba.gov.br.')
+      setError(AUTH_DOMAIN_ERROR)
       return
     }
     if (!password || password.length < 6) {
@@ -54,7 +57,7 @@ export default function RegisterView({ onBack, onGoLogin }) {
       await register(email.trim(), password, name.trim())
     } catch (err) {
       if (err.code === AuthErrorCode.NOT_SECTI) {
-        setError('Cadastre-se apenas com e-mail @secti.ba.gov.br.')
+        setError(AUTH_DOMAIN_ERROR)
       } else {
         setError(err.message || describeAuthError(err.code))
       }
@@ -66,13 +69,13 @@ export default function RegisterView({ onBack, onGoLogin }) {
   return (
     <AuthLayout
       title="Crie sua conta"
-      subtitle="Acesso exclusivo para servidores @secti.ba.gov.br."
+      subtitle={`Acesso para e-mails autorizados: ${AUTH_DOMAIN_LABEL}.`}
       onBack={onBack}
       footer={
         <button
           type="button"
           onClick={onGoLogin}
-          className="inline-flex items-center gap-1.5 border-2 border-transparent px-2 py-1 text-xs font-black uppercase tracking-widest text-[#09090B] transition-all duration-100 hover:border-[#09090B] hover:bg-[#E2FF32] hover:shadow-[2px_2px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
         >
           Já tem conta? Entrar
         </button>
@@ -94,7 +97,7 @@ export default function RegisterView({ onBack, onGoLogin }) {
             onChange={(event) => handleEmailChange(event.target.value)}
             onFocus={() => email && !email.includes('@') && setShowSuggestions(true)}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            placeholder="nome@secti.ba.gov.br"
+            placeholder="seu e-mail autorizado"
             type="email"
             autoCapitalize="none"
             autoCorrect="off"
@@ -102,12 +105,12 @@ export default function RegisterView({ onBack, onGoLogin }) {
             className="cs-input-base w-full py-4 pl-12 pr-4 text-base font-bold"
           />
           {showSuggestions && suggestions.length > 0 && (
-            <ul className="absolute z-10 mt-1 w-full border-[3px] border-[#09090B] bg-white shadow-[4px_4px_0px_0px_#09090B]">
+            <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
               {suggestions.map((suggestion, idx) => (
                 <li
                   key={idx}
                   onMouseDown={() => selectSuggestion(suggestion)}
-                  className="cursor-pointer border-b-[2px] border-[#09090B]/20 px-4 py-3 text-sm font-bold text-[#09090B] last:border-b-0 hover:bg-[#E2FF32]"
+                  className="cursor-pointer border-b border-slate-100 px-4 py-3 text-sm text-slate-700 last:border-b-0 hover:bg-blue-50"
                 >
                   {suggestion}
                 </li>
@@ -126,24 +129,24 @@ export default function RegisterView({ onBack, onGoLogin }) {
         </Field>
 
         {error && (
-          <motion.p
-            className="border-[3px] border-[#09090B] bg-[#FF0055] px-4 py-3 text-sm font-black uppercase tracking-wider text-white shadow-[4px_4px_0px_0px_#09090B]"
+          <Motion.p
+            className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
           >
             {error}
-          </motion.p>
+          </Motion.p>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="cs-btn-base h-14 w-full gap-2 bg-[#E2FF32] text-base font-black text-[#09090B] hover:bg-[#d4f01e]"
+          className="cs-btn-base h-11 w-full gap-2 text-sm"
         >
           {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Criar minha conta <ArrowRight className="h-5 w-5" /></>}
         </button>
 
-        <p className="text-center text-xs font-black uppercase tracking-wider text-slate-500">
+        <p className="text-center text-xs text-slate-500">
           Ao continuar você concorda com o uso dos dados conforme LGPD.
         </p>
       </form>
@@ -151,15 +154,16 @@ export default function RegisterView({ onBack, onGoLogin }) {
   )
 }
 
-function Field({ label, icon: Icon, children }) {
+function Field({ label, icon, children }) {
+  const Icon = icon
   return (
     <div className="relative">
-      <label className="mb-1.5 ml-1 block text-[10px] font-black uppercase tracking-wider text-slate-400">
+      <label className="mb-1.5 block text-sm font-medium text-slate-700">
         {label}
       </label>
       <div className="relative">
         <div className="pointer-events-none absolute inset-y-0 left-4 my-auto text-slate-400">
-          <Icon className="h-5 w-5" />
+          <Icon className="h-4 w-4" />
         </div>
         {children}
       </div>

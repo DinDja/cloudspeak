@@ -10,6 +10,12 @@ export const MAX_SLIDES = 20
 export const MAX_TEAM_PER_SLIDE = 12
 
 export const ALLOWED_AUTH_DOMAIN = 'secti.ba.gov.br'
+export const ALLOWED_AUTH_DOMAINS = [
+  ALLOWED_AUTH_DOMAIN,
+  'enova.educacao.ba.gov.br',
+  'gmail.com',
+]
+export const AUTH_DOMAIN_LABEL = ALLOWED_AUTH_DOMAINS.map((domain) => `@${domain}`).join(', ')
 
 export const REACTION_TYPES = ['heart', 'thumb', 'question']
 

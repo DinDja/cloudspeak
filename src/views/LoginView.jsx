@@ -1,10 +1,13 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useId, useState } from 'react'
+import { motion as Motion } from 'framer-motion'
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react'
 import AuthLayout from '../components/auth/AuthLayout'
 import { useAuth } from '../hooks/useAuth'
 import { isSectiEmail, describeAuthError } from '../lib/validators'
+import { ALLOWED_AUTH_DOMAINS, AUTH_DOMAIN_LABEL } from '../lib/constants'
 import { AuthErrorCode } from '../lib/firebaseAuth'
+
+const AUTH_DOMAIN_ERROR = `Use um e-mail de um destes domínios: ${AUTH_DOMAIN_LABEL}.`
 
 export default function LoginView({ onBack, onGoRegister }) {
   const { login, loginWithGoogle } = useAuth()
@@ -20,7 +23,7 @@ export default function LoginView({ onBack, onGoRegister }) {
   const handleEmailChange = (value) => {
     setEmail(value)
     if (value && !value.includes('@')) {
-      setSuggestions([`${value}@secti.ba.gov.br`])
+      setSuggestions(ALLOWED_AUTH_DOMAINS.map((domain) => `${value}@${domain}`))
       setShowSuggestions(true)
     } else {
       setSuggestions([])
@@ -40,7 +43,7 @@ export default function LoginView({ onBack, onGoRegister }) {
       await loginWithGoogle()
     } catch (err) {
       if (err.code === AuthErrorCode.NOT_SECTI) {
-        setError('Use um e-mail @secti.ba.gov.br.')
+        setError(AUTH_DOMAIN_ERROR)
       } else if (err.code === AuthErrorCode.NOT_VERIFIED) {
         setError('Confirme seu e-mail antes de continuar.')
       } else {
@@ -56,7 +59,7 @@ export default function LoginView({ onBack, onGoRegister }) {
     setError('')
 
     if (!isSectiEmail(email.trim())) {
-      setError('Use um e-mail @secti.ba.gov.br.')
+      setError(AUTH_DOMAIN_ERROR)
       return
     }
     if (!password) {
@@ -69,7 +72,7 @@ export default function LoginView({ onBack, onGoRegister }) {
       await login(email.trim(), password)
     } catch (err) {
       if (err.code === AuthErrorCode.NOT_SECTI) {
-        setError('Use um e-mail @secti.ba.gov.br.')
+        setError(AUTH_DOMAIN_ERROR)
       } else if (err.code === 'auth/email-not-verified') {
         setError('Confirme seu e-mail antes de continuar.')
       } else {
@@ -82,16 +85,16 @@ export default function LoginView({ onBack, onGoRegister }) {
 
   return (
     <AuthLayout
-      title="BEM-VINDO DE VOLTA"
-      subtitle="ACESSE O ESTÚDIO E CONTINUE SUAS APRESENTAÇÕES AO VIVO."
+      title="Acesso ao estúdio"
+      subtitle="Entre com sua conta institucional para criar e apresentar."
       onBack={onBack}
       footer={
         <button
           type="button"
           onClick={onGoRegister}
-          className="inline-flex items-center gap-1.5 border-[3px] border-transparent px-3 py-1.5 text-xs font-black uppercase tracking-widest text-[#09090B] transition-none hover:border-[#09090B] hover:bg-[#E2FF32] hover:shadow-[4px_4px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-id-card-lanyard-icon lucide-id-card-lanyard"><path d="M13.5 8h-3"/><path d="m15 2-1 2h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"/><path d="M16.899 22A5 5 0 0 0 7.1 22"/><path d="m9 2 3 6"/><circle cx="12" cy="15" r="3" className='w-4'/></svg> Não tem conta? Criar
+          Não tem conta? Criar conta
         </button>
       }
     >
@@ -105,18 +108,18 @@ export default function LoginView({ onBack, onGoRegister }) {
             onChange={(event) => handleEmailChange(event.target.value)}
             onFocus={() => email && !email.includes('@') && setShowSuggestions(true)}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            placeholder="nome@secti.ba.gov.br"
+            placeholder="seu e-mail autorizado"
             autoCapitalize="none"
             autoCorrect="off"
             autoComplete="email"
           />
           {showSuggestions && suggestions.length > 0 && (
-            <ul className="absolute z-10 mt-1 w-full border-[3px] border-[#09090B] bg-white shadow-[4px_4px_0px_0px_#09090B]">
+            <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
               {suggestions.map((suggestion, idx) => (
                 <li
                   key={idx}
                   onMouseDown={() => selectSuggestion(suggestion)}
-                  className="cursor-pointer border-b-[2px] border-[#09090B]/20 px-4 py-3 text-sm font-bold text-[#09090B] last:border-b-0 hover:bg-[#E2FF32]"
+                  className="cursor-pointer border-b border-slate-100 px-4 py-3 text-sm text-slate-700 last:border-b-0 hover:bg-blue-50"
                 >
                   {suggestion}
                 </li>
@@ -130,12 +133,12 @@ export default function LoginView({ onBack, onGoRegister }) {
           type={showPwd ? 'text' : 'password'}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="SUA SENHA"
+          placeholder="Sua senha"
           rightAction={
             <button
               type="button"
               onClick={() => setShowPwd((s) => !s)}
-              className="border-[2px] border-[#09090B] bg-white px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-[#09090B] shadow-[2px_2px_0px_0px_#09090B] transition-none hover:bg-[#E2FF32] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
               {showPwd ? 'Ocultar' : 'Mostrar'}
             </button>
@@ -143,37 +146,31 @@ export default function LoginView({ onBack, onGoRegister }) {
         />
 
         {error && (
-          <motion.p
-            className="border-[3px] border-[#09090B] bg-[#FF0055] px-4 py-3 text-sm font-black uppercase tracking-wide text-white shadow-[4px_4px_0px_0px_#09090B]"
+          <Motion.p
+            className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
           >
             {error}
-          </motion.p>
+          </Motion.p>
         )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="cs-btn-base mt-2 h-14 w-full gap-2 text-base !bg-[#E2FF32] !text-[#09090B]"
-        >
+        <button type="submit" disabled={loading} className="cs-btn-base mt-2 h-11 w-full gap-2 text-sm">
           {loading ? (
             <Loader2 className="h-6 w-6 animate-spin" />
           ) : (
             <>
-              ENTRAR NO ESTÚDIO <ArrowRight className="h-6 w-6" strokeWidth={3} />
+              Entrar no estúdio <ArrowRight className="h-6 w-6" strokeWidth={3} />
             </>
           )}
         </button>
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t-2 border-[#09090B]/20"></div>
+            <div className="w-full border-t border-stone-300"></div>
           </div>
           <div className="relative flex justify-center">
-            <span className="bg-white px-4 text-xs font-black uppercase tracking-widest text-[#09090B]/60">
-              Ou continue com
-            </span>
+            <span className="bg-[#f6f4ef] px-4 text-xs font-normal text-stone-500">Ou continue com</span>
           </div>
         </div>
 
@@ -181,7 +178,7 @@ export default function LoginView({ onBack, onGoRegister }) {
           type="button"
           disabled={googleLoading}
           onClick={handleGoogleLogin}
-          className="cs-btn-base h-14 w-full gap-2 !bg-white !text-[#09090B] hover:!bg-gray-50"
+          className="cs-btn-base h-11 w-full gap-2 border-slate-200 !bg-white !text-slate-700 hover:!bg-slate-50"
         >
           {googleLoading ? (
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -205,33 +202,32 @@ export default function LoginView({ onBack, onGoRegister }) {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              GOOGLE
+              Continuar com Google
             </>
           )}
         </button>
 
-        <p className="text-center text-[10px] font-black uppercase tracking-widest text-[#09090B]/60">
-          Apenas servidores com e-mail @secti.ba.gov.br podem acessar.
+        <p className="text-center text-xs text-slate-500">
+          Acesso permitido para: {AUTH_DOMAIN_LABEL}.
         </p>
       </form>
     </AuthLayout>
   )
 }
 
-function Field({ label, icon: Icon, rightAction, id, ...rest }) {
-  const fieldId = id || rest.name || `f-${Math.random().toString(36).slice(2, 8)}`
+function Field({ label, icon, rightAction, id, ...rest }) {
+  const FieldIcon = icon
+  const generatedId = useId()
+  const fieldId = id || rest.name || generatedId
   return (
     <div>
-      <label
-        htmlFor={fieldId}
-        className="mb-2 ml-1 flex items-end justify-between text-xs font-black uppercase tracking-widest text-[#09090B]"
-      >
-        {label}
+      <div className="mb-1.5 flex items-end justify-between text-sm font-medium text-slate-700">
+        <label htmlFor={fieldId}>{label}</label>
         {rightAction}
-      </label>
+      </div>
       <div className="relative">
         <div className="pointer-events-none absolute inset-y-0 left-4 my-auto flex items-center text-[#09090B]">
-          <Icon className="h-6 w-6" strokeWidth={2.5} />
+          <FieldIcon className="h-5 w-5" />
         </div>
         <input
           id={fieldId}

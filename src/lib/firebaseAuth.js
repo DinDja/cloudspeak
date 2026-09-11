@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth'
 import { auth } from '../../firebase'
 import { isSectiEmail, describeAuthError } from './validators'
+import { AUTH_DOMAIN_LABEL } from './constants'
 
 const AUTH_ERROR_NOT_SECTI = 'auth/not-secti-domain'
 const AUTH_ERROR_NOT_VERIFIED = 'auth/email-not-verified'
@@ -25,7 +26,7 @@ export const isAuthedSectiUser = (user) =>
 export const signIn = async (email, password) => {
   const trimmedEmail = (email ?? '').trim().toLowerCase()
   if (!isSectiEmail(trimmedEmail)) {
-    const error = new Error('Use um e-mail @secti.ba.gov.br.')
+    const error = new Error(`Use um e-mail de um destes domínios: ${AUTH_DOMAIN_LABEL}.`)
     error.code = AUTH_ERROR_NOT_SECTI
     throw error
   }
@@ -41,7 +42,7 @@ export const signIn = async (email, password) => {
 export const signUp = async (email, password, displayName) => {
   const trimmedEmail = (email ?? '').trim().toLowerCase()
   if (!isSectiEmail(trimmedEmail)) {
-    const error = new Error('Cadastre-se apenas com e-mail @secti.ba.gov.br.')
+    const error = new Error(`Cadastre-se com um e-mail de um destes domínios: ${AUTH_DOMAIN_LABEL}.`)
     error.code = AUTH_ERROR_NOT_SECTI
     throw error
   }
@@ -77,7 +78,7 @@ export const signInWithGoogle = async () => {
     const user = credential.user
     if (!isSectiEmail(user.email)) {
       await signOut(auth)
-      const error = new Error('Use um e-mail @secti.ba.gov.br.')
+      const error = new Error(`Use um e-mail de um destes domínios: ${AUTH_DOMAIN_LABEL}.`)
       error.code = AUTH_ERROR_NOT_SECTI
       throw error
     }

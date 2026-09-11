@@ -15,7 +15,8 @@ service cloud.firestore {
     }
 
     function isSectiDomain(email) {
-      return email is string && email.matches('.*@secti\\.ba\\.gov\\.br$');
+      return email is string
+        && email.matches('.*@(secti\\.ba\\.gov\\.br|enova\\.educacao\\.ba\\.gov\\.br|gmail\\.com)$');
     }
 
     function isSectiUser() {
@@ -43,22 +44,29 @@ service cloud.firestore {
       allow read: if isSectiUser() && resource.data.ownerUid == request.auth.uid;
 
       allow create: if isSectiUser()
-        && request.resource.data.keys().hasOnly(['title', 'slides', 'ownerUid', 'ownerEmail', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['title', 'slides', 'ownerUid', 'ownerEmail', 'eventKey', 'createdAt', 'updatedAt'])
         && request.resource.data.keys().hasAll(['title', 'slides', 'ownerUid', 'ownerEmail', 'createdAt', 'updatedAt'])
         && matchesAuthUser(request.resource.data.ownerUid, request.resource.data.ownerEmail)
         && isString(request.resource.data.title, 1, 120)
         && isValidSlides(request.resource.data.slides)
+        && (!request.resource.data.keys().hasAll(['eventKey'])
+            || request.resource.data.eventKey == null
+            || isString(request.resource.data.eventKey, 1, 80))
         && request.resource.data.createdAt is timestamp
         && request.resource.data.updatedAt is timestamp;
+        // eventKey identifies an institutional event template and is optional for old decks.
 
       allow update: if isSectiUser()
         && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['title', 'slides', 'ownerUid', 'ownerEmail', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['title', 'slides', 'ownerUid', 'ownerEmail', 'eventKey', 'createdAt', 'updatedAt'])
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.ownerEmail == resource.data.ownerEmail
         && request.resource.data.createdAt == resource.data.createdAt
         && isString(request.resource.data.title, 1, 120)
         && isValidSlides(request.resource.data.slides)
+        && (!request.resource.data.keys().hasAll(['eventKey'])
+            || request.resource.data.eventKey == null
+            || isString(request.resource.data.eventKey, 1, 80))
         && request.resource.data.updatedAt is timestamp;
 
       allow delete: if isSectiUser() && resource.data.ownerUid == request.auth.uid;
@@ -68,8 +76,8 @@ service cloud.firestore {
     function isSessionCreate() {
       return request.resource.data.keys().hasOnly([
           'code', 'title', 'status', 'slides', 'currentSlideIndex',
-          'ownerUid', 'ownerEmail', 'presentationId',
-          'createdAt', 'launchedAt', 'updatedAt'
+           'ownerUid', 'ownerEmail', 'presentationId', 'eventKey', 'endedAt',
+           'createdAt', 'launchedAt', 'updatedAt'
         ])
         && request.resource.data.keys().hasAll([
           'code', 'title', 'status', 'slides', 'currentSlideIndex',
@@ -85,6 +93,9 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp
         && request.resource.data.launchedAt is timestamp
         && request.resource.data.updatedAt is timestamp
+        && (!request.resource.data.keys().hasAll(['eventKey'])
+            || request.resource.data.eventKey == null
+            || isString(request.resource.data.eventKey, 1, 80))
         && (!request.resource.data.keys().hasAll(['presentationId'])
             || request.resource.data.presentationId == null
             || isString(request.resource.data.presentationId, 1, 80));
@@ -93,8 +104,8 @@ service cloud.firestore {
     function isSessionUpdate() {
       return request.resource.data.keys().hasOnly([
           'code', 'title', 'status', 'slides', 'currentSlideIndex',
-          'ownerUid', 'ownerEmail', 'presentationId',
-          'createdAt', 'launchedAt', 'updatedAt'
+           'ownerUid', 'ownerEmail', 'presentationId', 'eventKey', 'endedAt',
+           'createdAt', 'launchedAt', 'updatedAt'
         ])
         && request.resource.data.code == resource.data.code
         && request.resource.data.title == resource.data.title
@@ -102,6 +113,8 @@ service cloud.firestore {
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.ownerEmail == resource.data.ownerEmail
         && request.resource.data.presentationId == resource.data.presentationId
+        && ((!request.resource.data.keys().hasAll(['eventKey']) && !resource.data.keys().hasAll(['eventKey']))
+            || request.resource.data.eventKey == resource.data.eventKey)
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.launchedAt == resource.data.launchedAt
         && request.resource.data.currentSlideIndex is int
@@ -109,7 +122,9 @@ service cloud.firestore {
         && request.resource.data.currentSlideIndex < resource.data.slides.size()
         && (request.resource.data.status == resource.data.status
             || (resource.data.status == 'live' && request.resource.data.status == 'ended'))
-        && request.resource.data.updatedAt is timestamp;
+        && request.resource.data.updatedAt is timestamp
+        && (!request.resource.data.keys().hasAll(['endedAt'])
+            || request.resource.data.endedAt is timestamp);
     }
 
     match /sessions/{sessionCode} {
@@ -118,6 +133,10 @@ service cloud.firestore {
       allow create: if isSectiUser() && isSessionCreate();
       allow update: if isSectiUser() && resource.data.ownerUid == request.auth.uid && isSessionUpdate();
       allow delete: if isSectiUser() && resource.data.ownerUid == request.auth.uid;
+
+      function isLiveSession() {
+        return get(/databases/$(database)/documents/sessions/$(sessionCode)).data.status == 'live';
+      }
 
       function isValidResponse() {
         return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'slideId', 'type', 'value', 'createdAt'])
@@ -132,7 +151,7 @@ service cloud.firestore {
 
       match /responses/{responseId} {
         allow read: if true;
-        allow create: if isValidSessionCode(sessionCode) && isValidResponse();
+        allow create: if isValidSessionCode(sessionCode) && isLiveSession() && isValidResponse();
         allow update: if false;
         allow delete: if sessionOwner(sessionCode);
       }
@@ -150,33 +169,37 @@ service cloud.firestore {
 
       match /reactions/{reactionId} {
         allow read: if true;
-        allow create: if isValidSessionCode(sessionCode) && isValidReaction();
+        allow create: if isValidSessionCode(sessionCode) && isLiveSession() && isValidReaction();
         allow update: if false;
         allow delete: if sessionOwner(sessionCode);
       }
 
       function isValidParticipantPresenceCreate(participantId) {
-        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'joinedAt', 'lastSeenAt'])
+        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'participantInstitution', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.keys().hasAll(['participantId', 'participantName', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.participantId == participantId
           && isString(request.resource.data.participantName, 1, 40)
           && request.resource.data.joinedAt is timestamp
-          && request.resource.data.lastSeenAt is timestamp;
+          && request.resource.data.lastSeenAt is timestamp
+          && (!request.resource.data.keys().hasAll(['participantInstitution'])
+              || isString(request.resource.data.participantInstitution, 0, 120));
       }
 
       function isValidParticipantPresenceUpdate(participantId) {
-        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'joinedAt', 'lastSeenAt'])
+        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'participantInstitution', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.participantId == participantId
           && request.resource.data.participantId == resource.data.participantId
           && request.resource.data.joinedAt == resource.data.joinedAt
           && isString(request.resource.data.participantName, 1, 40)
-          && request.resource.data.lastSeenAt is timestamp;
+          && request.resource.data.lastSeenAt is timestamp
+          && (!request.resource.data.keys().hasAll(['participantInstitution'])
+              || isString(request.resource.data.participantInstitution, 0, 120));
       }
 
       match /participants/{participantId} {
         allow read: if true;
-        allow create: if isValidSessionCode(sessionCode) && isValidParticipantPresenceCreate(participantId);
-        allow update: if isValidSessionCode(sessionCode) && isValidParticipantPresenceUpdate(participantId);
+        allow create: if isValidSessionCode(sessionCode) && isLiveSession() && isValidParticipantPresenceCreate(participantId);
+        allow update: if isValidSessionCode(sessionCode) && isLiveSession() && isValidParticipantPresenceUpdate(participantId);
         allow delete: if sessionOwner(sessionCode);
       }
     }

@@ -1,4 +1,4 @@
-import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAIN, TEAM_SELECTION_TYPE } from './constants'
+import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, TEAM_SELECTION_TYPE } from './constants'
 
 export const normalizeText = (value) => value.trim().replace(/\s+/g, ' ')
 export const getParticipantDisplayName = (value) => normalizeText(value) || 'Anônimo'
@@ -7,7 +7,7 @@ export const isSectiEmail = (email) => {
   if (typeof email !== 'string') return false
   const at = email.lastIndexOf('@')
   if (at < 1) return false
-  return email.slice(at + 1).toLowerCase() === ALLOWED_AUTH_DOMAIN
+  return ALLOWED_AUTH_DOMAINS.includes(email.slice(at + 1).toLowerCase())
 }
 
 export const isValidSessionCode = (code) =>
@@ -28,6 +28,18 @@ export const getJoinUrl = (code) => {
   const configuredBaseUrl = import.meta.env.VITE_APP_URL
   const baseUrl = configuredBaseUrl || window.location.origin
   return `${baseUrl}/?code=${encodeURIComponent(code)}`
+}
+
+export const getPresenceUrl = (code) => {
+  const configuredBaseUrl = import.meta.env.VITE_APP_URL
+  const baseUrl = configuredBaseUrl || window.location.origin
+  return `${baseUrl}/?code=${encodeURIComponent(code)}&mode=attendance`
+}
+
+export const getSlideJoinUrl = (code, slideId) => {
+  const configuredBaseUrl = import.meta.env.VITE_APP_URL
+  const baseUrl = configuredBaseUrl || window.location.origin
+  return `${baseUrl}/?code=${encodeURIComponent(code)}&slide=${encodeURIComponent(slideId ?? '')}`
 }
 
 export const getTeamSelectionResponseId = (slideId, participantId) => `${slideId}__${participantId}`

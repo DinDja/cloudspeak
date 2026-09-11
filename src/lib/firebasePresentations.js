@@ -18,7 +18,7 @@ import { sanitizeSlides, sanitizeTitle } from './validators'
 const presentationsCol = () => collection(db, 'presentations')
 const presentationRef = (id) => doc(db, 'presentations', id)
 
-export const createPresentation = async ({ ownerUid, ownerEmail, title, slides }) => {
+export const createPresentation = async ({ ownerUid, ownerEmail, title, slides, eventKey = null }) => {
   const titleResult = sanitizeTitle(title)
   if (titleResult.error) throw new Error(titleResult.error)
 
@@ -30,6 +30,7 @@ export const createPresentation = async ({ ownerUid, ownerEmail, title, slides }
     slides: slidesResult.slides,
     ownerUid,
     ownerEmail,
+    eventKey,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   }
@@ -37,7 +38,7 @@ export const createPresentation = async ({ ownerUid, ownerEmail, title, slides }
   return { id: ref.id, ...payload }
 }
 
-export const updatePresentation = async ({ id, ownerUid, ownerEmail, title, slides }) => {
+export const updatePresentation = async ({ id, ownerUid, ownerEmail, title, slides, eventKey = null }) => {
   const titleResult = sanitizeTitle(title)
   if (titleResult.error) throw new Error(titleResult.error)
 
@@ -49,6 +50,7 @@ export const updatePresentation = async ({ id, ownerUid, ownerEmail, title, slid
     slides: slidesResult.slides,
     ownerUid,
     ownerEmail,
+    eventKey,
     updatedAt: serverTimestamp(),
   })
 }
@@ -59,6 +61,7 @@ export const duplicatePresentation = async ({ presentation, ownerUid, ownerEmail
     ownerEmail,
     title: `${presentation.title} (cópia)`.slice(0, 120),
     slides: presentation.slides ?? [],
+    eventKey: presentation.eventKey ?? null,
   })
 }
 
@@ -98,6 +101,7 @@ export const buildEditableDraft = (presentation) => {
   return {
     id: presentation?.id ?? null,
     title: presentation?.title ?? '',
+    eventKey: presentation?.eventKey ?? null,
     slides: slides.length > 0 ? slides : [],
   }
 }

@@ -1,38 +1,78 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useRef } from 'react'
 import { IconX } from '../icons/Icons'
 
 export default function Modal({ open, onClose, children, maxWidth = 'max-w-md' }) {
+  const dialogRef = useRef(null)
+  const closeRef = useRef(onClose)
+  useEffect(() => {
+    closeRef.current = onClose
+  }, [onClose])
+  useEffect(() => {
+    if (!open) return undefined
+    const previousFocus = document.activeElement
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    dialogRef.current?.focus()
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') closeRef.current()
+      if (event.key !== 'Tab') return
+      const elements = [
+        ...(dialogRef.current?.querySelectorAll(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]',
+        ) || []),
+      ]
+      const first = elements[0]
+      const last = elements[elements.length - 1]
+      if (!first) {
+        event.preventDefault()
+        return
+      }
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === dialogRef.current)
+      ) {
+        event.preventDefault()
+        last.focus()
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last || document.activeElement === dialogRef.current)
+      ) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = overflow
+      document.removeEventListener('keydown', onKeyDown)
+      previousFocus?.focus()
+    }
+  }, [open])
+  if (!open) return null
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/35 p-4"
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Confirmação"
+        className={`fala-app relative !min-h-0 w-full max-h-[90dvh] overflow-y-auto border border-stone-300 bg-white p-7 outline-none ${maxWidth}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
           onClick={onClose}
+          aria-label="Fechar"
+          className="absolute right-3 top-3 p-1 text-stone-500 hover:text-black"
         >
-          <div className="absolute inset-0 bg-[#09090B] opacity-80" />
-          <motion.div
-            className={`relative w-full ${maxWidth} border-[3px] border-[#09090B] bg-white p-7 shadow-[8px_8px_0px_0px_#09090B]`}
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={onClose}
-              className="absolute right-4 top-4 border-2 border-[#09090B] p-1.5 text-slate-600 transition-all duration-100 hover:bg-[#FF0055] hover:text-white hover:shadow-[2px_2px_0px_0px_#09090B]"
-            >
-              <IconX className="h-5 w-5" />
-            </button>
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          <IconX className="h-4 w-4" />
+        </button>
+        <div className="pt-2">{children}</div>
+      </div>
+    </div>
   )
 }

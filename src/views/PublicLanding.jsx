@@ -1,126 +1,129 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { isValidSessionCode } from '../lib/validators'
 import Logo from '../components/ui/Logo'
-import { IconKey, IconLock, IconUser } from '../components/icons/Icons'
+import SectiMark from '../components/ui/SectiMark'
+import ConversationArtwork from '../components/ui/ConversationArtwork'
+import { EDUCATION_EVENT } from '../lib/eventData'
 
-export default function PublicLanding({ initialCode = '', onJoin, onPresenterLogin, loading, error }) {
-  const [code, setCode] = useState(initialCode)
+export default function PublicLanding({
+  initialCode = '',
+  initialAttendance = false,
+  onJoin,
+  onPresenterLogin,
+  loading,
+  error,
+}) {
+  const [entry, setEntry] = useState({ initialCode, code: initialCode })
   const [name, setName] = useState('')
-  const canJoin = isValidSessionCode(code.trim())
-
-  useEffect(() => {
-    if (initialCode) setCode(initialCode)
-  }, [initialCode])
-
+  const [institution, setInstitution] = useState('')
+  // A QR link may arrive after the authentication gate resolves.
+  const code = entry.initialCode === initialCode ? entry.code : initialCode
+  const canJoin = isValidSessionCode(code.trim()) && (!initialAttendance || name.trim().length >= 3)
   const submit = (event) => {
     event.preventDefault()
-    if (!canJoin || loading) return
-    onJoin(name, code.trim())
+    if (canJoin && !loading) onJoin(name, code.trim(), { attendance: initialAttendance, institution })
   }
 
   return (
-    <div
-      className="cs-grid relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#F4F4F0] px-4 py-8"
-      style={{ background: `url(/Group.svg) no-repeat left center / 50%, url(/brasao-bahia.png) no-repeat right 24px bottom 24px / 150px auto, #F4F4F0` }}
-    >
-      <div className="absolute left-6 top-6">
-        <Logo size="sm" />
-      </div>
-
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-black uppercase tracking-tighter text-[#09090B]">
-            Entrar na sessão
+    <div className="fala-app public-page">
+      <header className="public-header">
+        <Logo />
+        <span className="public-header__description">
+          Apresentações interativas
+          <br />
+          Secretaria Educação do Estado da Bahia
+        </span>
+        <button type="button" className="fala-link" onClick={onPresenterLogin}>
+          Acesso do apresentador <ArrowUpRight size={18} />
+        </button>
+      </header>
+      <main className="public-main">
+        <section className="public-entry" aria-labelledby="join-title">
+          <p className="fala-eyebrow">{initialAttendance ? 'LISTA DE PRESENÇA' : 'PARTICIPE DE UMA APRESENTAÇÃO'}</p>
+          <h1 id="join-title" className="public-title">
+            {initialAttendance ? 'Confirme sua' : 'Sua vez'}
+            <br />
+            {initialAttendance ? <span>presença.</span> : <>de <span>falar.</span></>}
           </h1>
-          <p className="mt-2 text-sm font-bold uppercase tracking-widest text-[#09090B]/70">
-            Digite o código exibido na tela
+          <p className="public-intro">
+            {initialAttendance ? 'Registre seu nome para compor a lista de frequência.' : 'Sua opinião entra na conversa.'}
+            <br />
+            {initialAttendance ? 'Depois, participe das perguntas do seminário.' : 'Use o código que aparece na tela.'}
           </p>
-        </div>
-
-        <form 
-          onSubmit={submit} 
-          className="cs-card space-y-6 p-6"
-        >
-          <div>
-            <label className="mb-2 ml-1 block text-xs font-black uppercase tracking-widest text-[#09090B]">
-              Código da sala
+          <form className="join-form" onSubmit={submit}>
+            <label htmlFor="session-code">Código da apresentação</label>
+            <input
+              id="session-code"
+              className="join-code"
+              value={code}
+              onChange={(event) =>
+                setEntry({ initialCode, code: event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })
+              }
+              placeholder="ABC123"
+              maxLength={6}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              aria-describedby={error ? 'join-error' : undefined}
+              aria-invalid={Boolean(error)}
+            />
+            <label htmlFor="participant-name" className="join-name-label">
+              Seu nome {!initialAttendance && <span>opcional</span>}
             </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-4 my-auto flex items-center text-[#09090B]">
-                <IconKey className="h-6 w-6" strokeWidth={2.5} />
-              </div>
-              <input
-                value={code}
-                onChange={(event) => setCode(event.target.value.toUpperCase())}
-                placeholder="EX: 4F9K2A"
-                inputMode="text"
-                autoCapitalize="characters"
-                className="cs-input-base w-full pl-14 text-center text-2xl tracking-[0.3em]"
-                maxLength={6}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-2 ml-1 block text-xs font-black uppercase tracking-widest text-[#09090B]">
-              Seu nome (opcional)
-            </label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-4 my-auto flex items-center text-[#09090B]">
-                <IconUser className="h-6 w-6" strokeWidth={2.5} />
-              </div>
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="COMO DEVEMOS TE CHAMAR?"
-                maxLength={40}
-                className="cs-input-base w-full pl-14 uppercase"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading || !canJoin}
-            className="cs-btn-base h-14 w-full gap-2 text-base !bg-[#E2FF32] !text-[#09090B] disabled:translate-x-0 disabled:translate-y-0 disabled:opacity-50 disabled:shadow-[5px_5px_0px_0px_#09090B]"
-          >
-            {loading ? (
+            <input
+              id="participant-name"
+              className="join-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={40}
+              autoComplete="given-name"
+              placeholder={initialAttendance ? 'Nome completo' : 'Como você quer aparecer?'}
+            />
+            {initialAttendance && (
               <>
-                <svg className="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="4" strokeOpacity="0.25" />
-                  <path d="M21 12a9 9 0 01-9 9" stroke="currentColor" strokeWidth="4" strokeLinecap="square" />
-                </svg>
-                ENTRANDO…
+                <label htmlFor="participant-institution" className="join-name-label">
+                  Órgão, escola ou instituição <span>opcional</span>
+                </label>
+                <input
+                  id="participant-institution"
+                  className="join-name"
+                  value={institution}
+                  onChange={(event) => setInstitution(event.target.value)}
+                  maxLength={120}
+                  autoComplete="organization"
+                  list="event-institution-suggestions"
+                  placeholder="Ex.: SEC, NTE ou escola"
+                />
+                <datalist id="event-institution-suggestions">
+                  {EDUCATION_EVENT.schools.map((school) => <option key={school} value={school} />)}
+                </datalist>
               </>
-            ) : (
-              'ENTRAR NA SESSÃO'
             )}
-          </button>
-
-          {error && (
-            <p className="border-[3px] border-[#09090B] bg-[#FF0055] px-4 py-3 text-center text-sm font-black uppercase tracking-wide text-white shadow-[4px_4px_0px_0px_#09090B]">
-              {error}
-            </p>
-          )}
-        </form>
-
-        <div className="mt-8 text-center">
-          <button
-            type="button"
-            onClick={onPresenterLogin}
-            className="inline-flex items-center gap-2 border-[3px] border-transparent px-4 py-2 text-sm font-black uppercase tracking-widest text-[#09090B] transition-none hover:border-[#09090B] hover:bg-[#E2FF32] hover:shadow-[4px_4px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-          >
-            <IconLock className="h-5 w-5" strokeWidth={2.5} />
-            Sou apresentador
-          </button>
-        </div>
-
-        <div className="mt-8 text-center">
-          <p className="inline-block bg-[#09090B] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#F4F4F0]">
-            Sistema interno SECTI · Uso restrito
+            <button type="submit" disabled={!canJoin || loading} className="fala-button join-submit">
+              {loading ? 'Conectando…' : initialAttendance ? 'Registrar presença e entrar' : 'Entrar na apresentação'}
+              <ArrowRight size={20} />
+            </button>
+            {error && (
+              <p id="join-error" role="alert" className="fala-error">
+                {error}
+              </p>
+            )}
+          </form>
+          <p className="join-note">
+            {initialAttendance ? 'Seu registro será usado apenas na ata e na lista de frequência do evento.' : 'Para participar, você não precisa criar uma conta.'}
           </p>
-        </div>
-      </div>
+        </section>
+        <ConversationArtwork interactive />
+      </main>
+      <footer className="public-footer">
+        <span>
+         Educação 
+          <br />
+          <strong>com a participação de todo mundo.</strong>
+        </span>
+        <img src="/brasao-bahia.png" className="h-12" />
+      </footer>
     </div>
   )
 }

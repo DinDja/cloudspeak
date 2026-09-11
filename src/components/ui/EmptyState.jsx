@@ -1,9 +1,9 @@
-import { motion } from 'framer-motion'
+import { motion as Motion } from 'framer-motion'
 import { IconEmpty } from '../icons/Icons'
 
 export default function EmptyState({ icon: Icon, title, description, action, className = '' }) {
   return (
-    <motion.div
+    <Motion.div
       className={[
         'flex flex-col items-center justify-center border-[3px] border-[#09090B] bg-white px-6 py-20 text-center shadow-[6px_6px_0px_0px_#09090B]',
         className,
@@ -20,6 +20,6 @@ export default function EmptyState({ icon: Icon, title, description, action, cla
         <p className="mt-2 max-w-sm text-sm font-bold leading-relaxed text-slate-600">{description}</p>
       )}
       {action && <div className="mt-6">{action}</div>}
-    </motion.div>
+    </Motion.div>
   )
 }

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion as Motion } from 'framer-motion'
 import { IconSpinner } from '../icons/Icons'
 
 export default function Spinner({ size = 'md', label, className = '' }) {
@@ -6,25 +6,25 @@ export default function Spinner({ size = 'md', label, className = '' }) {
   return (
     <span className={['inline-flex items-center gap-3 text-[#09090B]', className].join(' ')}>
       <IconSpinner className={`${dim} text-[#09090B]`} />
-      {label && <span className="font-black uppercase tracking-widest text-[#09090B]">{label}</span>}
+      {label && <span className="font-medium text-[#09090B]">{label}</span>}
     </span>
   )
 }
 
 export function FullPageLoader({ label = 'Carregando...' }) {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-[#F4F4F0]">
-      <motion.div
+    <div className="flex min-h-[100dvh] items-center justify-center bg-[#f6f4ef]">
+      <Motion.div
         className="text-center"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="relative mx-auto h-14 w-14">
-          <div className="absolute inset-0 animate-spin border-[4px] border-[#09090B]/20 border-t-[#09090B]" />
+        <div className="relative mx-auto h-8 w-8">
+          <div className="absolute inset-0 animate-spin rounded-full border-2 border-stone-300 border-t-[#244fe6]" />
         </div>
-        {label && <p className="mt-5 text-base font-black uppercase tracking-widest text-[#09090B]">{label}</p>}
-      </motion.div>
+        {label && <p className="mt-5 text-base font-medium text-[#09090B]">{label}</p>}
+      </Motion.div>
     </div>
   )
 }

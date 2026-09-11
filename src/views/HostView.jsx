@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion as Motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,20 +12,21 @@ import {
   Copy,
   Check,
   Eye,
-  Square,
+  ArrowLeft,
   Share2,
-  Pause,
-  Play as PlayIcon,
   Maximize2,
+  FileText,
+  QrCode,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { TEAM_SELECTION_TYPE } from '../lib/constants'
 import { COLORS } from '../lib/colors'
-import { buildTeamSelectionStats, getJoinUrl } from '../lib/validators'
+import { buildTeamSelectionStats, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
 import MultipleChoiceResults from '../components/slides/MultipleChoiceResults'
 import WordCloudResults from '../components/slides/WordCloudResults'
 import OpenTextResults from '../components/slides/OpenTextResults'
 import TeamSelectionResults from '../components/slides/TeamSelectionResults'
+import MinutesReportModal from '../components/host/MinutesReportModal'
 
 const REACTION_ICON = {
   heart: Heart,
@@ -51,9 +52,15 @@ export default function HostView({
   canGoBack,
   canGoForward,
   onExit,
+  allResponses = responses,
+  participants = [],
+  onFinalize,
 }) {
   const joinUrl = useMemo(() => getJoinUrl(session.code), [session.code])
+  const presenceUrl = useMemo(() => getPresenceUrl(session.code), [session.code])
+  const slideJoinUrl = useMemo(() => getSlideJoinUrl(session.code, currentSlide?.id), [session.code, currentSlide?.id])
   const [fullscreenSlide, setFullscreenSlide] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
 
   const responseCount = useMemo(() => {
     if (currentSlide?.type === TEAM_SELECTION_TYPE) {
@@ -64,63 +71,85 @@ export default function HostView({
 
   return (
     <>
-      <div className="relative grid h-[100dvh] grid-cols-1 overflow-hidden bg-[#F4F4F0] font-sans text-[#09090B] lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="relative grid h-[100dvh] grid-cols-1 overflow-hidden bg-[#f6f4ef] font-sans text-[#17181d] lg:grid-cols-[minmax(0,1fr)_360px]">
         <BackgroundAurora />
 
         <main className="relative z-10 flex h-full min-w-0 flex-col overflow-hidden">
-          <TopSessionBar code={session.code} sessionTitle={session.title} onExit={onExit} connectedParticipants={connectedParticipants} responseCount={responseCount} />
+          <TopSessionBar
+            code={session.code}
+            sessionTitle={session.title}
+            onExit={onExit}
+            connectedParticipants={connectedParticipants}
+            responseCount={responseCount}
+          />
 
           <section className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-6 sm:px-6 sm:py-8">
             <div className="w-full max-w-5xl text-center">
               <button
                 type="button"
                 onClick={() => setFullscreenSlide(true)}
-                className="absolute right-2 top-2 z-20 flex items-center gap-1.5 border-2 border-slate-400 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-700 transition-all duration-100 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] sm:right-4 sm:top-4 sm:px-3 sm:py-2 sm:text-xs"
+                className="absolute right-2 top-2 z-20 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-700 sm:right-4 sm:top-4 sm:px-3 sm:py-2 sm:text-xs"
                 title="Slide em tela cheia"
               >
-                <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Tela cheia</span>
+                <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />{' '}
+                <span className="hidden sm:inline">Tela cheia</span>
               </button>
               <AnimatePresence mode="wait">
-              <motion.div
-                key={currentSlide?.id ?? 'empty'}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-                className="space-y-4 sm:space-y-6 md:space-y-8"
-              >
-                <motion.p
-                  initial={{ opacity: 0, y: -8 }}
+                <Motion.div
+                  key={currentSlide?.id ?? 'empty'}
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="inline-flex items-center gap-2 border-2 border-slate-400 bg-[#E2FF32] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] sm:px-4 sm:py-1.5 sm:text-xs"
+                  exit={{ opacity: 0, y: -16 }}
+                  transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+                  className="space-y-4 sm:space-y-6 md:space-y-8"
                 >
-                  Etapa {currentSlideIndex + 1} · {currentSlide?.type === 'multiple_choice' ? 'Enquete' : currentSlide?.type === 'word_cloud' ? 'Nuvem' : currentSlide?.type === 'open_text' ? 'Q&A' : currentSlide?.type === TEAM_SELECTION_TYPE ? 'Times' : 'Etapa'}
-                </motion.p>
+                  <Motion.p
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-700 sm:px-4 sm:py-1.5 sm:text-xs"
+                  >
+                    Etapa {currentSlideIndex + 1} ·{' '}
+                    {currentSlide?.type === 'multiple_choice'
+                      ? 'Enquete'
+                      : currentSlide?.type === 'word_cloud'
+                        ? 'Nuvem'
+                        : currentSlide?.type === 'open_text'
+                          ? 'Q&A'
+                          : currentSlide?.type === TEAM_SELECTION_TYPE
+                            ? 'Times'
+                            : 'Etapa'}
+                  </Motion.p>
 
-                <motion.h1
-                  className="mx-auto max-w-4xl px-2 text-2xl font-black leading-[1.1] uppercase tracking-tight text-slate-800 sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl"
-                >
-                  {currentSlide?.question}
-                </motion.h1>
+                  <Motion.h1 className="mx-auto max-w-4xl px-2 font-display uppercase text-3xl font-semibold leading-[1.08] tracking-tight text-[#17181d] sm:text-4xl md:text-5xl lg:text-6xl">
+                    {currentSlide?.question}
+                  </Motion.h1>
 
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5, delay: 0.1 }}
-                  className="mx-auto w-full px-2"
-                >
-                  {currentSlide?.type === 'multiple_choice' && (
-                    <MultipleChoiceResults slide={currentSlide} responses={responses} responseCount={responseCount} />
-                  )}
-                  {currentSlide?.type === 'word_cloud' && <WordCloudResults responses={responses} />}
-                  {currentSlide?.type === 'open_text' && <OpenTextResults responses={responses} />}
-                  {currentSlide?.type === TEAM_SELECTION_TYPE && (
-                    <TeamSelectionResults slide={currentSlide} responses={responses} responseCount={responseCount} />
-                  )}
-                </motion.div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
+                  <Motion.div
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                    className="mx-auto w-full px-2"
+                  >
+                    {currentSlide?.type === 'multiple_choice' && (
+                      <MultipleChoiceResults
+                        slide={currentSlide}
+                        responses={responses}
+                        responseCount={responseCount}
+                      />
+                    )}
+                    {currentSlide?.type === 'word_cloud' && <WordCloudResults responses={responses} />}
+                    {currentSlide?.type === 'open_text' && <OpenTextResults responses={responses} />}
+                    {currentSlide?.type === TEAM_SELECTION_TYPE && (
+                      <TeamSelectionResults
+                        slide={currentSlide}
+                        responses={responses}
+                        responseCount={responseCount}
+                      />
+                    )}
+                  </Motion.div>
+                </Motion.div>
+              </AnimatePresence>
+            </div>
           </section>
 
           <BottomControls
@@ -137,10 +166,14 @@ export default function HostView({
         <SidePanel
           session={session}
           currentSlide={currentSlide}
+          slides={session.slides}
           responses={responses}
           connectedParticipants={connectedParticipants}
           joinUrl={joinUrl}
+          presenceUrl={presenceUrl}
+          slideJoinUrl={slideJoinUrl}
           reactionCount={reactions.length}
+          onOpenReport={() => setReportOpen(true)}
         />
       </div>
 
@@ -155,52 +188,73 @@ export default function HostView({
               <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
             </button>
             <div className="flex w-full flex-col items-center gap-4 sm:gap-6 md:gap-8">
-              <motion.p
+              <Motion.p
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="inline-flex items-center gap-2 border-2 border-white bg-[#E2FF32] px-4 py-2 text-xs font-black uppercase tracking-widest text-[#09090B] shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] sm:px-6 sm:py-3 sm:text-sm"
+                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#17181d] sm:px-6 sm:py-3 sm:text-sm"
               >
-                Etapa {currentSlideIndex + 1} · {currentSlide?.type === 'multiple_choice' ? 'Enquete' : currentSlide?.type === 'word_cloud' ? 'Nuvem' : currentSlide?.type === 'open_text' ? 'Q&A' : currentSlide?.type === TEAM_SELECTION_TYPE ? 'Times' : 'Etapa'}
-              </motion.p>
+                Etapa {currentSlideIndex + 1} ·{' '}
+                {currentSlide?.type === 'multiple_choice'
+                  ? 'Enquete'
+                  : currentSlide?.type === 'word_cloud'
+                    ? 'Nuvem'
+                    : currentSlide?.type === 'open_text'
+                      ? 'Q&A'
+                      : currentSlide?.type === TEAM_SELECTION_TYPE
+                        ? 'Times'
+                        : 'Etapa'}
+              </Motion.p>
 
-              <motion.h1
+              <Motion.h1
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mx-auto max-w-5xl px-4 text-3xl font-black leading-[1.1] uppercase tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl"
+                className="mx-auto max-w-5xl px-4 font-display uppercase text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
               >
                 {currentSlide?.question}
-              </motion.h1>
+              </Motion.h1>
 
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
                 className="mx-auto w-full max-w-4xl px-4"
               >
                 {currentSlide?.type === 'multiple_choice' && (
-                  <MultipleChoiceResults slide={currentSlide} responses={responses} responseCount={responseCount} />
+                  <MultipleChoiceResults
+                    slide={currentSlide}
+                    responses={responses}
+                    responseCount={responseCount}
+                  />
                 )}
                 {currentSlide?.type === 'word_cloud' && <WordCloudResults responses={responses} />}
                 {currentSlide?.type === 'open_text' && <OpenTextResults responses={responses} />}
                 {currentSlide?.type === TEAM_SELECTION_TYPE && (
-                  <TeamSelectionResults slide={currentSlide} responses={responses} responseCount={responseCount} />
+                  <TeamSelectionResults
+                    slide={currentSlide}
+                    responses={responses}
+                    responseCount={responseCount}
+                  />
                 )}
-              </motion.div>
+              </Motion.div>
             </div>
           </div>
         </div>
       )}
+
+      <MinutesReportModal
+        open={reportOpen}
+        session={session}
+        responses={allResponses}
+        participants={participants}
+        onFinalize={onFinalize}
+        onClose={() => setReportOpen(false)}
+      />
     </>
   )
 }
 
 function BackgroundAurora() {
-  return (
-    <>
-      <div className="pointer-events-none absolute inset-0 bg-[#F4F4F0]" />
-      <div className="pointer-events-none absolute inset-0 cs-grid opacity-20 cs-mask-radial" />
-    </>
-  )
+  return <div className="pointer-events-none absolute inset-0 bg-[#f6f4ef]" />
 }
 
 function TopSessionBar({ code, sessionTitle, onExit, connectedParticipants, responseCount }) {
@@ -214,217 +268,246 @@ function TopSessionBar({ code, sessionTitle, onExit, connectedParticipants, resp
     try {
       await navigator.clipboard.writeText(code)
       setCopied(true)
-    } catch {}
+    } catch {
+      setCopied(false)
+    }
   }
   return (
-    <header className="relative z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b-[3px] border-slate-300 bg-white px-3 py-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-5 sm:py-3 lg:px-7 lg:py-4">
+    <header className="relative z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-5 sm:py-3 lg:px-7 lg:py-4">
       <div className="flex items-center gap-2">
-        <span className="flex items-center gap-1.5 border-2 border-slate-300 bg-emerald-300 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] sm:px-3 sm:py-1.5 sm:text-xs">
+        <span className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-emerald-700 sm:px-3 sm:py-1.5 sm:text-xs">
           <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
             <span className="absolute inline-flex h-full w-full bg-emerald-500 opacity-75" />
             <span className="relative inline-flex h-1.5 w-1.5 sm:h-2 sm:w-2 bg-emerald-600" />
           </span>
           <span className="hidden sm:inline">Ao vivo</span>
         </span>
-        <p className="truncate text-xs font-bold text-slate-600 sm:text-sm lg:block">{sessionTitle}</p>
+        <p className="truncate text-xs font-medium text-slate-600 sm:text-sm lg:block">{sessionTitle}</p>
       </div>
 
       <div className="flex items-center justify-center gap-1.5 sm:gap-3">
-        <div className="flex items-center gap-1.5 border-[3px] border-slate-300 bg-white px-2 py-1.5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.1)] sm:px-4 sm:py-2">
-          <span className="hidden text-[9px] font-black uppercase tracking-widest text-slate-500 sm:inline">Código</span>
-          <span className="text-lg font-black tracking-[0.2em] text-slate-800 sm:text-2xl">
-            {code}
+        <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 sm:px-4 sm:py-2">
+          <span className="hidden text-[9px] font-bold uppercase tracking-widest text-slate-500 sm:inline">
+            Código
           </span>
+          <span className="text-lg font-bold tracking-[0.2em] text-slate-800 sm:text-2xl">{code}</span>
           <button
             type="button"
             onClick={handleCopy}
-            className="flex h-7 w-7 items-center justify-center border-2 border-slate-300 bg-white text-slate-500 hover:bg-[#E2FF32] hover:text-[#09090B] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] transition-all duration-100 sm:h-8 sm:w-8"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 sm:h-8 sm:w-8"
             title={copied ? 'Copiado!' : 'Copiar código'}
           >
             <AnimatePresence mode="wait">
               {copied ? (
-                <motion.span key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                <Motion.span key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
                   <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />
-                </motion.span>
+                </Motion.span>
               ) : (
-                <motion.span key="copy" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                <Motion.span key="copy" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
                   <Copy className="h-4 w-4" />
-                </motion.span>
+                </Motion.span>
               )}
             </AnimatePresence>
           </button>
         </div>
       </div>
 
-<div className="flex items-center justify-end gap-1.5 sm:gap-2 lg:gap-3">
+      <div className="flex items-center justify-end gap-1.5 sm:gap-2 lg:gap-3">
         <StatChip icon={Users} label="Online" value={connectedParticipants} tone="brand" size="sm" />
         <StatChip icon={BarChart3} label="Respostas" value={responseCount} tone="violet" size="sm" />
         <button
           type="button"
           onClick={onExit}
-          className="flex items-center gap-1.5 border-2 border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 transition-all duration-100 hover:bg-[#FF0055] hover:text-white hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] sm:px-3.5 sm:py-2.5 sm:text-sm"
+          className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 sm:px-3.5 sm:py-2.5 sm:text-sm"
           title="Sair da projeção"
         >
-          <Square className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current" />
-          <span className="hidden lg:inline">Encerrar</span>
+          <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          <span className="hidden lg:inline">Sair da projeção</span>
         </button>
       </div>
     </header>
   )
 }
 
-function StatChip({ icon: Icon, value, label, tone = 'brand', size = 'md' }) {
+function StatChip({ icon, value, label, tone = 'brand', size = 'md' }) {
   const bgColors = {
     brand: 'bg-slate-800',
-    ocean: 'bg-[#0055FF]',
-    violet: 'bg-[#7C3AED]',
+    ocean: 'bg-[#19a7a0]',
+    violet: 'bg-[#5367dc]',
   }
-  const sizeClasses = size === 'sm' 
-    ? 'h-8 w-8 px-2.5 py-2 text-xs' 
-    : 'h-9 w-9 px-3.5 py-2.5 text-sm'
-  
+  const Icon = icon
+
   return (
-    <div className={`flex items-center gap-2 border-[3px] border-slate-300 bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,0.1)] ${size === 'sm' ? 'px-2 py-1.5' : 'px-3.5 py-2.5'}`}>
-      <span className={`flex items-center justify-center border-2 border-slate-300 ${bgColors[tone]} text-white ${size === 'sm' ? 'h-7 w-7 p-1.5' : 'h-9 w-9 p-2'}`}>
+    <div
+      className={`flex items-center gap-2 rounded-lg border border-slate-200 bg-white ${size === 'sm' ? 'px-2 py-1.5' : 'px-3.5 py-2.5'}`}
+    >
+      <span
+        className={`flex items-center justify-center rounded-md ${bgColors[tone]} text-white ${size === 'sm' ? 'h-7 w-7 p-1.5' : 'h-9 w-9 p-2'}`}
+      >
         <Icon className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
       </span>
       <div className="hidden sm:block">
-        <p className={`font-black tracking-tight text-slate-800 leading-none ${size === 'sm' ? 'text-sm' : 'text-lg'}`}>{value}</p>
-        <p className={`font-black uppercase tracking-wider text-slate-500 ${size === 'sm' ? 'text-[9px]' : 'text-[10px]'}`}>{label}</p>
+        <p
+          className={`font-semibold tracking-tight text-slate-800 leading-none ${size === 'sm' ? 'text-sm' : 'text-lg'}`}
+        >
+          {value}
+        </p>
+        <p
+          className={`font-semibold uppercase tracking-wider text-slate-500 ${size === 'sm' ? 'text-[9px]' : 'text-[10px]'}`}
+        >
+          {label}
+        </p>
       </div>
     </div>
   )
 }
 
 function BottomControls({ session, canGoBack, canGoForward, onNext, onPrevious }) {
-  const [paused, setPaused] = useState(false)
-
   return (
     <div className="relative z-20 flex items-center justify-center gap-2 px-2 sm:px-4 lg:bottom-6">
-      <motion.div
+      <Motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="flex items-center gap-1 border-[3px] border-slate-400 bg-white p-1 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.15)] sm:gap-1.5 sm:p-1.5"
+        className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:gap-1.5 sm:p-1.5"
       >
         <button
           type="button"
           onClick={onPrevious}
           disabled={!canGoBack}
-          className="group border-2 border-transparent p-2 text-slate-700 transition-all duration-100 hover:border-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent sm:p-3"
+          className="group rounded-lg border border-transparent p-2 text-slate-700 transition-colors hover:border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent sm:p-3"
         >
           <ChevronLeft className="h-5 w-5 transition-transform group-hover:-translate-x-0.5 sm:h-6 sm:w-6" />
         </button>
-        <div className="flex h-8 items-center justify-center border-2 border-slate-300 bg-slate-100 px-3 font-black text-slate-800 sm:h-10 sm:px-4">
+        <div className="flex h-8 items-center justify-center rounded-md bg-slate-100 px-3 text-sm font-semibold text-slate-800 sm:h-10 sm:px-4">
           {session.currentSlideIndex + 1} / {session.slides.length}
         </div>
         <button
           type="button"
-          onClick={() => setPaused((p) => !p)}
-          className={[
-            'border-2 border-transparent p-2 transition-all duration-100 sm:p-3',
-            paused ? 'border-amber-500 bg-amber-500/20 text-amber-700' : 'text-slate-700 hover:border-slate-400 hover:bg-slate-100',
-          ].join(' ')}
-          title={paused ? 'Retomar recepção' : 'Pausar recepção'}
-        >
-          {paused ? <PlayIcon className="h-4 w-4 sm:h-5 sm:w-5" /> : <Pause className="h-4 w-4 sm:h-5 sm:w-5" />}
-        </button>
-        <button
-          type="button"
           onClick={onNext}
           disabled={!canGoForward}
-          className="group border-2 border-transparent p-2 text-slate-700 transition-all duration-100 hover:border-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent sm:p-3"
+          className="group rounded-lg border border-transparent p-2 text-slate-700 transition-colors hover:border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:hover:border-transparent disabled:hover:bg-transparent sm:p-3"
         >
           <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5 sm:h-6 sm:w-6" />
         </button>
-      </motion.div>
+      </Motion.div>
     </div>
   )
 }
 
-function SidePanel({ session, currentSlide, responses, connectedParticipants, joinUrl }) {
+function SidePanel({
+  session,
+  currentSlide,
+  slides,
+  responses,
+  connectedParticipants,
+  joinUrl,
+  presenceUrl,
+  slideJoinUrl,
+  onOpenReport,
+}) {
   const [feedTab, setFeedTab] = useState('live')
   const [qrFullscreen, setQrFullscreen] = useState(false)
+  const [shareMessage, setShareMessage] = useState('')
+  const share = async () => {
+    try {
+      await navigator.clipboard.writeText(joinUrl)
+      setShareMessage('Link copiado')
+    } catch {
+      setShareMessage('Não foi possível copiar')
+    }
+  }
 
   return (
     <>
-      <aside className="relative z-20 hidden h-full w-full max-w-[380px] flex-col gap-3 overflow-y-auto border-l-[3px] border-[#09090B] bg-white p-3 sm:gap-4 sm:p-5 cs-scroll-thin lg:flex">
-        <section className="relative overflow-hidden border-[3px] border-[#09090B] bg-white p-3 sm:p-5 shadow-[4px_4px_0px_0px_#09090B] sm:shadow-[6px_6px_0px_0px_#09090B]">
+      <aside className="relative z-20 hidden h-full w-full max-w-[360px] flex-col gap-3 overflow-y-auto border-l border-slate-200 bg-white p-3 sm:gap-4 sm:p-5 cs-scroll-thin lg:flex">
+        <section className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-3 sm:p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#09090B] sm:text-[10px]">Como entrar</p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 sm:text-[10px]">
+              Como entrar
+            </p>
             <button
               type="button"
               onClick={() => setQrFullscreen(true)}
-              className="flex items-center gap-1 border-2 border-[#09090B] bg-[#E2FF32] px-1.5 py-1 text-[9px] font-black uppercase tracking-wider text-[#09090B] transition-all duration-100 hover:shadow-[2px_2px_0px_0px_#09090B] sm:px-2 sm:py-1 sm:text-[10px]"
+              className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 sm:px-2 sm:py-1 sm:text-[10px]"
               title="QR code em tela cheia"
             >
-              <Maximize2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> <span className="hidden sm:inline">Tela cheia</span>
+              <Maximize2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />{' '}
+              <span className="hidden sm:inline">Tela cheia</span>
             </button>
           </div>
-          <p className="mt-1.5 text-sm font-black tracking-tight text-[#09090B] sm:text-lg">Aponte a câmera</p>
+          <p className="mt-1.5 text-sm font-semibold tracking-tight text-slate-900 sm:text-lg">
+            Aponte a câmera
+          </p>
           <div className="mt-3 flex items-center gap-3 sm:gap-4">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center border-2 border-[#09090B] bg-[#F4F4F0] p-1.5 sm:h-28 sm:w-28 sm:p-2">
-              <QRCodeSVG
-                value={joinUrl}
-                size={72}
-                bgColor="transparent"
-                fgColor={COLORS.brand[700]}
-              />
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-1.5 sm:h-28 sm:w-28 sm:p-2">
+              <QRCodeSVG value={joinUrl} size={72} bgColor="transparent" fgColor={COLORS.brand[700]} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold text-slate-600 sm:text-xs">Acesse</p>
-              <p className="mt-1.5 text-[9px] font-black uppercase tracking-wider text-slate-500 sm:mt-2 sm:text-xs">Código</p>
-              <p className="text-xl font-black tracking-[0.18em] text-[#09090B] sm:text-2xl">
-                {session.code}
+              <p className="mt-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 sm:mt-2 sm:text-xs">
+                Código
               </p>
+              <p className="text-xl font-bold tracking-[0.18em] text-slate-900 sm:text-2xl">{session.code}</p>
             </div>
           </div>
           <button
             type="button"
-            onClick={() => navigator.clipboard?.writeText(session.code)}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 border-2 border-[#09090B] bg-[#F4F4F0] py-1.5 text-[10px] font-black uppercase tracking-wider text-[#09090B] transition-all duration-100 hover:bg-[#E2FF32] hover:shadow-[2px_2px_0px_0px_#09090B] sm:mt-4 sm:py-2 sm:text-xs"
+            onClick={share}
+            aria-label="Copiar link de participação"
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 sm:mt-4 sm:py-2 sm:text-xs"
           >
-            <Share2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> <span className="hidden sm:inline">Compartilhar link</span>
+            <Share2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />{' '}
+            <span className="hidden sm:inline" role="status">
+              {shareMessage || 'Copiar link de participação'}
+            </span>
           </button>
         </section>
 
-      <section>
-        <div className="flex items-center gap-1 border-[3px] border-[#09090B] bg-white p-1 shadow-[3px_3px_0px_0px_#09090B]">
-          {['live', 'ranking', 'público'].map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setFeedTab(tab)}
-              className={[
-                'flex-1 px-2 py-1 text-[9px] font-black uppercase tracking-wider transition-all duration-100 border-2 sm:px-3 sm:py-1.5 sm:text-xs',
-                feedTab === tab
-                  ? 'bg-[#09090B] text-white border-[#09090B]'
-                  : 'text-slate-500 border-transparent hover:border-[#09090B] hover:bg-[#F4F4F0]',
-              ].join(' ')}
-            >
-              {tab === 'live' ? 'Ao vivo' : tab === 'ranking' ? 'Ranking' : 'Público'}
-            </button>
-          ))}
-        </div>
+        <EventQrTools
+          code={session.code}
+          slides={slides}
+          joinUrl={joinUrl}
+          presenceUrl={presenceUrl}
+          slideJoinUrl={slideJoinUrl}
+          onOpenReport={onOpenReport}
+        />
 
-        <div className="mt-2 space-y-2 sm:mt-3 sm:space-y-2.5">
-          {feedTab === 'live' && <LiveFeed responses={responses} currentSlide={currentSlide} />}
-          {feedTab === 'ranking' && <RankingFeed currentSlide={currentSlide} responses={responses} />}
-          {feedTab === 'público' && <AudienceFeed connectedParticipants={connectedParticipants} />}
-        </div>
-      </section>
+        <section>
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+            {['live', 'ranking', 'público'].map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setFeedTab(tab)}
+                className={[
+                  'flex-1 rounded-lg border border-transparent px-2 py-1 text-[9px] font-semibold uppercase tracking-wider transition-colors sm:px-3 sm:py-1.5 sm:text-xs',
+                  feedTab === tab ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100',
+                ].join(' ')}
+              >
+                {tab === 'live' ? 'Ao vivo' : tab === 'ranking' ? 'Ranking' : 'Público'}
+              </button>
+            ))}
+          </div>
 
-      <section className="mt-auto border-[3px] border-[#09090B] bg-white p-3 text-[#09090B] shadow-[4px_4px_0px_0px_#09090B] sm:p-5 sm:shadow-[6px_6px_0px_0px_#09090B]">
-        <Badge2>Modo apresentador</Badge2>
-        <p className="mt-1.5 text-xs font-bold leading-relaxed text-slate-700 sm:text-sm">
-          A plateia está respondendo em tempo real. Você controla o avanço.
-        </p>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-2">
-          <MiniStat label="Conexões" value={connectedParticipants} />
-          <MiniStat label="Etapa" value={`${session.currentSlideIndex + 1}/${session.slides.length}`} />
-        </div>
-      </section>
-    </aside>
+          <div className="mt-2 space-y-2 sm:mt-3 sm:space-y-2.5">
+            {feedTab === 'live' && <LiveFeed responses={responses} currentSlide={currentSlide} />}
+            {feedTab === 'ranking' && <RankingFeed currentSlide={currentSlide} responses={responses} />}
+            {feedTab === 'público' && <AudienceFeed connectedParticipants={connectedParticipants} />}
+          </div>
+        </section>
+
+        <section className="mt-auto rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm sm:p-5">
+          <Badge2>Modo apresentador</Badge2>
+          <p className="mt-1.5 text-xs font-bold leading-relaxed text-slate-700 sm:text-sm">
+            A plateia está respondendo em tempo real. Você controla o avanço.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-2">
+            <MiniStat label="Conexões" value={connectedParticipants} />
+            <MiniStat label="Etapa" value={`${session.currentSlideIndex + 1}/${session.slides.length}`} />
+          </div>
+        </section>
+      </aside>
 
       {qrFullscreen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4">
@@ -437,17 +520,112 @@ function SidePanel({ session, currentSlide, responses, connectedParticipants, jo
               <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
             </button>
             <div className="flex h-64 w-64 items-center justify-center border-4 border-white bg-white p-4 shadow-2xl sm:h-80 sm:w-80 sm:p-6">
-              <QRCodeSVG
-                value={joinUrl}
-                size={200}
-                bgColor="transparent"
-                fgColor={COLORS.brand[700]}
-              />
+              <QRCodeSVG value={joinUrl} size={200} bgColor="transparent" fgColor={COLORS.brand[700]} />
             </div>
             <div className="text-center">
               <p className="text-xl font-black tracking-[0.25em] text-white sm:text-2xl">{session.code}</p>
-              <p className="mt-1 text-xs font-bold text-slate-300 sm:text-sm">falasecti.com</p>
+              <p className="mt-1 text-xs font-bold text-slate-300 sm:text-sm">{new URL(joinUrl).host}</p>
             </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function EventQrTools({ code, slides = [], joinUrl, presenceUrl, slideJoinUrl, onOpenReport }) {
+  const [selectedQr, setSelectedQr] = useState(null)
+  const entries = [
+    { label: 'Participar', hint: 'Entrada geral', value: joinUrl },
+    { label: 'Presença', hint: 'Lista de frequência', value: presenceUrl },
+    { label: 'Pergunta atual', hint: 'Resposta do painel', value: slideJoinUrl },
+  ]
+  const questionEntries = slides.map((slide, index) => ({
+    label: `Pergunta ${index + 1}`,
+    hint: 'QR da etapa',
+    detail: slide.question,
+    value: getSlideJoinUrl(code, slide.id),
+  }))
+
+  return (
+    <>
+      <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Acesso rápido</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">Entrada, frequência e perguntas</p>
+          </div>
+          <QrCode className="h-5 w-5 text-emerald-700" />
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {entries.map((entry) => (
+            <button
+              key={entry.label}
+              type="button"
+              onClick={() => setSelectedQr(entry)}
+              className="group rounded-lg border border-slate-200 bg-slate-50 p-2 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50"
+              title={`Ampliar QR code: ${entry.label}`}
+            >
+              <span className="flex aspect-square items-center justify-center rounded-md bg-white p-1">
+                <QRCodeSVG value={entry.value} size={82} className="h-full w-full" fgColor={COLORS.brand[700]} />
+              </span>
+              <span className="mt-2 block truncate text-[10px] font-bold text-slate-800">{entry.label}</span>
+              <span className="mt-0.5 block truncate text-[9px] text-slate-500">{entry.hint}</span>
+            </button>
+          ))}
+        </div>
+        {questionEntries.length > 0 && (
+          <div className="mt-4 border-t border-slate-200 pt-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Um QR por pergunta</p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {questionEntries.map((entry) => (
+                <button
+                  key={entry.label}
+                  type="button"
+                  onClick={() => setSelectedQr(entry)}
+                  className="group rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+                  title={`Ampliar ${entry.label}`}
+                >
+                  <span className="flex aspect-square items-center justify-center rounded-md bg-white p-1">
+                    <QRCodeSVG value={entry.value} size={66} className="h-full w-full" fgColor={COLORS.brand[700]} />
+                  </span>
+                  <span className="mt-1 block truncate text-center text-[9px] font-bold text-slate-800">{entry.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <p className="mt-3 text-[10px] leading-4 text-slate-500">
+          O QR de presença exige nome completo e registra também a instituição informada.
+        </p>
+        <button
+          type="button"
+          onClick={onOpenReport}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100"
+        >
+          <FileText className="h-4 w-4" />
+          Encerrar e gerar ata
+        </button>
+      </section>
+
+      {selectedQr && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4">
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 text-center">
+            <button
+              type="button"
+              onClick={() => setSelectedQr(null)}
+              className="absolute right-3 top-3 rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Fechar QR code"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">{selectedQr.hint}</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900">{selectedQr.label}</h2>
+            {selectedQr.detail && <p className="mt-2 max-w-sm text-sm leading-5 text-slate-600">{selectedQr.detail}</p>}
+            <div className="mx-auto mt-5 flex aspect-square w-64 items-center justify-center rounded-xl border-8 border-slate-900 bg-white p-3">
+              <QRCodeSVG value={selectedQr.value} size={220} fgColor={COLORS.brand[700]} />
+            </div>
+            <p className="mt-4 break-all text-[10px] leading-4 text-slate-500">{selectedQr.value}</p>
           </div>
         </div>
       )}
@@ -457,7 +635,7 @@ function SidePanel({ session, currentSlide, responses, connectedParticipants, jo
 
 function Badge2({ children }) {
   return (
-    <span className="inline-flex items-center gap-1.5 border-2 border-[#09090B] bg-[#F4F4F0] px-2 py-1 text-[9px] font-black uppercase tracking-wider text-[#09090B] sm:px-3 sm:py-1 sm:text-[10px]">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-blue-700 sm:px-3 sm:py-1 sm:text-[10px]">
       <Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> {children}
     </span>
   )
@@ -465,9 +643,11 @@ function Badge2({ children }) {
 
 function MiniStat({ label, value }) {
   return (
-    <div className="border-2 border-[#09090B] bg-[#F4F4F0] px-2 py-1.5 sm:px-3 sm:py-2">
-      <p className="text-base font-black leading-tight text-[#09090B] sm:text-lg">{value}</p>
-      <p className="text-[9px] font-black uppercase tracking-wider text-slate-600 sm:text-[10px]">{label}</p>
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 sm:px-3 sm:py-2">
+      <p className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">{value}</p>
+      <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-600 sm:text-[10px]">
+        {label}
+      </p>
     </div>
   )
 }
@@ -475,38 +655,43 @@ function MiniStat({ label, value }) {
 function LiveFeed({ responses, currentSlide }) {
   if (!responses.length) {
     return (
-      <div className="border-[3px] border-dashed border-slate-300 bg-[#F4F4F0] p-5 text-center text-xs font-black uppercase tracking-wider text-slate-500">
+      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-xs font-semibold text-slate-500">
         Aguardando a primeira resposta…
       </div>
     )
   }
-  const recent = [...responses].reverse().slice(0, 8)
+  const recent = responses.slice(0, 8)
   return (
     <AnimatePresence initial={false}>
       {recent.map((entry, index) => (
-        <motion.div
+        <Motion.div
           key={entry.id ?? `${entry.participantId}-${index}`}
           initial={{ opacity: 0, y: 12, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 0.95 }}
           transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
-          className="overflow-hidden border-2 border-slate-300 bg-white p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]"
+          className="overflow-hidden rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
         >
           <div className="flex items-center justify-between">
             <p className="truncate text-xs font-black text-slate-800">{entry.participantName || 'Anônimo'}</p>
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-              {new Date(entry.createdAt?.toMillis?.() ?? Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            <span className="text-[10px] font-medium text-slate-400">
+              {entry.createdAt?.toMillis
+                ? new Date(entry.createdAt.toMillis()).toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : 'agora'}
             </span>
           </div>
-          <p className="mt-1 line-clamp-2 text-sm font-bold text-slate-700">
+          <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-700">
             {currentSlide?.type === 'multiple_choice' && (
-              <span className="inline-flex items-center gap-2 border border-slate-300 bg-brand-200 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-[#09090B]">
+              <span className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                 <Check className="h-3 w-3" /> {entry.value}
               </span>
             )}
             {currentSlide?.type !== 'multiple_choice' && entry.value}
           </p>
-        </motion.div>
+        </Motion.div>
       ))}
     </AnimatePresence>
   )
@@ -515,7 +700,7 @@ function LiveFeed({ responses, currentSlide }) {
 function RankingFeed({ currentSlide, responses }) {
   if (!currentSlide || currentSlide.type !== 'multiple_choice') {
     return (
-      <div className="border-[3px] border-dashed border-slate-300 bg-[#F4F4F0] p-5 text-center text-xs font-black uppercase tracking-wider text-slate-500">
+      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-xs font-semibold text-slate-500">
         Ranking aparece em enquetes.
       </div>
     )
@@ -530,25 +715,24 @@ function RankingFeed({ currentSlide, responses }) {
   return (
     <div className="space-y-2">
       {ranked.map((row, index) => (
-        <div
-          key={row.option}
-          className="border-2 border-slate-300 bg-white p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]"
-        >
+        <div key={row.option} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="flex items-center gap-2 truncate text-xs font-black text-slate-800">
-              <span className={`flex h-6 w-6 items-center justify-center border-2 border-slate-300 text-[10px] font-black ${['bg-[#09090B] text-white', 'bg-slate-200 text-[#09090B]', 'bg-slate-200 text-[#09090B]'][Math.min(index, 2)]}`}>
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold ${['bg-slate-900 text-white', 'bg-slate-100 text-slate-700', 'bg-slate-100 text-slate-700'][Math.min(index, 2)]}`}
+              >
                 {index + 1}
               </span>
               {row.option}
             </p>
             <p className="text-xs font-black text-slate-500">{row.count} votos</p>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden border border-slate-300 bg-white">
-            <motion.div
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <Motion.div
               initial={{ width: 0 }}
               animate={{ width: `${(row.count / total) * 100}%` }}
               transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-              className="h-full bg-[#09090B]"
+              className="h-full rounded-full bg-[#5367dc]"
             />
           </div>
         </div>
@@ -558,30 +742,15 @@ function RankingFeed({ currentSlide, responses }) {
 }
 
 function AudienceFeed({ connectedParticipants }) {
-  const fakeNames = ['Marina', 'Diego', 'Camila', 'Rafael', 'Bruna', 'Artur', 'Letícia', 'Pedro', 'Júlia', 'Vitor']
-  const visible = fakeNames.slice(0, Math.min(connectedParticipants, fakeNames.length))
   return (
-    <div className="grid grid-cols-1 gap-2">
-      {visible.map((name, i) => {
-        const gradient = ['from-brand-500 to-violet-500', 'from-ocean-500 to-ocean-700', 'from-sunset-500 to-coral-500', 'from-violet-500 to-coral-500'][i % 4]
-        return (
-          <div key={name + i} className="flex items-center gap-3 border-2 border-slate-300 bg-white px-3 py-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]">
-            <span className={`flex h-9 w-9 items-center justify-center border-2 border-slate-300 bg-gradient-to-br ${gradient} text-sm font-black text-white`}>
-              {name[0]}
-            </span>
-            <p className="truncate text-xs font-bold text-[#09090B]">{name}</p>
-            <span className="ml-auto h-2 w-2 border border-emerald-500 bg-emerald-400" />
-          </div>
-        )
-      })}
-      {connectedParticipants > visible.length && (
-        <div className="text-center text-xs font-black uppercase tracking-wider text-slate-500">+{connectedParticipants - visible.length} outros</div>
-      )}
-      {visible.length === 0 && (
-        <div className="border-[3px] border-dashed border-slate-300 bg-[#F4F4F0] p-5 text-center text-xs font-black uppercase tracking-wider text-slate-500">
-          Aguardando conexão do público…
-        </div>
-      )}
+    <div className="border-y border-stone-200 py-6">
+      <p className="font-display text-5xl">{connectedParticipants}</p>
+      <p className="mt-2 text-sm text-stone-600">
+        {connectedParticipants === 1 ? 'pessoa conectada' : 'pessoas conectadas'}
+      </p>
+      <p className="mt-3 text-xs leading-5 text-stone-500">
+        Os nomes aparecem no feed quando as pessoas respondem.
+      </p>
     </div>
   )
 }
@@ -592,23 +761,32 @@ function ReactionLayer({ reactions }) {
       <AnimatePresence>
         {reactions.slice(0, 14).map((reaction) => {
           const Icon = REACTION_ICON[reaction.type] ?? HelpCircle
-          const palette = {
-            heart: 'from-rose-400 to-rose-500',
-            thumb: 'from-brand-500 to-brand-600',
-            question: 'from-amber-400 to-amber-500',
-          }[reaction.type] ?? 'from-brand-500 to-violet-500'
+          const rotation =
+            (String(reaction.id ?? reaction.type)
+              .split('')
+              .reduce((total, character) => total + character.charCodeAt(0), 0) %
+              20) -
+            10
+          const palette =
+            {
+              heart: 'from-rose-400 to-rose-500',
+              thumb: 'from-brand-500 to-brand-600',
+              question: 'from-amber-400 to-amber-500',
+            }[reaction.type] ?? 'from-brand-500 to-violet-500'
           return (
-            <motion.div
+            <Motion.div
               key={reaction.id}
               className="absolute bottom-0"
               initial={{ opacity: 0, y: 100, scale: 0.4 }}
-              animate={{ opacity: 1, y: -640, scale: 1.2, rotate: Math.random() * 20 - 10 }}
+              animate={{ opacity: 1, y: -640, scale: 1.2, rotate: rotation }}
               exit={{ opacity: 0, scale: 0 }}
               transition={{ duration: 4.2, ease: [0.23, 1, 0.32, 1] }}
               style={{ left: `${reaction.left}%` }}
             >
               <div className="relative">
-                <div className={`h-14 w-14 border-2 border-[#09090B] bg-gradient-to-br ${palette} p-3 text-white`}>
+                <div
+                  className={`flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${palette} p-3 text-white shadow-lg`}
+                >
                   <Icon className="h-full w-full" />
                 </div>
                 <span className="reaction-pop-burst" />
@@ -617,7 +795,7 @@ function ReactionLayer({ reactions }) {
                 <span className="reaction-pop-spark reaction-pop-spark-3" />
                 <span className="reaction-pop-spark reaction-pop-spark-4" />
               </div>
-            </motion.div>
+            </Motion.div>
           )
         })}
       </AnimatePresence>

@@ -3,14 +3,14 @@ import { useAuth } from './hooks/useAuth'
 import { useSession } from './hooks/useSession'
 import { useReactions } from './hooks/useReactions'
 import { usePresence } from './hooks/usePresence'
-import { PRESENCE_TTL_MS, TEAM_SELECTION_TYPE } from './lib/constants'
+import { PRESENCE_TTL_MS, TEAM_SELECTION_TYPE, AUTH_DOMAIN_LABEL } from './lib/constants'
 import {
   createSlideDraft,
   getParticipantId,
   isValidSessionCode,
   normalizeText,
 } from './lib/validators'
-import { getSession, launchPresentationAsSession, submitResponse } from './lib/firebaseSessions'
+import { endSession, getSession, launchPresentationAsSession, submitResponse } from './lib/firebaseSessions'
 import { deletePresentation, duplicatePresentation } from './lib/firebasePresentations'
 import { TEMPLATE_BY_ID } from './lib/templates'
 import { FullPageLoader } from './components/ui/Spinner'
@@ -30,9 +30,12 @@ export default function App() {
   const [route, setRoute] = useState('public')
   const [sessionCode, setSessionCode] = useState('')
   const [participantName, setParticipantName] = useState('')
+  const [participantInstitution, setParticipantInstitution] = useState('')
   const [editingPresentation, setEditingPresentation] = useState(null)
   const [pendingTitle, setPendingTitle] = useState('')
+  const [pendingTemplateId, setPendingTemplateId] = useState('blank')
   const [prefilledCode, setPrefilledCode] = useState('')
+  const [prefilledAttendance, setPrefilledAttendance] = useState(false)
   const [joinError, setJoinError] = useState('')
   const [joining, setJoining] = useState(false)
   const [globalError, setGlobalError] = useState('')
@@ -48,12 +51,14 @@ export default function App() {
     code: sessionCode,
     participantId,
     participantName,
+    participantInstitution,
   })
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const codeFromUrl = params.get('code')?.trim().toUpperCase() ?? ''
     if (codeFromUrl) setPrefilledCode(codeFromUrl)
+    setPrefilledAttendance(params.get('mode') === 'attendance' || params.get('presence') === '1')
   }, [])
 
   useEffect(() => {
@@ -110,9 +115,10 @@ export default function App() {
     setRoute('dashboard')
     setSessionCode('')
   }
-  const goTemplatePicker = () => {
+  const goTemplatePicker = (templateId = 'blank') => {
     setEditingPresentation(null)
     setPendingTitle('')
+    setPendingTemplateId(templateId)
     setRoute('templates')
   }
   const goBuilderEdit = (presentation) => {
@@ -128,7 +134,7 @@ export default function App() {
     setRoute('participant')
   }
 
-  const handleJoin = async (name, codeInput) => {
+  const handleJoin = async (name, codeInput, metadata = {}) => {
     setJoinError('')
     const code = (codeInput ?? '').trim().toUpperCase()
     if (!isValidSessionCode(code)) {
@@ -142,13 +148,25 @@ export default function App() {
         setJoinError('Código inválido. Verifique e tente novamente.')
         return
       }
-      setParticipantName(normalizeText(name))
+      const normalizedName = normalizeText(name)
+      const normalizedInstitution = normalizeText(metadata.institution ?? '')
+      if (metadata.attendance && normalizedName.length < 3) {
+        setJoinError('Informe seu nome completo para registrar a presença.')
+        return
+      }
+      setParticipantName(normalizedName)
+      setParticipantInstitution(normalizedInstitution)
       goParticipant(code)
     } catch {
       setJoinError('Erro ao entrar na sessão. Verifique sua conexão.')
     } finally {
       setJoining(false)
     }
+  }
+
+  const handleFinalizeSession = async () => {
+    if (sessionCode) return endSession(sessionCode)
+    return null
   }
 
   const handlePresent = async (presentation) => {
@@ -159,7 +177,7 @@ export default function App() {
     } catch (err) {
       console.error('Launch presentation error:', err)
       const message = err.code === 'permission-denied'
-        ? 'Permissão negada. Verifique se você está logado com e-mail @secti.ba.gov.br.'
+        ? `Permissão negada. Verifique se você está logado com e-mail autorizado: ${AUTH_DOMAIN_LABEL}.`
         : err.message?.includes('ERR_BLOCKED_BY_CLIENT') || err.code === 'unavailable'
           ? 'Conexão bloqueada. Desative adblockers ou verifique seu firewall/antivírus.'
           : err.message || 'Não foi possível lançar a apresentação.'
@@ -182,6 +200,10 @@ export default function App() {
 
   const handleSubmitResponse = async (value) => {
     if (!session || !currentSlide) return false
+    if (session.status !== 'live') {
+      setGlobalError('A sessão foi encerrada e não aceita novas respostas.')
+      return false
+    }
     setSending(true)
     setGlobalError('')
     try {
@@ -229,13 +251,14 @@ export default function App() {
     view = 'verify'
   }
 
-  if (view === 'loading') return <FullPageLoader label="Carregando Fala Secti..." />
+  if (view === 'loading') return <FullPageLoader label="Carregando Fala SEC..." />
 
   if (view === 'public') {
     return (
       <>
         <PublicLanding
           initialCode={prefilledCode}
+          initialAttendance={prefilledAttendance}
           onJoin={handleJoin}
           onPresenterLogin={goLogin}
           loading={joining}
@@ -275,12 +298,13 @@ export default function App() {
     return (
       <TemplatePicker
         initialTitle={pendingTitle}
+        initialTemplateId={pendingTemplateId}
         onBack={goDashboard}
-        onConfirm={({ templateId, title }) => {
+        onConfirm={({ templateId, title, eventKey }) => {
           const template = TEMPLATE_BY_ID[templateId]
           const slides = template ? template.build() : [createSlideDraft()]
           setPendingTitle(title)
-          setEditingPresentation({ id: null, title, slides })
+          setEditingPresentation({ id: null, title, slides, eventKey })
           setRoute('builder')
         }}
       />
@@ -300,8 +324,7 @@ export default function App() {
   if (view === 'host') {
     if (!session || !currentSlide) {
       return (
-        /* Estilo Neobrutalista no fundo do carregamento */
-        <div className="flex min-h-[100dvh] items-center justify-center bg-[#FFD700] border-8 border-black">
+        <div className="flex min-h-[100dvh] items-center justify-center bg-[#f6f4ef]">
           <FullPageLoader label="Preparando a sala..." />
         </div>
       )
@@ -320,6 +343,9 @@ export default function App() {
           canGoBack={session.currentSlideIndex > 0}
           canGoForward={session.currentSlideIndex < session.slides.length - 1}
           onExit={goDashboard}
+          allResponses={responses}
+          participants={participants}
+          onFinalize={handleFinalizeSession}
         />
         {globalError && <GlobalToast message={globalError} />}
       </>
@@ -329,8 +355,7 @@ export default function App() {
   if (view === 'participant') {
     if (!session || !currentSlide) {
       return (
-        /* Estilo Neobrutalista no fundo do carregamento */
-        <div className="flex min-h-[100dvh] items-center justify-center bg-[#FFD700] border-8 border-black">
+        <div className="flex min-h-[100dvh] items-center justify-center bg-[#f6f4ef]">
           <FullPageLoader label="Conectando à sala..." />
         </div>
       )
@@ -352,13 +377,21 @@ export default function App() {
     )
   }
 
-  return <PublicLanding initialCode={prefilledCode} onJoin={handleJoin} onPresenterLogin={goLogin} loading={joining} error={joinError} />
+  return (
+    <PublicLanding
+      initialCode={prefilledCode}
+      initialAttendance={prefilledAttendance}
+      onJoin={handleJoin}
+      onPresenterLogin={goLogin}
+      loading={joining}
+      error={joinError}
+    />
+  )
 }
 
 function GlobalToast({ message }) {
   return (
-    /* Estilo Neobrutalista: Bordas grossas, sombra preta sólida 100% opaca e cores vibrantes */
-    <div className="fixed left-1/2 top-6 z-[9999] -translate-x-1/2 bg-[#FF6B6B] border-4 border-black px-6 py-3 text-base font-black uppercase tracking-wider text-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] cs-slide-down">
+    <div role="alert" className="fixed left-1/2 top-6 z-[9999] w-[calc(100%-32px)] max-w-lg -translate-x-1/2 border border-red-200 bg-white px-5 py-4 text-sm leading-6 text-red-800 shadow-lg">
       {message}
     </div>
   )

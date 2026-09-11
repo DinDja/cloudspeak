@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import cloud from 'd3-cloud'
-import { WandSparkles } from 'lucide-react'
 
 export default function WordCloudCanvas({ words }) {
   const containerRef = useRef(null)
@@ -53,15 +52,11 @@ export default function WordCloudCanvas({ words }) {
   }, [dimensions.height, dimensions.width, words])
 
   return (
-    <div
-      ref={containerRef}
-      className="relative min-h-[340px] w-full overflow-hidden border-[3px] border-[#09090B] bg-[#F4F4F0] p-4 shadow-[6px_6px_0px_0px_#09090B] md:min-h-[420px]"
-    >
+    <div ref={containerRef} className="relative min-h-[340px] w-full overflow-hidden md:min-h-[420px]">
       {layoutWords.length === 0 ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
-          <WandSparkles className="mb-4 h-12 w-12 opacity-70" />
-          <p className="text-2xl font-black uppercase tracking-tight">A nuvem está vazia.</p>
-          <p className="text-lg font-bold">Envie a primeira palavra!</p>
+          <p className="text-xl font-medium">Aguardando a primeira palavra.</p>
+          <p className="mt-3 text-sm">Responda pelo celular para formar a nuvem.</p>
         </div>
       ) : (
         <svg viewBox={`0 0 ${dimensions.width} ${dimensions.height}`} className="h-full w-full">

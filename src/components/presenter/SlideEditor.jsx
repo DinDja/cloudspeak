@@ -1,164 +1,176 @@
-import { Plus, Trash2, GripVertical } from 'lucide-react'
-import Textarea from '../ui/Textarea'
-import SlideTypePicker from './SlideTypePicker'
-import { MAX_TEAM_CAPACITY, TEAM_SELECTION_TYPE } from '../../lib/constants'
+import { useId } from 'react'
+import { Plus, Trash2, X } from 'lucide-react'
+import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
 import { createTeamDraft } from '../../lib/validators'
 
-export default function SlideEditor({ slide, index, total, onChange, onRemove, onReorder, canRemove }) {
+export default function SlideEditor({
+  slide,
+  index,
+  total,
+  onChange,
+  onRemove,
+  canRemove,
+  disabled = false,
+}) {
+  const fieldId = useId()
   const update = (patch) => onChange({ ...slide, ...patch })
-  const updateDeep = (updater) => onChange(updater(slide))
-
-  const changeType = (nextType) => {
+  const changeType = (type) =>
     update({
-      type: nextType,
-      options: nextType === 'multiple_choice' ? slide.options?.length ? slide.options : ['', ''] : [],
-      teams: nextType === TEAM_SELECTION_TYPE ? slide.teams?.length ? slide.teams : [createTeamDraft('Clube X', 8), createTeamDraft('Clube Y', 7)] : [],
+      type,
+      options: type === 'multiple_choice' ? (slide.options?.length ? slide.options : ['', '']) : [],
+      teams:
+        type === TEAM_SELECTION_TYPE
+          ? slide.teams?.length
+            ? slide.teams
+            : [createTeamDraft('Time 1', 8), createTeamDraft('Time 2', 8)]
+          : [],
     })
-  }
-
-  const addOption = () => updateDeep((s) => ({ ...s, options: [...(s.options ?? []), ''] }))
-  const removeOption = (optionIndex) =>
-    updateDeep((s) => {
-      const next = (s.options ?? []).filter((_, i) => i !== optionIndex)
-      return { ...s, options: next.length > 0 ? next : ['', ''] }
-    })
-  const setOption = (optionIndex, value) =>
-    updateDeep((s) => ({
-      ...s,
-      options: (s.options ?? []).map((item, i) => (i === optionIndex ? value : item)),
-    }))
-
-  const addTeam = () =>
-    updateDeep((s) => ({ ...s, teams: [...(s.teams ?? []), createTeamDraft(`Clube ${(s.teams?.length ?? 0) + 1}`, 8)] }))
-  const removeTeam = (teamIndex) =>
-    updateDeep((s) => ((s.teams ?? []).length <= 2 ? s : { ...s, teams: (s.teams ?? []).filter((_, i) => i !== teamIndex) }))
-  const setTeam = (teamIndex, patch) =>
-    updateDeep((s) => ({
-      ...s,
-      teams: (s.teams ?? []).map((item, i) => (i === teamIndex ? { ...item, ...patch } : item)),
-    }))
-
   return (
-    <article className="border-[3px] border-[#09090B] bg-white p-5 shadow-[6px_6px_0px_0px_#09090B] sm:p-7">
-      <header className="mb-6 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          {onReorder && (
-            <button
-              type="button"
-              onClick={onReorder}
-              className="cursor-grab border-2 border-[#09090B] p-1.5 text-slate-400 hover:bg-[#E2FF32] hover:text-[#09090B] hover:shadow-[2px_2px_0px_0px_#09090B] active:cursor-grabbing"
-              title="Arrastar"
-            >
-              <GripVertical className="h-5 w-5" />
-            </button>
-          )}
-          <span className="flex h-10 w-10 items-center justify-center border-2 border-[#09090B] bg-[#09090B] text-sm font-black text-white shadow-[2px_2px_0px_0px_#09090B]">
-            {index + 1}
-          </span>
-          <span className="text-xs font-black uppercase tracking-widest text-slate-500">
-            Slide {index + 1} de {total}
-          </span>
-        </div>
+    <fieldset className="fala-slide-editor" disabled={disabled}>
+      <header>
+        <h2>Conteúdo do slide {index + 1}</h2>
         <button
           type="button"
           onClick={onRemove}
-          disabled={!canRemove}
-          className="border-2 border-[#09090B] p-2 text-slate-500 transition-all duration-100 hover:bg-[#FF0055] hover:text-white hover:shadow-[2px_2px_0px_0px_#09090B] disabled:pointer-events-none disabled:opacity-30"
+          disabled={!canRemove || disabled}
           title="Remover slide"
+          aria-label="Remover slide"
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 size={15} />
         </button>
       </header>
-
-      <div className="mb-6">
-        <p className="mb-3 text-xs font-black uppercase tracking-widest text-[#09090B]">Tipo de slide</p>
-        <SlideTypePicker value={slide.type} onChange={changeType} compact />
+      <div className="editor-field">
+        <label htmlFor={fieldId + '-type'}>Tipo de interação</label>
+        <select
+          id={fieldId + '-type'}
+          className="fala-input"
+          value={slide.type}
+          onChange={(event) => changeType(event.target.value)}
+        >
+          {Object.values(SLIDE_TYPES).map((type) => (
+            <option value={type.id} key={type.id}>
+              {type.label}
+            </option>
+          ))}
+        </select>
       </div>
-
-      <Textarea
-        label="Pergunta"
-        value={slide.question}
-        onChange={(event) => update({ question: event.target.value })}
-        placeholder="Qual é a sua pergunta?"
-        rows={3}
-        className="min-h-[88px] text-base font-bold"
-      />
-
+      <div className="editor-field">
+        <label htmlFor={fieldId + '-question'}>Sua pergunta</label>
+        <textarea
+          id={fieldId + '-question'}
+          className="fala-input"
+          value={slide.question}
+          onChange={(event) => update({ question: event.target.value })}
+          placeholder="O que você quer perguntar ao público?"
+          rows={4}
+        />
+      </div>
       {slide.type === 'multiple_choice' && (
-        <div className="mt-6">
-          <p className="mb-3 text-xs font-black uppercase tracking-widest text-[#09090B]">Opções</p>
-          <div className="space-y-2.5 border-l-[3px] border-[#09090B] pl-4">
-            {(slide.options ?? []).map((option, optionIndex) => (
-              <div key={`${slide.id}-opt-${optionIndex}`} className="flex items-center gap-2">
-                <input
-                  value={option}
-                  onChange={(event) => setOption(optionIndex, event.target.value)}
-                  placeholder={`Opção ${optionIndex + 1}`}
-                  className="w-full border-[3px] border-[#09090B] bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none shadow-[4px_4px_0px_0px_#09090B] placeholder:text-slate-500 placeholder:font-medium focus:bg-[#E2FF32] focus:shadow-[6px_6px_0px_0px_#09090B] focus:translate-x-[-2px] focus:translate-y-[-2px]"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeOption(optionIndex)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#09090B] text-slate-500 transition-all duration-100 hover:bg-[#FF0055] hover:text-white hover:shadow-[2px_2px_0px_0px_#09090B]"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addOption}
-              className="mt-1 flex items-center gap-2 border-2 border-[#09090B] px-3 py-2 text-xs font-black uppercase tracking-widest text-[#09090B] transition-all duration-100 hover:bg-[#E2FF32] hover:shadow-[2px_2px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-            >
-              <Plus className="h-4 w-4" /> Adicionar opção
-            </button>
-          </div>
+        <div className="editor-field">
+          <p>Alternativas</p>
+          {(slide.options || []).map((option, i) => (
+            <div key={i} className="editor-option">
+              <span>{i + 1}</span>
+              <input
+                aria-label={`Alternativa ${i + 1}`}
+                className="fala-input"
+                value={option}
+                placeholder={`Alternativa ${i + 1}`}
+                onChange={(event) =>
+                  update({ options: slide.options.map((value, j) => (i === j ? event.target.value : value)) })
+                }
+              />
+              <button
+                type="button"
+                disabled={slide.options.length <= 2}
+                aria-label={`Remover alternativa ${i + 1}`}
+                onClick={() => update({ options: slide.options.filter((_, j) => j !== i) })}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="fala-link"
+            onClick={() => update({ options: [...slide.options, ''] })}
+          >
+            <Plus size={14} />
+            Adicionar alternativa
+          </button>
         </div>
       )}
-
       {slide.type === TEAM_SELECTION_TYPE && (
-        <div className="mt-6">
-          <p className="mb-3 text-xs font-black uppercase tracking-widest text-[#09090B]">Clubes e vagas</p>
-          <div className="space-y-2.5 border-l-[3px] border-[#09090B] pl-4">
-            {(slide.teams ?? []).map((team, teamIndex) => (
-              <div key={team.id ?? `${slide.id}-team-${teamIndex}`} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px_auto]">
+        <div className="editor-field">
+          <p>Times e vagas</p>
+          {(slide.teams || []).map((team, i) => (
+            <div key={team.id} className="editor-team">
+              <div className="editor-option">
                 <input
+                  className="fala-input"
                   value={team.name}
-                  onChange={(event) => setTeam(teamIndex, { name: event.target.value })}
-                  placeholder={`Clube ${teamIndex + 1}`}
-                  className="w-full border-[3px] border-[#09090B] bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none shadow-[4px_4px_0px_0px_#09090B] placeholder:text-slate-500 placeholder:font-medium focus:bg-[#E2FF32] focus:shadow-[6px_6px_0px_0px_#09090B] focus:translate-x-[-2px] focus:translate-y-[-2px]"
-                />
-                <input
-                  type="number"
-                  min="1"
-                  max={MAX_TEAM_CAPACITY}
-                  inputMode="numeric"
-                  value={team.capacity}
-                  onChange={(event) => setTeam(teamIndex, { capacity: event.target.value })}
-                  placeholder="Vagas"
-                  className="w-full border-[3px] border-[#09090B] bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none shadow-[4px_4px_0px_0px_#09090B] placeholder:text-slate-500 placeholder:font-medium focus:bg-[#E2FF32] focus:shadow-[6px_6px_0px_0px_#09090B] focus:translate-x-[-2px] focus:translate-y-[-2px]"
+                  aria-label={`Nome do time ${i + 1}`}
+                  onChange={(event) =>
+                    update({
+                      teams: slide.teams.map((value, j) =>
+                        i === j ? { ...value, name: event.target.value } : value,
+                      ),
+                    })
+                  }
                 />
                 <button
                   type="button"
-                  onClick={() => removeTeam(teamIndex)}
-                  disabled={(slide.teams ?? []).length <= 2}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center border-2 border-[#09090B] text-slate-500 transition-all duration-100 hover:bg-[#FF0055] hover:text-white hover:shadow-[2px_2px_0px_0px_#09090B] disabled:pointer-events-none disabled:opacity-30"
+                  disabled={slide.teams.length <= 2}
+                  aria-label={`Remover time ${i + 1}`}
+                  onClick={() => update({ teams: slide.teams.filter((_, j) => j !== i) })}
                 >
-                  ✕
+                  <X size={14} />
                 </button>
               </div>
-            ))}
-            <button
-              type="button"
-              onClick={addTeam}
-              className="mt-1 flex items-center gap-2 border-2 border-[#09090B] px-3 py-2 text-xs font-black uppercase tracking-widest text-[#09090B] transition-all duration-100 hover:bg-[#E2FF32] hover:shadow-[2px_2px_0px_0px_#09090B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-            >
-              <Plus className="h-4 w-4" /> Adicionar clube
-            </button>
-          </div>
-          <p className="mt-3 text-xs font-bold uppercase tracking-wider text-slate-600">Defina o nome de cada clube e o número de vagas (1 a {MAX_TEAM_CAPACITY}).</p>
+              <label>
+                Vagas
+                <input
+                  className="fala-input"
+                  type="number"
+                  min={1}
+                  max={MAX_TEAM_CAPACITY}
+                  value={team.capacity}
+                  onChange={(event) =>
+                    update({
+                      teams: slide.teams.map((value, j) =>
+                        i === j ? { ...value, capacity: event.target.value } : value,
+                      ),
+                    })
+                  }
+                />
+              </label>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="fala-link"
+            disabled={slide.teams.length >= MAX_TEAM_PER_SLIDE}
+            onClick={() =>
+              update({ teams: [...slide.teams, createTeamDraft(`Time ${slide.teams.length + 1}`, 8)] })
+            }
+          >
+            <Plus size={14} />
+            Adicionar time
+          </button>
         </div>
       )}
-    </article>
+      <p className="editor-hint">
+        {slide.type === 'word_cloud'
+          ? 'O público pode enviar mais de uma palavra. Termos repetidos ganham destaque.'
+          : slide.type === 'open_text'
+            ? 'Cada pessoa envia uma resposta. As mensagens aparecem na projeção.'
+            : slide.type === TEAM_SELECTION_TYPE
+              ? 'Cada pessoa escolhe um time. Ao atingir a lotação, novas inscrições são bloqueadas.'
+              : 'Cada pessoa escolhe uma alternativa. Os votos aparecem em tempo real.'}
+      </p>
+      <p className="editor-hint">
+        Slide {index + 1} de {total}
+      </p>
+    </fieldset>
   )
 }

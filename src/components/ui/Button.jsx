@@ -1,29 +1,20 @@
 const VARIANTS = {
-  primary:
-    'bg-[#E2FF32] text-[#09090B] hover:bg-[#d4f01e] rounded-none',
-  solid:
-    'bg-[#09090B] text-white hover:bg-[#27272a] rounded-none',
-  ocean:
-    'bg-[#0055FF] text-white hover:bg-[#0044dd] rounded-none',
-  ghost:
-    'bg-transparent text-[#09090B] hover:bg-[#F4F4F0] rounded-none',
-  outline:
-    'bg-white text-[#09090B] hover:bg-[#F4F4F0] rounded-none',
-  subtle:
-    'bg-[#F4F4F0] text-[#09090B] hover:bg-[#e8e8e3] rounded-none',
-  danger:
-    'bg-[#FF0055] text-white hover:bg-[#dd0049] rounded-none',
-  dangerSoft:
-    'bg-white text-[#FF0055] hover:bg-[#FFF0F3] rounded-none',
-  neo:
-    'bg-[#FCFBF9] text-[#09090B] hover:bg-[#F4F4F0] rounded-none',
+  primary: 'bg-blue-700 text-white hover:bg-blue-800',
+  solid: 'bg-slate-900 text-white hover:bg-slate-800',
+  ocean: 'bg-emerald-700 text-white hover:bg-emerald-800',
+  ghost: 'bg-transparent text-slate-700 hover:bg-slate-100',
+  outline: 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50',
+  subtle: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
+  danger: 'bg-red-700 text-white hover:bg-red-800',
+  dangerSoft: 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
+  neo: 'bg-white text-slate-700 hover:bg-slate-50',
 }
 
 const SIZES = {
-  sm: 'h-10 px-4 text-sm gap-2',
-  md: 'h-12 px-5 text-sm gap-2.5',
-  lg: 'h-14 px-7 text-base gap-3',
-  xl: 'h-16 px-8 text-lg gap-3.5',
+  sm: 'h-9 px-3 text-sm gap-1.5',
+  md: 'h-10 px-4 text-sm gap-2',
+  lg: 'h-11 px-5 text-sm gap-2.5',
+  xl: 'h-12 px-6 text-base gap-3',
 }
 
 export default function Button({
@@ -41,13 +32,12 @@ export default function Button({
 }) {
   const Component = as || 'button'
   const isDisabled = disabled || loading
+
   return (
     <Component
       disabled={isDisabled}
       className={[
-        'inline-flex items-center justify-center font-bold tracking-tight uppercase border-[3px] border-[#09090B] transition-all duration-100',
-        'outline-none shadow-[5px_5px_0px_0px_rgba(9,9,11,1)] hover:shadow-[2px_2px_0px_0px_rgba(9,9,11,1)] hover:translate-x-[3px] hover:translate-y-[3px] active:translate-x-[5px] active:translate-y-[5px] active:shadow-none',
-        'disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex items-center justify-center rounded-lg border font-semibold transition-colors duration-150 outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:pointer-events-none disabled:opacity-50',
         VARIANTS[variant] ?? VARIANTS.solid,
         SIZES[size] ?? SIZES.md,
         fullWidth ? 'w-full' : '',
@@ -55,9 +45,9 @@ export default function Button({
       ].join(' ')}
       {...props}
     >
-      {loading ? <span className="h-5 w-5 animate-spin"><IconSpinner /></span> : Icon ? <Icon className="h-5 w-5" /> : null}
+      {loading ? <span className="h-4 w-4 animate-spin"><IconSpinner /></span> : Icon ? <Icon className="h-4 w-4" /> : null}
       {children}
-      {IconRight && !loading ? <IconRight className="h-5 w-5" /> : null}
+      {IconRight && !loading ? <IconRight className="h-4 w-4" /> : null}
     </Component>
   )
 }

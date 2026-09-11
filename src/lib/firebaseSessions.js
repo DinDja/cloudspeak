@@ -34,7 +34,7 @@ export const getSession = async (code) => {
   return { id: snapshot.id, ...snapshot.data() }
 }
 
-export const createSession = async ({ code, title, slides, ownerUid, ownerEmail, presentationId }) => {
+export const createSession = async ({ code, title, slides, ownerUid, ownerEmail, presentationId, eventKey = null }) => {
   const payload = {
     code,
     title,
@@ -47,6 +47,7 @@ export const createSession = async ({ code, title, slides, ownerUid, ownerEmail,
     ownerUid,
     ownerEmail,
     presentationId: presentationId ?? null,
+    eventKey,
   }
   await setDoc(sessionRef(code), payload)
   return code
@@ -61,12 +62,16 @@ export const launchPresentationAsSession = async ({ presentation, ownerUid, owne
     ownerUid,
     ownerEmail,
     presentationId: presentation.id ?? null,
+    eventKey: presentation.eventKey ?? null,
   })
   return code
 }
 
-export const endSession = (code) =>
-  updateDoc(sessionRef(code), { status: 'ended', updatedAt: serverTimestamp() })
+export const endSession = async (code) => {
+  const endedAt = new Date()
+  await updateDoc(sessionRef(code), { status: 'ended', endedAt: serverTimestamp(), updatedAt: serverTimestamp() })
+  return endedAt
+}
 
 export const goNextSlide = (session) => {
   if (!session || session.currentSlideIndex >= session.slides.length - 1) return Promise.resolve()
@@ -148,10 +153,17 @@ export const sendReaction = async ({ code, participantId, type }) => {
   })
 }
 
-export const syncPresence = async ({ code, participantId, participantName, includeJoinedAt = false }) => {
+export const syncPresence = async ({
+  code,
+  participantId,
+  participantName,
+  participantInstitution = '',
+  includeJoinedAt = false,
+}) => {
   const payload = {
     participantId,
     participantName: getParticipantDisplayName(participantName),
+    participantInstitution: normalizeText(participantInstitution ?? '').slice(0, 120),
     lastSeenAt: serverTimestamp(),
   }
   if (includeJoinedAt) payload.joinedAt = serverTimestamp()

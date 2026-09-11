@@ -29,7 +29,7 @@ O CloudSpeak transforma qualquer apresentação em uma experiência bidirecional
 ### Recursos
 
 - **Tempo real** com `onSnapshot` do Firestore — sem refresh, sem polling.
-- **Autenticação Firebase** (e-mail/senha) restrita ao domínio `@secti.ba.gov.br`, com verificação de e-mail obrigatória para criar/apresentar.
+- **Autenticação Firebase** (e-mail/senha) restrita aos domínios `@secti.ba.gov.br`, `@enova.educacao.ba.gov.br` e `@gmail.com`, com verificação de e-mail obrigatória para criar/apresentar.
 - **Isolamento por dono**: cada apresentação/sessão registra `ownerUid` + `ownerEmail`; o dashboard lista apenas os decks do usuário.
 - **Presença ao vivo** com heartbeat a cada 15s e TTL de 45s.
 - **Reações flutuantes** (coração, joinha, dúvida) com animações de partículas.
@@ -42,7 +42,7 @@ O CloudSpeak transforma qualquer apresentação em uma experiência bidirecional
 ## Arquitetura
 
 ```
-Público (mobile, sem login)            Apresentador (desktop, autenticado @secti.ba.gov.br)
+Público (mobile, sem login)            Apresentador (desktop, autenticado em domínio permitido)
         │                                          │
         │ entra via código/QR                      │ cria/edita deck (presentations)
         ▼                                          │ lança ao vivo (sessions/{code})
@@ -113,7 +113,7 @@ src/
   views/
     PublicLanding.jsx      entrada do público (código + nome)
     LoginView.jsx          login institucional
-    RegisterView.jsx       cadastro (@secti.ba.gov.br)
+    RegisterView.jsx       cadastro (domínios permitidos)
     VerifyEmailView.jsx    confirmação de e-mail
     PresenterDashboard.jsx estúdio: lista de apresentações
     PresentationBuilder.jsx editor de slides (sidebar + preview)
@@ -167,7 +167,7 @@ npm run lint     # ESLint
 ## Autenticação
 
 - **Público**: entra sem login, apenas com código ou QR Code.
-- **Apresentador**: precisa estar autenticado com e-mail `@secti.ba.gov.br` **verificado**.
+- **Apresentador**: precisa estar autenticado com e-mail `@secti.ba.gov.br`, `@enova.educacao.ba.gov.br` ou `@gmail.com` **verificado**.
 
 O domínio é validado em **três camadas**:
 1. **UI** (`validators.isSectiEmail`) — bloqueia antes de enviar.
@@ -180,7 +180,7 @@ Fluxos de tela: `PublicLanding → "Sou apresentador" → Login → (cadastro) �
 
 ## Regras de segurança (`firestore.rules`)
 
-- `isSectiUser()` — autenticado, e-mail verificado e domínio `@secti.ba.gov.br`.
+- `isSectiUser()` — autenticado, e-mail verificado e domínio permitido (`@secti.ba.gov.br`, `@enova.educacao.ba.gov.br` ou `@gmail.com`).
 - `presentations/{id}` — read/update/delete apenas pelo `ownerUid`; create exige `ownerUid == auth.uid` e `ownerEmail == token.email`; `ownerUid`/`ownerEmail` imutáveis após criação.
 - `sessions/{code}` — read pública apenas se `status == 'live'` (ou dono); create/update/delete apenas pelo dono; update permite avançar slides e `live → ended`.
 - `responses` / `reactions` / `participants` — escrita pública com schema estritamente validado (tipos, tamanhos, IDs); delete apenas pelo dono da sessão (`sessionOwner()` via `get()`).
@@ -205,7 +205,7 @@ firebase deploy --only firestore:rules,firestore:indexes
 
 ### Login do apresentador
 1. No Firebase Console, ative **Authentication → Sign-in method → E-mail/senha**.
-2. Cadastre-se na tela "Sou apresentador → Criar conta" usando `nome@secti.ba.gov.br`.
+2. Cadastre-se na tela "Sou apresentador → Criar conta" usando um e-mail de domínio permitido.
 3. Confirme o e-mail pelo link recebido e clique em "Já verifiquei — atualizar".
 4. Acesse o dashboard, crie uma apresentação e clique em **Apresentar**.
 

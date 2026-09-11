@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useMemo, useState } from 'react'
+import { motion as Motion, AnimatePresence } from 'framer-motion'
 import {
   Heart,
   ThumbsUp,
@@ -33,7 +33,6 @@ export default function ParticipantView({
   const [hasSubmittedThisSlide, setHasSubmittedThisSlide] = useState(false)
   const [submittedValue, setSubmittedValue] = useState('')
   const [syncKey, setSyncKey] = useState('')
-  const [connectedNow, setConnectedNow] = useState(0)
 
   const currentSyncKey = `${currentSlide?.id ?? ''}|${currentSlide?.type ?? ''}|${participantResponse?.id ?? ''}`
   if (currentSyncKey !== syncKey) {
@@ -49,24 +48,6 @@ export default function ParticipantView({
       setSubmittedValue('')
     }
   }
-
-  useEffect(() => {
-    let mounted = true
-    const bump = () => {
-      try {
-        fetch('/api/presence', { method: 'POST', keepalive: true }).catch(() => {})
-      } catch {}
-    }
-    bump()
-    const id = window.setInterval(() => {
-      if (!mounted) return
-      setConnectedNow((c) => Math.max(c, responses.length))
-    }, 1200)
-    return () => {
-      mounted = false
-      window.clearInterval(id)
-    }
-  }, [responses.length])
 
   const teamSelectionStats = useMemo(() => {
     if (!currentSlide || currentSlide.type !== TEAM_SELECTION_TYPE) return []
@@ -90,21 +71,26 @@ export default function ParticipantView({
   const slideType = currentSlide ? SLIDE_TYPES[currentSlide.type] : null
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-[#F4F4F0] font-sans text-[#09090B]">
+    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-[#f6f4ef] font-sans text-slate-900">
       <BackgroundDecor />
 
-      <header className="sticky top-0 z-20 border-b-[3px] border-[#09090B] bg-white">
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="flex items-center justify-between gap-2 px-5 py-3">
-          <Logo size="sm" withWordmark={false} />
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={onExit} aria-label="Sair da apresentação" className="p-1">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <Logo size="sm" />
+          </div>
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 border-2 border-[#09090B] bg-emerald-300 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[#09090B] shadow-[2px_2px_0px_0px_#09090B]">
+            <span className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full bg-emerald-500 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 bg-emerald-600" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
               Conectado
             </span>
-            <span className="border-2 border-[#09090B] bg-[#09090B] px-3 py-1.5 font-black tracking-[0.2em] text-white shadow-[2px_2px_0px_0px_#09090B]">
+            <span className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold tracking-[0.18em] text-white">
               {session.code}
             </span>
           </div>
@@ -112,7 +98,7 @@ export default function ParticipantView({
       </header>
 
       <main className="relative z-10 flex-1 px-5 py-8 md:py-12">
-        <motion.div
+        <Motion.div
           key={currentSlide?.id ?? 'loading'}
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -125,7 +111,7 @@ export default function ParticipantView({
               {slideType.label}
             </Badge>
           )}
-          <h1 className="mb-8 text-3xl font-black leading-tight uppercase tracking-tight text-[#09090B] md:text-4xl">
+          <h1 className="mb-8 font-display text-4xl font-semibold uppercase leading-[1.05] tracking-tight text-slate-900 md:text-5xl">
             {currentSlide?.question}
           </h1>
 
@@ -137,7 +123,7 @@ export default function ParticipantView({
                 <SubmittedStateGeneric type={currentSlide?.type} />
               )
             ) : (
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
@@ -150,9 +136,9 @@ export default function ParticipantView({
                       key={option}
                       onClick={(event) => submit(event, option)}
                       disabled={sending}
-                      className="group relative w-full overflow-hidden border-[3px] border-[#09090B] bg-white p-5 text-left shadow-[4px_4px_0px_0px_#09090B] transition-all duration-100 hover:shadow-[6px_6px_0px_0px_#09090B] hover:-translate-x-[1px] hover:-translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none disabled:opacity-60"
+                      className="group relative w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 disabled:opacity-60"
                     >
-                      <span className="relative z-10 flex items-center justify-between text-base font-bold text-[#09090B]">
+                      <span className="relative z-10 flex items-center justify-between text-base font-medium text-slate-800">
                         {option}
                         <Send className="h-4 w-4 transition-all" />
                       </span>
@@ -169,11 +155,11 @@ export default function ParticipantView({
                           key={team.id ?? team.name}
                           onClick={(event) => submit(event, team.name)}
                           disabled={isDisabled}
-                          className="group relative w-full overflow-hidden border-[3px] border-[#09090B] bg-white p-5 text-left shadow-[4px_4px_0px_0px_#09090B] transition-all duration-100 hover:shadow-[6px_6px_0px_0px_#09090B] hover:-translate-x-[1px] hover:-translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none disabled:pointer-events-none disabled:opacity-60"
+                          className="group relative w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 disabled:pointer-events-none disabled:opacity-60"
                         >
                           <div className="relative z-10 flex items-start justify-between gap-4">
                             <div>
-                              <span className="text-xl font-black uppercase tracking-tight text-[#09090B]">
+                              <span className="text-xl font-semibold tracking-tight text-slate-900">
                                 {team.name}
                               </span>
                               <p className="mt-1.5 text-xs font-bold text-slate-500">
@@ -183,13 +169,13 @@ export default function ParticipantView({
                               </p>
                             </div>
                             <span
-                              className="border-2 border-[#09090B] px-3 py-1 text-xs font-black uppercase tracking-[0.18em]"
+                              className="rounded-md border border-slate-200 px-3 py-1 text-xs font-medium tracking-wide text-slate-600"
                               style={{ color, backgroundColor: `${color}18` }}
                             >
                               {team.count}/{team.capacity}
                             </span>
                           </div>
-                          <div className="relative z-10 mt-4 h-2 overflow-hidden border border-[#09090B] bg-white">
+                          <div className="relative z-10 mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
                             <div
                               className="h-full transition-all duration-500"
                               style={{
@@ -205,7 +191,10 @@ export default function ParticipantView({
                 )}
 
                 {currentSlide?.type === 'word_cloud' && (
-                  <form onSubmit={submit} className="space-y-3 border-[3px] border-[#09090B] bg-white p-4 shadow-[4px_4px_0px_0px_#09090B]">
+                  <form
+                    onSubmit={submit}
+                    className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
                     <div className="relative">
                       <TypeIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                       <input
@@ -213,19 +202,19 @@ export default function ParticipantView({
                         onChange={(event) => setValue(event.target.value)}
                         maxLength={25}
                         placeholder="Digite sua ideia..."
-                        className="w-full border-[3px] border-[#09090B] bg-white py-4 pl-11 pr-4 text-lg font-bold text-[#09090B] outline-none shadow-[4px_4px_0px_0px_#09090B] placeholder:text-slate-500 placeholder:font-medium focus:bg-[#E2FF32] focus:shadow-[6px_6px_0px_0px_#09090B] focus:translate-x-[-2px] focus:translate-y-[-2px]"
+                        className="cs-input-base py-4 pl-11 text-lg"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={sending || !value.trim()}
-                      className="cs-btn-base w-full gap-2 bg-[#09090B] py-4 text-base font-black text-white"
+                      className="cs-btn-base w-full gap-2 py-4 text-base"
                     >
                       {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                       Enviar palavra
                     </button>
                     {hasSubmittedThisSlide && (
-                      <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-wider text-[#0055FF]">
+                      <p className="flex items-center justify-center gap-1.5 text-center text-sm font-medium text-blue-700">
                         <Check className="h-4 w-4" /> Enviado! Mande mais se quiser.
                       </p>
                     )}
@@ -234,34 +223,36 @@ export default function ParticipantView({
 
                 {currentSlide?.type === 'open_text' && (
                   <form onSubmit={submit} className="space-y-3">
-                    <div className="border-[3px] border-[#09090B] bg-white p-3 shadow-[4px_4px_0px_0px_#09090B]">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                       <textarea
                         value={value}
                         onChange={(event) => setValue(event.target.value)}
-                        maxLength={250}
+                        maxLength={220}
                         placeholder="Escreva sua pergunta ou comentário..."
-                        className="h-40 w-full resize-none border-[3px] border-[#09090B] bg-white px-4 py-4 text-base font-bold text-[#09090B] outline-none shadow-[4px_4px_0px_0px_#09090B] placeholder:text-slate-500 placeholder:font-medium focus:bg-[#E2FF32] focus:shadow-[6px_6px_0px_0px_#09090B] focus:translate-x-[-2px] focus:translate-y-[-2px]"
+                        className="cs-input-base h-40 resize-none px-4 py-4 text-base"
                       />
                       <div className="px-1 pb-1">
                         <button
                           type="submit"
                           disabled={sending || !value.trim()}
-                          className="cs-btn-base w-full gap-2 bg-[#09090B] py-4 text-base font-black text-white"
+                          className="cs-btn-base w-full gap-2 py-4 text-base"
                         >
-                          {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                          {sending ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Send className="h-5 w-5" />
+                          )}
                           Enviar resposta
                         </button>
                       </div>
                     </div>
-                    <p className="text-center text-xs font-black uppercase tracking-wider text-slate-500">
-                      {value.length}/250 caracteres
-                    </p>
+                    <p className="text-center text-xs text-slate-500">{value.length}/220 caracteres</p>
                   </form>
                 )}
-              </motion.div>
+              </Motion.div>
             )}
           </AnimatePresence>
-        </motion.div>
+        </Motion.div>
       </main>
 
       <FooterReactions onReact={onReact} />
@@ -271,50 +262,51 @@ export default function ParticipantView({
 
 function SubmittedStateTeam({ submittedValue }) {
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 16, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      className="relative overflow-hidden border-[3px] border-[#09090B] bg-[#09090B] p-9 text-center text-white shadow-[8px_8px_0px_0px_#E2FF32]"
+      className="relative overflow-hidden rounded-2xl bg-slate-900 p-9 text-center text-white shadow-xl shadow-slate-900/10"
     >
       <div className="relative">
-        <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center border-2 border-white/30 bg-white/20">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">
           <Users className="h-10 w-10 text-white" />
         </div>
-        <p className="text-xs font-black uppercase tracking-[0.28em] text-[#E2FF32]">vaga confirmada</p>
-        <h3 className="mt-2.5 text-3xl font-black tracking-tight">{submittedValue}</h3>
-        <p className="mt-2.5 text-base font-bold text-white/80">
+        <p className="text-xs font-medium tracking-wide text-blue-200">Escolha confirmada</p>
+        <h3 className="mt-2.5 text-3xl font-semibold tracking-tight">{submittedValue}</h3>
+        <p className="mt-2.5 text-base leading-6 text-white/75">
           Sua escolha foi registrada. O apresentador já vê em qual clube você está. Olhe a tela principal!
         </p>
       </div>
-    </motion.div>
+    </Motion.div>
   )
 }
 
 function SubmittedStateGeneric({ type }) {
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 16, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      className="relative overflow-hidden border-[3px] border-[#09090B] bg-[#09090B] p-9 text-center text-white shadow-[8px_8px_0px_0px_#E2FF32]"
+      className="relative overflow-hidden rounded-2xl bg-slate-900 p-9 text-center text-white shadow-xl shadow-slate-900/10"
     >
-      <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center border-2 border-white/30 bg-white/20">
+      <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">
         <Check className="h-10 w-10 text-white" strokeWidth={3} />
       </div>
-      <h3 className="text-3xl font-black uppercase tracking-tight">Enviado!</h3>
-      <p className="mt-2.5 text-base font-bold text-white/80">
+      <h3 className="text-3xl font-semibold tracking-tight">Enviado!</h3>
+      <p className="mt-2.5 text-base leading-6 text-white/75">
         Olhe para a tela principal para ver os resultados ao vivo.
       </p>
-      <p className="mt-3 text-[11px] font-black uppercase tracking-wider text-white/60">
-        Tipo · {type === 'multiple_choice' ? 'Enquete' : type === 'open_text' ? 'Resposta aberta' : 'Interação'}
+      <p className="mt-3 text-xs text-white/60">
+        Tipo ·{' '}
+        {type === 'multiple_choice' ? 'Enquete' : type === 'open_text' ? 'Resposta aberta' : 'Interação'}
       </p>
-    </motion.div>
+    </Motion.div>
   )
 }
 
 function FooterReactions({ onReact }) {
   return (
     <footer className="sticky bottom-5 z-10 px-5">
-      <div className="mx-auto flex w-full max-w-md items-center justify-around border-[3px] border-[#09090B] bg-white p-2.5 shadow-[4px_4px_0px_0px_#09090B]">
+      <div className="mx-auto flex w-full max-w-md items-center justify-around rounded-2xl border border-slate-200 bg-white p-2.5 shadow-lg shadow-slate-900/5">
         <ReactionButton color="rose" icon={Heart} onClick={() => onReact('heart')} label="Curtir" />
         <span className="h-7 w-px bg-slate-200" />
         <ReactionButton color="brand" icon={ThumbsUp} onClick={() => onReact('thumb')} label="Joinha" />
@@ -325,7 +317,8 @@ function FooterReactions({ onReact }) {
   )
 }
 
-function ReactionButton({ icon: Icon, onClick, color, label }) {
+function ReactionButton({ icon, onClick, color, label }) {
+  const Icon = icon
   const map = {
     rose: { bg: 'bg-rose-50', text: 'text-rose-500', fill: 'group-hover:fill-rose-500' },
     brand: { bg: 'bg-brand-50', text: 'text-brand-500', fill: 'group-hover:fill-brand-500' },
@@ -336,7 +329,7 @@ function ReactionButton({ icon: Icon, onClick, color, label }) {
     <button
       type="button"
       onClick={onClick}
-      className={`group border-2 border-[#09090B] p-3.5 transition-all duration-100 hover:shadow-[2px_2px_0px_0px_#09090B] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none ${tone.bg}`}
+      className={`group rounded-xl p-3.5 transition-colors ${tone.bg} hover:brightness-95`}
       aria-label={label}
     >
       <Icon className={`h-7 w-7 ${tone.text} ${tone.fill} transition-transform`} />
@@ -346,9 +339,6 @@ function ReactionButton({ icon: Icon, onClick, color, label }) {
 
 function BackgroundDecor() {
   return (
-    <>
-      <div className="pointer-events-none absolute inset-0 bg-[#F4F4F0]" />
-      <div className="pointer-events-none absolute inset-0 cs-grid opacity-30 cs-mask-radial" />
-    </>
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(39,82,216,0.08),_transparent_35%)]" />
   )
 }

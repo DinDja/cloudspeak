@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion as Motion, AnimatePresence } from 'framer-motion'
 import {
   MailCheck,
   RefreshCw,
@@ -55,40 +55,40 @@ export default function VerifyEmailView({ onBackToPublic }) {
       onBack={onBackToPublic}
     >
       <div className="space-y-5">
-        <motion.div
-          className="relative overflow-hidden border-[3px] border-[#09090B] bg-white p-6 text-center shadow-[6px_6px_0px_0px_#09090B]"
+        <Motion.div
+          className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4 }}
         >
           <div className="relative">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center border-2 border-[#09090B] bg-[#09090B] text-white shadow-[3px_3px_0px_0px_#09090B]">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
               <Inbox className="h-7 w-7" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Enviamos para</p>
-            <p className="mt-1 text-sm font-black text-[#09090B]">{email}</p>
+            <p className="text-sm font-medium text-slate-500">Enviamos para</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{email}</p>
             <p className="mt-3 mx-auto max-w-xs text-sm font-bold text-slate-600">
               Clique no link recebido para liberar o acesso ao estúdio.
             </p>
           </div>
-        </motion.div>
+        </Motion.div>
 
         <AnimatePresence>
           {message && (
-            <motion.p
-              className={`border-[3px] border-[#09090B] px-4 py-3 text-center text-sm font-black uppercase tracking-wider shadow-[3px_3px_0px_0px_#09090B] ${
+            <Motion.p
+              className={`rounded-lg border px-4 py-3 text-center text-sm ${
                 messageTone === 'success'
-                  ? 'bg-emerald-300 text-slate-900'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                   : messageTone === 'error'
-                    ? 'bg-rose-400 text-white'
-                    : 'bg-slate-200 text-slate-800'
+                    ? 'border-red-200 bg-red-50 text-red-700'
+                    : 'border-slate-200 bg-slate-100 text-slate-700'
               }`}
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
             >
               {message}
-            </motion.p>
+            </Motion.p>
           )}
         </AnimatePresence>
 
@@ -96,7 +96,7 @@ export default function VerifyEmailView({ onBackToPublic }) {
           type="button"
           onClick={handleRefresh}
           disabled={checking}
-          className="cs-btn-base h-14 w-full gap-2 bg-[#E2FF32] text-base font-black text-[#09090B] hover:bg-[#d4f01e]"
+          className="cs-btn-base h-11 w-full gap-2 text-sm"
         >
           {checking ? <Loader2 className="h-5 w-5 animate-spin" /> : <><RefreshCw className="h-5 w-5" /> Já verifiquei — atualizar</>}
         </button>
@@ -106,7 +106,7 @@ export default function VerifyEmailView({ onBackToPublic }) {
             type="button"
             onClick={handleResend}
             disabled={sending}
-            className="cs-btn-base h-12 gap-2 bg-white px-4 text-sm font-bold text-[#09090B] hover:bg-[#F4F4F0]"
+            className="cs-btn-base h-11 gap-2 border-slate-200 !bg-white px-4 text-sm !text-slate-700 hover:!bg-slate-50"
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Reenviar
@@ -114,13 +114,13 @@ export default function VerifyEmailView({ onBackToPublic }) {
           <button
             type="button"
             onClick={logout}
-            className="cs-btn-base h-12 gap-2 bg-[#FF0055] px-4 text-sm font-bold text-white hover:bg-[#dd0049]"
+            className="cs-btn-base h-11 gap-2 bg-red-700 px-4 text-sm hover:bg-red-800"
           >
             <LogOut className="h-4 w-4" /> Sair
           </button>
         </div>
 
-        <div className="flex items-center gap-2 border-2 border-[#09090B] bg-white px-4 py-3 text-xs font-black uppercase tracking-wider text-[#09090B] shadow-[2px_2px_0px_0px_#09090B]">
+        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
           Dica: o e-mail pode cair na sua pasta de spam.
         </div>
       </div>
