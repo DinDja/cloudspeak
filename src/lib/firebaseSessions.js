@@ -220,6 +220,8 @@ export const syncPresence = async ({
   participantId,
   participantName,
   participantInstitution = '',
+  participantContact = '',
+  participantCpf = '',
   attendance = false,
   includeJoinedAt = false,
 }) => {
@@ -228,6 +230,8 @@ export const syncPresence = async ({
     participantId,
     participantName: getParticipantDisplayName(participantName),
     participantInstitution: normalizeText(participantInstitution ?? '').slice(0, 120),
+    participantContact: normalizeText(participantContact ?? '').slice(0, 120),
+    participantCpf: String(participantCpf ?? '').replace(/\D/g, '').slice(0, 11),
     lastSeenAt: serverTimestamp(),
   }
   if (attendance) payload.attendance = true

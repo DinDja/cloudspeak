@@ -9,6 +9,8 @@ export function usePresence({
   participantId,
   participantName,
   participantInstitution = '',
+  participantContact = '',
+  participantCpf = '',
   attendance = false,
 }) {
   const [error, setError] = useState('')
@@ -29,6 +31,8 @@ export function usePresence({
           participantId,
           participantName,
           participantInstitution,
+          participantContact,
+          participantCpf,
           attendance,
           includeJoinedAt,
         })
@@ -57,7 +61,7 @@ export function usePresence({
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('focus', handleFocus)
     }
-  }, [enabled, code, participantId, participantName, participantInstitution, attendance, retryToken])
+  }, [enabled, code, participantId, participantName, participantInstitution, participantContact, participantCpf, attendance, retryToken])
 
   return {
     error,

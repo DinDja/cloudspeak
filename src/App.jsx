@@ -70,6 +70,8 @@ export default function App() {
   const [sessionCode, setSessionCode] = useState('')
   const [participantName, setParticipantName] = useState('')
   const [participantInstitution, setParticipantInstitution] = useState('')
+  const [participantContact, setParticipantContact] = useState('')
+  const [participantCpf, setParticipantCpf] = useState('')
   const [editingPresentation, setEditingPresentation] = useState(null)
   const [pendingTitle, setPendingTitle] = useState('')
   const [pendingTemplateId, setPendingTemplateId] = useState('blank')
@@ -107,6 +109,8 @@ export default function App() {
     participantId,
     participantName,
     participantInstitution,
+    participantContact,
+    participantCpf,
     attendance: attendanceMode,
   })
 
@@ -135,6 +139,8 @@ export default function App() {
       setSessionCode(saved.code)
       setParticipantName(saved.participantName ?? '')
       setParticipantInstitution(saved.participantInstitution ?? '')
+      setParticipantContact(saved.participantContact ?? '')
+      setParticipantCpf(saved.participantCpf ?? '')
       setRequestedSlideId(saved.requestedSlideId ?? '')
       setRoute('participant')
     }
@@ -260,6 +266,8 @@ export default function App() {
       const normalizedOtherInstitution = normalizeText(metadata.institutionOther ?? '')
       const isOtherInstitution = normalizedInstitution === OTHER_ATTENDANCE_INSTITUTION
       const finalInstitution = isOtherInstitution ? normalizedOtherInstitution : normalizedInstitution
+      const normalizedContact = normalizeText(metadata.contact ?? '').slice(0, 120)
+      const normalizedCpf = String(metadata.cpf ?? '').replace(/\D/g, '').slice(0, 11)
       if (metadata.attendance && normalizedName.length < 3) {
         setJoinError('Informe seu nome completo para registrar a presença.')
         return
@@ -272,23 +280,37 @@ export default function App() {
         setJoinError('Selecione seu órgão, escola ou instituição na lista.')
         return
       }
+      if (metadata.attendance && normalizedContact.length < 5) {
+        setJoinError('Informe um e-mail ou telefone para comprovar sua presença.')
+        return
+      }
+      if (metadata.attendance && normalizedCpf.length !== 11) {
+        setJoinError('Informe um CPF válido com 11 dígitos.')
+        return
+      }
       if (metadata.attendance) {
         await syncPresenceWithRetry({
           code,
           participantId,
           participantName: normalizedName,
           participantInstitution: finalInstitution,
+          participantContact: normalizedContact,
+          participantCpf: normalizedCpf,
           attendance: true,
           includeJoinedAt: true,
         })
         setSessionCode(code)
         setParticipantName(normalizedName)
         setParticipantInstitution(finalInstitution)
+        setParticipantContact(normalizedContact)
+        setParticipantCpf(normalizedCpf)
         saveActiveSession({
           route: 'participant',
           code,
           participantName: normalizedName,
           participantInstitution: finalInstitution,
+          participantContact: normalizedContact,
+          participantCpf: normalizedCpf,
           requestedSlideId,
         })
         setAttendanceMode(false)
@@ -301,11 +323,15 @@ export default function App() {
       setAttendanceMode(Boolean(metadata.attendance))
       setParticipantName(normalizedName)
       setParticipantInstitution(finalInstitution)
+      setParticipantContact(normalizedContact)
+      setParticipantCpf(normalizedCpf)
       saveActiveSession({
         route: 'participant',
         code,
         participantName: normalizedName,
         participantInstitution: finalInstitution,
+        participantContact: normalizedContact,
+        participantCpf: normalizedCpf,
         requestedSlideId,
       })
       goParticipant(code)

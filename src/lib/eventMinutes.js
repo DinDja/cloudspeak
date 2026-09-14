@@ -358,7 +358,7 @@ export const createAttendancePdf = async ({ session, participants = [], authorNa
       participantRows.map((entry) => [
         text(entry.participantName) || 'Nome não informado',
         text(entry.participantInstitution) || 'Lotação não informada',
-        [entry.participantEmail ?? entry.email, entry.participantPhone ?? entry.phone]
+        [entry.participantContact, entry.participantEmail ?? entry.email, entry.participantPhone ?? entry.phone]
           .map((value) => text(value))
           .filter(Boolean)
           .join(' / '),

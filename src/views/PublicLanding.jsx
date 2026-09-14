@@ -17,6 +17,8 @@ export default function PublicLanding({
   const [name, setName] = useState('')
   const [institution, setInstitution] = useState('')
   const [otherInstitution, setOtherInstitution] = useState('')
+  const [contact, setContact] = useState('')
+  const [cpf, setCpf] = useState('')
   const [institutionSearch, setInstitutionSearch] = useState('')
   const [institutionOpen, setInstitutionOpen] = useState(false)
   // A QR link may arrive after the authentication gate resolves.
@@ -30,7 +32,7 @@ export default function PublicLanding({
   const selectedInstitution = isOtherInstitution ? otherInstitution.trim() : institution.trim()
   const canJoin =
     isValidSessionCode(code.trim()) &&
-    (!initialAttendance || (name.trim().length >= 3 && selectedInstitution.length > 0))
+    (!initialAttendance || (name.trim().length >= 3 && selectedInstitution.length > 0 && contact.trim().length >= 5 && cpf.replace(/\D/g, '').length === 11))
   const submit = (event) => {
     event.preventDefault()
     if (canJoin && !loading) {
@@ -38,6 +40,8 @@ export default function PublicLanding({
         attendance: initialAttendance,
         institution,
         institutionOther: isOtherInstitution ? otherInstitution : '',
+        contact,
+        cpf,
       })
     }
   }
@@ -192,6 +196,33 @@ export default function PublicLanding({
                     />
                   </>
                 )}
+                <label htmlFor="participant-contact" className="join-name-label">
+                  E-mail ou telefone <span>obrigatório</span>
+                </label>
+                <input
+                  id="participant-contact"
+                  className="join-name"
+                  value={contact}
+                  onChange={(event) => setContact(event.target.value)}
+                  maxLength={120}
+                  autoComplete="email"
+                  placeholder="Como podemos entrar em contato?"
+                  required
+                />
+                <label htmlFor="participant-cpf" className="join-name-label">
+                  CPF <span>obrigatório</span>
+                </label>
+                <input
+                  id="participant-cpf"
+                  className="join-name"
+                  value={cpf}
+                  onChange={(event) => setCpf(event.target.value.replace(/\D/g, '').slice(0, 11))}
+                  inputMode="numeric"
+                  maxLength={11}
+                  autoComplete="off"
+                  placeholder="Somente números"
+                  required
+                />
               </>
             )}
             <button type="submit" disabled={!canJoin || loading} className="fala-button join-submit">

@@ -177,7 +177,7 @@ service cloud.firestore {
       }
 
       function isValidParticipantPresenceCreate(participantId) {
-        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'participantInstitution', 'attendance', 'joinedAt', 'lastSeenAt'])
+        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'participantInstitution', 'participantContact', 'participantCpf', 'attendance', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.keys().hasAll(['participantId', 'participantName', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.participantId == participantId
           && isString(request.resource.data.participantName, 1, 40)
@@ -186,11 +186,19 @@ service cloud.firestore {
           && (!request.resource.data.keys().hasAll(['participantInstitution'])
               || isString(request.resource.data.participantInstitution, 0, 120))
           && (!request.resource.data.keys().hasAll(['attendance'])
-              || request.resource.data.attendance is bool);
+              || request.resource.data.attendance is bool)
+          && (!request.resource.data.keys().hasAll(['participantContact'])
+              || isString(request.resource.data.participantContact, 0, 120))
+          && (!request.resource.data.keys().hasAll(['participantCpf'])
+              || isString(request.resource.data.participantCpf, 0, 11))
+          && (!(request.resource.data.keys().hasAll(['attendance']) && request.resource.data.attendance == true)
+              || (request.resource.data.keys().hasAll(['participantContact', 'participantCpf'])
+                  && isString(request.resource.data.participantContact, 5, 120)
+                  && isString(request.resource.data.participantCpf, 11, 11)));
       }
 
       function isValidParticipantPresenceUpdate(participantId) {
-        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'participantInstitution', 'attendance', 'joinedAt', 'lastSeenAt'])
+        return request.resource.data.keys().hasOnly(['participantId', 'participantName', 'participantInstitution', 'participantContact', 'participantCpf', 'attendance', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.participantId == participantId
           && request.resource.data.participantId == resource.data.participantId
           && request.resource.data.joinedAt == resource.data.joinedAt
@@ -200,9 +208,17 @@ service cloud.firestore {
               || isString(request.resource.data.participantInstitution, 0, 120))
           && (!request.resource.data.keys().hasAll(['attendance'])
               || request.resource.data.attendance is bool)
+          && (!request.resource.data.keys().hasAll(['participantContact'])
+              || isString(request.resource.data.participantContact, 0, 120))
+          && (!request.resource.data.keys().hasAll(['participantCpf'])
+              || isString(request.resource.data.participantCpf, 0, 11))
           && (!resource.data.keys().hasAll(['attendance'])
               || resource.data.attendance == false
-              || (request.resource.data.keys().hasAll(['attendance']) && request.resource.data.attendance == true));
+              || (request.resource.data.keys().hasAll(['attendance']) && request.resource.data.attendance == true))
+          && (!(resource.data.keys().hasAll(['attendance']) && resource.data.attendance == true)
+              || (request.resource.data.keys().hasAll(['participantContact', 'participantCpf'])
+                  && isString(request.resource.data.participantContact, 5, 120)
+                  && isString(request.resource.data.participantCpf, 11, 11)));
       }
 
       match /participants/{participantId} {
