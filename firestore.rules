@@ -127,8 +127,11 @@ service cloud.firestore {
     }
 
     match /sessions/{sessionCode} {
-      allow read: if resource.data.status == 'live'
+      // Public participants can read one live session by its code. The owner
+      // can list and read all of their sessions, including ended ones.
+      allow get: if resource.data.status == 'live'
         || (isSecUser() && resource.data.ownerUid == request.auth.uid);
+      allow list: if isSecUser() && resource.data.ownerUid == request.auth.uid;
       allow create: if isSecUser() && isSessionCreate();
       allow update: if isSecUser() && resource.data.ownerUid == request.auth.uid && isSessionUpdate();
       allow delete: if isSecUser() && resource.data.ownerUid == request.auth.uid;
