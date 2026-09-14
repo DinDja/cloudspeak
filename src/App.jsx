@@ -13,6 +13,7 @@ import {
 } from './lib/validators'
 import {
   getSessionWithRetry,
+  deleteSession,
   launchPresentationAsSession,
   submitResponse,
   syncPresenceWithRetry,
@@ -438,6 +439,8 @@ export default function App() {
         onNew={goTemplatePicker}
         onEdit={goBuilderEdit}
         onPresent={handlePresent}
+        onResumeSession={goHost}
+        onDeleteSession={(session) => deleteSession(session.code)}
         onDuplicate={handleDuplicate}
         onDelete={handleDelete}
         onLogout={goPublic}

@@ -27,6 +27,7 @@ import {
 } from './validators'
 
 const sessionRef = (code) => doc(db, 'sessions', code)
+const sessionsCol = () => collection(db, 'sessions')
 const responsesRef = (code) => collection(db, 'sessions', code, 'responses')
 const participantsRef = (code) => collection(db, 'sessions', code, 'participants')
 const reactionsRef = (code) => collection(db, 'sessions', code, 'reactions')
@@ -52,6 +53,24 @@ export const getSession = async (code) => {
 }
 
 export const getSessionWithRetry = (code) => retryFirestoreOperation(() => getSession(code))
+
+export const subscribeUserSessions = (ownerUid, onNext, onError) => {
+  const q = query(sessionsCol(), where('ownerUid', '==', ownerUid))
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const sessions = snapshot.docs
+        .map((entry) => ({ id: entry.id, ...entry.data() }))
+        .sort((left, right) => {
+          const leftTime = left.createdAt?.toMillis?.() ?? 0
+          const rightTime = right.createdAt?.toMillis?.() ?? 0
+          return rightTime - leftTime
+        })
+      onNext(sessions)
+    },
+    onError,
+  )
+}
 
 export const getParticipants = async (code) => {
   const snapshot = await getDocs(participantsRef(code))
