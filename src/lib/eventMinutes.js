@@ -1,10 +1,26 @@
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { EDUCATION_EVENT, getEventData } from './eventData'
 
 const PAGE_WIDTH = 210
 const PAGE_HEIGHT = 297
 const MARGIN = 20
+const PDF_RENDER_YIELD_EVERY = 25
+
+const yieldToBrowser = () =>
+  new Promise((resolve) => {
+    if (typeof globalThis.requestAnimationFrame === 'function') {
+      globalThis.requestAnimationFrame(() => resolve())
+      return
+    }
+    globalThis.setTimeout(resolve, 0)
+  })
+
+const loadPdfTools = async () => {
+  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ])
+  return { jsPDF, autoTable }
+}
 
 const toDate = (value) => {
   if (!value) return null
@@ -105,29 +121,34 @@ const drawFooter = (pdf, pageNumber, totalPages) => {
   pdf.text(`Página ${pageNumber} de ${totalPages}`, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 9, { align: 'right' })
 }
 
-const drawHeader = (pdf, crest, compact = false) => {
-  if (crest) pdf.addImage(crest, 'PNG', PAGE_WIDTH / 2 - 9, compact ? 9 : 12, 18, 18)
-  pdf.setTextColor(28, 34, 31)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(compact ? 8 : 9)
-  pdf.text('ESTADO DA BAHIA', PAGE_WIDTH / 2, compact ? 32 : 37, { align: 'center' })
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(compact ? 7 : 8)
-  pdf.text('SECRETARIA DA EDUCAÇÃO DO ESTADO DA BAHIA', PAGE_WIDTH / 2, compact ? 37 : 42, { align: 'center' })
-  return compact ? 47 : 54
+const drawHeader = (pdf, logo, compact = false) => {
+  if (logo) {
+    const width = compact ? 62 : 80
+    const height = compact ? 31 : 40
+    pdf.addImage(logo, 'PNG', PAGE_WIDTH / 2 - width / 2, compact ? 7 : 9, width, height)
+  } else {
+    pdf.setTextColor(28, 34, 31)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(compact ? 8 : 9)
+    pdf.text('ESTADO DA BAHIA', PAGE_WIDTH / 2, compact ? 22 : 28, { align: 'center' })
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(compact ? 7 : 8)
+    pdf.text('SECRETARIA DA EDUCAÇÃO DO ESTADO DA BAHIA', PAGE_WIDTH / 2, compact ? 27 : 33, { align: 'center' })
+  }
+  return compact ? 52 : 65
 }
 
-const addPage = (pdf, crest) => {
+const addPage = (pdf, logo) => {
   pdf.addPage()
-  return drawHeader(pdf, crest, true)
+  return drawHeader(pdf, logo, true)
 }
 
-const makeWriter = (pdf, crest) => {
-  let y = drawHeader(pdf, crest)
+const makeWriter = (pdf, logo, autoTable) => {
+  let y = drawHeader(pdf, logo)
 
   const ensure = (height = 10) => {
     if (y + height <= PAGE_HEIGHT - 23) return
-    y = addPage(pdf, crest)
+    y = addPage(pdf, logo)
   }
 
   const heading = (value, level = 1) => {
@@ -232,10 +253,11 @@ export const getAttendanceParticipants = (participants = []) =>
     )
 
 export const createAttendancePdf = async ({ session, participants = [], authorName = '' }) => {
+  const { jsPDF, autoTable } = await loadPdfTools()
   const event = getEventForSession(session)
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
-  const crest = await imageToDataUrl('/brasao-bahia.png')
-  const writer = makeWriter(pdf, crest)
+  const logo = await imageToDataUrl('/logo-mapa-educacao-integral.png')
+  const writer = makeWriter(pdf, logo, autoTable)
   const participantRows = getAttendanceParticipants(participants)
   const eventDate = parseEventDate(event.date) || toDate(session?.launchedAt)
   const eventDateLabel = text(event.date) || formatDate(eventDate)
@@ -292,24 +314,20 @@ const responseEntries = (slide, responses, participantMap) =>
     })
 
 export const createMinutesPdf = async ({ session, responses = [], participants = [], authorName = '' }) => {
+  const { jsPDF, autoTable } = await loadPdfTools()
   const event = getEventForSession(session)
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
-  const crest = await imageToDataUrl('/brasao-bahia.png')
-  const writer = makeWriter(pdf, crest)
+  const logo = await imageToDataUrl('/logo-mapa-educacao-integral.png')
+  const writer = makeWriter(pdf, logo, autoTable)
   const slides = Array.isArray(session?.slides) ? session.slides : []
   const participantRows = getAttendanceParticipants(participants)
   const participantMap = new Map(participantRows.map((entry) => [text(entry.participantId), entry]))
   const eventDate = parseEventDate(event.date) || toDate(session?.launchedAt)
   const openingDate = formatDate(eventDate)
-  const eventDateLabel = text(event.date) || openingDate
-  const eventTimeLabel = text(event.time) || 'horário não informado'
-
-  writer.centeredTitle('Frente Baiana pela Educação de Qualidade Socialmente Referenciada')
-  writer.paragraph(event.title, { bold: true, size: 11, after: 1 })
+  writer.centeredTitle('CARTA PARA EDUCAÇÃO INTEGRAL E INTEGRADA PARA O DESENVOLVIMENTO ECONÔMICO E SOCIAL DA BAHIA')
   writer.paragraph('À Secretaria da Educação do Estado da Bahia,')
-  writer.paragraph(`Data do evento: ${eventDateLabel}. Horário: ${eventTimeLabel}. Local: ${event.location}.`)
   writer.paragraph(
-    `Aos ${openingDate}, no ${event.location}, realizou-se o evento “${event.title}”, promovido pela ${event.organizer}, no período previsto de ${eventTimeLabel}. Esta ata registra, em forma de carta e sem substituição das manifestações por sínteses automáticas, o desenvolvimento do encontro e as contribuições enviadas pela plataforma interativa.`,
+    `Aos ${openingDate}, no ${event.location}, realizou-se o evento “${event.title}”, promovido pela ${event.organizer}. Este documento registra, em forma de carta e sem substituição das manifestações por sínteses automáticas, o desenvolvimento do encontro e as contribuições enviadas pela plataforma interativa.`,
   )
   if (event.objective) writer.paragraph(`O objetivo do encontro foi ${event.objective.toLocaleLowerCase('pt-BR')}`)
   writer.paragraph(`A metodologia adotada consistiu em ${event.methodology.toLocaleLowerCase('pt-BR')}`)
@@ -329,7 +347,8 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
     `Ao longo da sessão, foram recebidas ${responses.length} contribuição${responses.length === 1 ? '' : 'ões'} distribuída${responses.length === 1 ? '' : 's'} entre ${slides.length} pergunta${slides.length === 1 ? '' : 's'}. As manifestações foram preservadas abaixo em sua forma literal para conferência e validação pela Secretaria.`,
   )
 
-  slides.forEach((slide, index) => {
+  let renderedResponses = 0
+  for (const [index, slide] of slides.entries()) {
     const slideResponses = responseEntries(slide, responses, participantMap)
     writer.paragraph(
       `Na ${index + 1}ª pergunta, “${text(slide.question)}”, foram registradas ${slideResponses.length} contribuição${slideResponses.length === 1 ? '' : 'ões'}.`,
@@ -337,17 +356,19 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
     )
     if (!slideResponses.length) {
       writer.paragraph('Não houve resposta registrada para esta etapa.')
-      return
+      continue
     }
-    slideResponses.forEach((entry) => {
+    for (const entry of slideResponses) {
       const institution = entry.participantInstitution ? `, vinculado a ${entry.participantInstitution}` : ''
       writer.paragraph(
         `${entry.participantName}${institution} registrou a seguinte contribuição: “${entry.value}”.`,
       )
-    })
-  })
+      renderedResponses += 1
+      if (renderedResponses % PDF_RENDER_YIELD_EVERY === 0) await yieldToBrowser()
+    }
+  }
   writer.paragraph(
-    'As contribuições apresentadas foram organizadas nas dimensões de desafios identificados, prioridades estratégicas e proposições para o futuro, conforme o documento-base do seminário. O conteúdo registrado nesta ata constitui a fonte literal para a leitura, sistematização e validação pela Secretaria.',
+    'As contribuições apresentadas foram organizadas nas dimensões de desafios identificados, prioridades estratégicas e proposições para o futuro, conforme o documento-base do seminário. O conteúdo registrado neste documento constitui a fonte literal para a leitura, sistematização e validação pela Secretaria.',
   )
   if (event.schools.length) {
     writer.paragraph(
@@ -355,11 +376,10 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
     )
   }
   writer.paragraph(
-    `Nada mais havendo a registrar, esta ata é encaminhada para conferência da Secretaria da Educação do Estado da Bahia, complementação de informações e assinatura, quando cabível.`,
+    `Nada mais havendo a registrar, esta carta é encaminhada para conferência da Secretaria da Educação do Estado da Bahia, complementação de informações e assinatura, quando cabível.`,
   )
   writer.paragraph('Atenciosamente,')
   writer.paragraph(text(authorName) || 'Responsável pela lavratura')
-  writer.paragraph(`Documento gerado para a sessão ${text(session?.code) || 'sem código'}, com brasão do Estado da Bahia e registros coletados pelo CloudSpeak.`, { size: 7.5 })
 
   writer.paragraph('Participantes com presença registrada pelo QR Code específico de presença:', { bold: true })
   writer.paragraph(
@@ -390,7 +410,7 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
 export const downloadMinutesPdf = async (options) => {
   const pdf = await createMinutesPdf(options)
   const code = text(options?.session?.code) || 'evento'
-  pdf.save(`ata-${code.toLowerCase()}.pdf`)
+  pdf.save(`carta-${code.toLowerCase()}.pdf`)
   return pdf
 }
 

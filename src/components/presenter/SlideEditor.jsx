@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { AlignCenter, AlignLeft, Palette, Plus, Trash2, X } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, Palette, Plus, Trash2, X } from 'lucide-react'
 import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
 import { createTeamDraft } from '../../lib/validators'
 import {
@@ -8,7 +8,9 @@ import {
   SLIDE_LAYOUT_OPTIONS,
   SLIDE_STYLE_OPTIONS,
   SLIDE_TITLE_CASE_OPTIONS,
+  SLIDE_TITLE_ALIGN_OPTIONS,
   SLIDE_TITLE_SIZE_OPTIONS,
+  SLIDE_TITLE_WIDTH_OPTIONS,
 } from '../../lib/slideStyles'
 
 export default function SlideEditor({
@@ -262,6 +264,43 @@ function SlideStyleControls({ style, onChange }) {
                   {size.label}
                 </button>
               ))}
+            </div>
+          </div>
+          <div>
+            <span className="slide-style-label">Largura da pergunta</span>
+            <div className="slide-type-option-list">
+              {SLIDE_TITLE_WIDTH_OPTIONS.map((width) => (
+                <button
+                  key={width.id}
+                  type="button"
+                  aria-pressed={style.titleWidth === width.id}
+                  className={style.titleWidth === width.id ? 'slide-type-option--active' : ''}
+                  onClick={() => onChange({ ...style, titleWidth: width.id })}
+                >
+                  {width.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <span className="slide-style-label">Alinhamento do texto</span>
+            <div className="slide-type-option-list">
+              {SLIDE_TITLE_ALIGN_OPTIONS.map((align) => {
+                const Icon = align.id === 'center' ? AlignCenter : align.id === 'right' ? AlignRight : AlignLeft
+                return (
+                  <button
+                    key={align.id}
+                    type="button"
+                    aria-label={align.label}
+                    title={align.label}
+                    aria-pressed={style.titleAlign === align.id}
+                    className={style.titleAlign === align.id ? 'slide-type-option--active' : ''}
+                    onClick={() => onChange({ ...style, titleAlign: align.id })}
+                  >
+                    <Icon size={13} />
+                  </button>
+                )
+              })}
             </div>
           </div>
           <div>

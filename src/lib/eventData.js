@@ -12,8 +12,7 @@ const guidedQuestions = [
 
 export const EDUCATION_EVENT = {
   key: EDUCATION_EVENT_KEY,
-  title: 'Educação Integral e Integrada para o Desenvolvimento Econômico e Social da Bahia',
-  shortTitle: 'Seminário Educação Integral Integrada',
+  title: 'Educação Integral e integrada para o desenvolvimento econômico e social da Bahia',
   date: '15/09/2026',
   time: '13 às 17 horas',
   location: 'Auditório da SEC',
@@ -142,7 +141,7 @@ export const EDUCATION_EVENT = {
     { name: 'Valuza Saraiva', municipality: 'Salvador' },
   ],
   coordinatorSourceNote:
-    'A planilha informa “9 coordenadoras” no cabeçalho, mas contém 8 nomes preenchidos; a ata lista somente os nomes efetivamente fornecidos.',
+    'A planilha informa “9 coordenadoras” no cabeçalho, mas contém 8 nomes preenchidos; o documento lista somente os nomes efetivamente fornecidos.',
 }
 
 const openQuestion = (question) => ({ ...createSlideDraft('open_text'), question })

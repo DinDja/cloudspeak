@@ -1,13 +1,23 @@
 import { SLIDE_TYPES } from '../../lib/constants'
 import { getSlideStyleClass, getSlideThemeVars } from '../../lib/slideStyles'
+import EducationWatermark from './EducationWatermark'
 
-export default function SlideThumbnail({ slide, className = '', compact = false, index = 0, total = 1 }) {
+export default function SlideThumbnail({
+  slide,
+  className = '',
+  compact = false,
+  index = 0,
+  total = 1,
+  eventKey = null,
+  presentationTitle = '',
+}) {
   return (
     <div
-      className={`slide-print ${getSlideStyleClass(slide)} ${compact ? 'slide-print--compact' : ''} ${className}`}
+      className={`slide-print relative ${getSlideStyleClass(slide)} ${compact ? 'slide-print--compact' : ''} ${className}`}
       style={getSlideThemeVars(slide)}
     >
-      <div className="slide-print__inner">
+      <EducationWatermark eventKey={eventKey} presentationTitle={presentationTitle} />
+      <div className="slide-print__inner relative z-10">
         <div className="slide-print__top">
           <span>Fala SEC</span>
           <span>{SLIDE_TYPES[slide?.type]?.label || 'Apresentação'}</span>

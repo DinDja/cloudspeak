@@ -4,7 +4,9 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocFromServer,
   getDocs,
+  getDocsFromServer,
   onSnapshot,
   orderBy,
   query,
@@ -58,6 +60,29 @@ export const getParticipants = async (code) => {
 
 export const getParticipantsWithRetry = (code) => retryFirestoreOperation(() => getParticipants(code))
 
+export const getResponses = async (code) => {
+  const snapshot = await getDocs(responsesRef(code))
+  return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
+}
+
+export const getResponsesWithRetry = (code) => retryFirestoreOperation(() => getResponses(code))
+
+export const getSessionReportSnapshot = async (code) => {
+  const [sessionSnapshot, responsesSnapshot, participantsSnapshot] = await Promise.all([
+    getDocFromServer(sessionRef(code)),
+    getDocsFromServer(responsesRef(code)),
+    getDocsFromServer(participantsRef(code)),
+  ])
+  return {
+    session: sessionSnapshot.exists() ? { id: sessionSnapshot.id, ...sessionSnapshot.data() } : null,
+    responses: responsesSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+    participants: participantsSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+  }
+}
+
+export const getSessionReportSnapshotWithRetry = (code) =>
+  retryFirestoreOperation(() => getSessionReportSnapshot(code))
+
 export const createSession = async ({ code, title, slides, ownerUid, ownerEmail, presentationId, eventKey = null }) => {
   const payload = {
     code,
@@ -89,12 +114,6 @@ export const launchPresentationAsSession = async ({ presentation, ownerUid, owne
     eventKey: presentation.eventKey ?? null,
   })
   return code
-}
-
-export const endSession = async (code) => {
-  const endedAt = new Date()
-  await updateDoc(sessionRef(code), { status: 'ended', endedAt: serverTimestamp(), updatedAt: serverTimestamp() })
-  return endedAt
 }
 
 export const goNextSlide = (session) => {
@@ -211,10 +230,14 @@ export const subscribeSession = (code, onNext, onError) =>
     onNext({ id: snapshot.id, ...snapshot.data() })
   }, onError)
 
-export const subscribeResponses = (code, onNext, onError) =>
-  onSnapshot(query(responsesRef(code), orderBy('createdAt', 'desc')), (snapshot) => {
+export const subscribeResponses = (code, onNext, onError, slideId = '') => {
+  const source = slideId
+    ? query(responsesRef(code), where('slideId', '==', slideId))
+    : query(responsesRef(code), orderBy('createdAt', 'desc'))
+  return onSnapshot(source, (snapshot) => {
     onNext(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })))
   }, onError)
+}
 
 export const subscribeParticipants = (code, onNext, onError) =>
   onSnapshot(participantsRef(code), (snapshot) => {

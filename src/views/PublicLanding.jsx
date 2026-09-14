@@ -195,7 +195,7 @@ export default function PublicLanding({
               </>
             )}
             <button type="submit" disabled={!canJoin || loading} className="fala-button join-submit">
-              {loading ? 'Conectando…' : initialAttendance ? 'Registrar presença e entrar' : 'Entrar na apresentação'}
+              {loading ? 'Conectando…' : initialAttendance ? 'Registrar presença' : 'Entrar na apresentação'}
               <ArrowRight size={20} />
             </button>
             {error && (
@@ -206,7 +206,7 @@ export default function PublicLanding({
           </form>
           <p className="join-note">
             {initialAttendance
-              ? 'Nome e instituição são obrigatórios. O registro será usado na ata e na lista de frequência do evento.'
+              ? 'Nome e instituição são obrigatórios. O registro será usado no documento e na lista de frequência do evento.'
               : 'Para participar, você não precisa criar uma conta.'}
           </p>
         </section>

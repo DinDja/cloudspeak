@@ -1,7 +1,7 @@
 import SlideThumbnail from './SlideThumbnail'
 import { getSlideStyleClass, getSlideThemeVars } from '../../lib/slideStyles'
 
-export default function SlideCanvas({ slide, index, total, mode = 'stage' }) {
+export default function SlideCanvas({ slide, index, total, mode = 'stage', eventKey = null, presentationTitle = '' }) {
   if (!slide)
     return (
       <div className="slide-print">
@@ -35,5 +35,13 @@ export default function SlideCanvas({ slide, index, total, mode = 'stage' }) {
         )}
       </div>
     )
-  return <SlideThumbnail slide={slide} index={index} total={total} />
+  return (
+    <SlideThumbnail
+      slide={slide}
+      index={index}
+      total={total}
+      eventKey={eventKey}
+      presentationTitle={presentationTitle}
+    />
+  )
 }

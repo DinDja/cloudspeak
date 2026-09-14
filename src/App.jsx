@@ -12,7 +12,6 @@ import {
   describeFirebaseError,
 } from './lib/validators'
 import {
-  endSession,
   getSessionWithRetry,
   launchPresentationAsSession,
   submitResponse,
@@ -22,6 +21,8 @@ import { deletePresentation, duplicatePresentation } from './lib/firebasePresent
 import { TEMPLATE_BY_ID } from './lib/templates'
 import { isAttendanceInstitution, OTHER_ATTENDANCE_INSTITUTION } from './lib/eventData'
 import { FullPageLoader } from './components/ui/Spinner'
+import Logo from './components/ui/Logo'
+import ConversationArtwork from './components/ui/ConversationArtwork'
 import PublicLanding from './views/PublicLanding'
 import LoginView from './views/LoginView'
 import RegisterView from './views/RegisterView'
@@ -62,7 +63,12 @@ export default function App() {
     next,
     previous,
     retry: retrySession,
-  } = useSession(sessionCode)
+  } = useSession(sessionCode, {
+    includeResponses: route === 'host' || route === 'participant',
+    includeParticipants: route === 'host',
+    responseSlideId: route === 'participant' ? requestedSlideId : '',
+    responsesScope: route === 'participant' ? 'current-slide' : 'all',
+  })
   const { reactions } = useReactions(route === 'host' ? sessionCode : '')
 
   const { error: presenceError, retry: retryPresence } = usePresence({
@@ -213,6 +219,12 @@ export default function App() {
           attendance: true,
           includeJoinedAt: true,
         })
+        setSessionCode(code)
+        setParticipantName(normalizedName)
+        setParticipantInstitution(finalInstitution)
+        setAttendanceMode(false)
+        setRoute('attendance')
+        return
       }
       if (requestedSlideId && !found.slides?.some((slide) => slide.id === requestedSlideId)) {
         setRequestedSlideId('')
@@ -227,11 +239,6 @@ export default function App() {
     } finally {
       setJoining(false)
     }
-  }
-
-  const handleFinalizeSession = async () => {
-    if (sessionCode) return endSession(sessionCode)
-    return null
   }
 
   const handlePresent = async (presentation) => {
@@ -419,7 +426,6 @@ export default function App() {
           onExit={leaveHost}
           allResponses={responses}
           participants={participants}
-          onFinalize={handleFinalizeSession}
         />
         {globalError && <GlobalToast message={globalError} />}
         {(sessionError || presenceError) && (
@@ -480,6 +486,10 @@ export default function App() {
     )
   }
 
+  if (view === 'attendance') {
+    return <AttendanceConfirmation name={participantName} onExit={goPublic} />
+  }
+
   return (
     <PublicLanding
       initialCode={prefilledCode}
@@ -489,6 +499,33 @@ export default function App() {
       loading={joining}
       error={joinError}
     />
+  )
+}
+
+function AttendanceConfirmation({ name, onExit }) {
+  return (
+    <div className="fala-app public-page">
+      <header className="public-header">
+        <Logo />
+      </header>
+      <main className="public-main">
+        <section className="public-entry" aria-labelledby="attendance-confirmed-title">
+          <p className="fala-eyebrow">PRESENÇA REGISTRADA</p>
+          <h1 id="attendance-confirmed-title" className="public-title">
+            Obrigado,
+            <br />
+            <span>{name || 'participante'}.</span>
+          </h1>
+          <p className="public-intro">
+            Sua presença foi registrada com sucesso na lista do evento.
+          </p>
+          <button type="button" className="fala-button join-submit" onClick={onExit}>
+            Concluir
+          </button>
+        </section>
+        <ConversationArtwork />
+      </main>
+    </div>
   )
 }
 

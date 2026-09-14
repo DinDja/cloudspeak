@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { CheckCircle2, Download, FileText, Loader2, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, Download, FileText, ShieldCheck } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { downloadAttendancePdf, downloadMinutesPdf, getAttendanceParticipants } from '../../lib/eventMinutes'
-import { getParticipantsWithRetry } from '../../lib/firebaseSessions'
+import {
+  getParticipantsWithRetry,
+  getSessionReportSnapshotWithRetry,
+} from '../../lib/firebaseSessions'
 
 export default function MinutesReportModal({
   open,
   session,
   responses,
   participants,
-  onFinalize,
   onClose,
 }) {
   const [authorName, setAuthorName] = useState('')
@@ -32,25 +34,29 @@ export default function MinutesReportModal({
     }
   }
 
-  const download = async (finalize) => {
+  const download = async () => {
     setBusy(true)
     setError('')
     try {
-      const endedAt = finalize ? await onFinalize?.() : null
-      const reportSession = endedAt ? { ...session, endedAt } : session
+      let reportSession = session
+      let reportResponses = responses
       let reportParticipants = participants
       if (session?.code) {
-        try {
-          reportParticipants = await getParticipantsWithRetry(session.code)
-        } catch (participantError) {
-          console.error('participants refresh failed', participantError)
-        }
+        const latest = await getSessionReportSnapshotWithRetry(session.code)
+        reportSession = latest.session ?? session
+        reportResponses = latest.responses
+        reportParticipants = latest.participants
       }
-      await downloadMinutesPdf({ session: reportSession, responses, participants: reportParticipants, authorName })
-      setCompleted(finalize)
+      await downloadMinutesPdf({
+        session: reportSession,
+        responses: reportResponses,
+        participants: reportParticipants,
+        authorName,
+      })
+      setCompleted(true)
     } catch (err) {
       console.error('minutes report failed', err)
-      setError(err.message || 'Não foi possível gerar a ata. Tente novamente.')
+      setError(err.message || 'Não foi possível gerar o documento. Tente novamente.')
     } finally {
       setBusy(false)
     }
@@ -67,9 +73,9 @@ export default function MinutesReportModal({
       {completed ? (
         <div className="py-6 text-center">
           <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
-          <h2 className="mt-4 text-2xl font-semibold text-slate-900">Ata gerada com sucesso</h2>
+          <h2 className="mt-4 text-2xl font-semibold text-slate-900">Documento gerado com sucesso</h2>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
-            A sessão foi encerrada, o PDF foi baixado e contém a frequência, a programação e todas as respostas literais.
+            O PDF foi baixado com a frequência, a programação e todas as respostas literais disponíveis no momento da geração. A sessão continua ativa.
           </p>
           {error && <p className="fala-error mx-auto mt-4 max-w-md" role="alert">{error}</p>}
           <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -90,9 +96,9 @@ export default function MinutesReportModal({
             </div>
             <div>
               <p className="fala-eyebrow">DOCUMENTO INSTITUCIONAL</p>
-              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Encerrar e gerar ata</h2>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Gerar documento atualizado</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                O PDF será montado com o brasão do Estado, a estrutura formal da ata, a lista de frequência e cada resposta recebida.
+                O PDF será montado com a logo institucional do documento-base, a lista de frequência e cada resposta recebida.
               </p>
             </div>
           </div>
@@ -104,7 +110,7 @@ export default function MinutesReportModal({
           </div>
 
           <label className="editor-field mt-6">
-            <span>Nome de quem lavrará a ata <em>(opcional)</em></span>
+            <span>Nome da pessoa responsável <em>(opcional)</em></span>
             <input
               className="fala-input"
               value={authorName}
@@ -118,7 +124,7 @@ export default function MinutesReportModal({
           <div className="mt-5 flex gap-3 border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
             <p>
-              A ata preserva as respostas como foram enviadas. A conferência final pelo secretário continua necessária antes de assinatura ou protocolo.
+              O documento preserva as respostas como foram enviadas. A conferência final pelo secretário continua necessária antes de assinatura ou protocolo.
             </p>
           </div>
 
@@ -129,13 +135,9 @@ export default function MinutesReportModal({
               <Download size={15} />
               Lista de presença (PDF)
             </button>
-            <button type="button" className="fala-button fala-button--secondary" disabled={busy} onClick={() => download(false)}>
+            <button type="button" className="fala-button" disabled={busy} onClick={download}>
               <Download size={15} />
-              Baixar rascunho
-            </button>
-            <button type="button" className="fala-button" disabled={busy} onClick={() => download(true)}>
-              {busy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-              {busy ? 'Gerando…' : 'Encerrar e baixar ata final'}
+              {busy ? 'Gerando…' : 'Baixar documento atualizado'}
             </button>
           </div>
         </>

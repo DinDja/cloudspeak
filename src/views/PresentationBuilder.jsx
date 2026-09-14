@@ -189,7 +189,12 @@ export default function PresentationBuilder({ initialPresentation, onBack, onPre
                 aria-label={`Selecionar slide ${index + 1}`}
                 onClick={() => setSelectedId(slide.id)}
               >
-                <SlideThumbnail slide={slide} compact />
+                <SlideThumbnail
+                  slide={slide}
+                  compact
+                  eventKey={draft.eventKey}
+                  presentationTitle={draft.title}
+                />
                 <span className="builder-rail__label">
                   <span>{String(index + 1).padStart(2, '0')}</span>
                   <span>{slide.id === selectedSlide.id ? 'Em edição' : 'Slide'}</span>
@@ -255,6 +260,8 @@ export default function PresentationBuilder({ initialPresentation, onBack, onPre
               index={selectedIndex}
               total={draft.slides.length}
               mode={previewMode}
+              eventKey={draft.eventKey}
+              presentationTitle={draft.title}
             />
             <p className="builder-stage__caption">
               Prévia do conteúdo · As respostas chegam ao abrir a apresentação.

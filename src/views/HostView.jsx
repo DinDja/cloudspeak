@@ -32,6 +32,7 @@ import TeamSelectionResults from '../components/slides/TeamSelectionResults'
 import MinutesReportModal from '../components/host/MinutesReportModal'
 import { downloadAttendancePdf } from '../lib/eventMinutes'
 import { getParticipantsWithRetry } from '../lib/firebaseSessions'
+import EducationWatermark from '../components/presenter/EducationWatermark'
 
 const REACTION_ICON = {
   heart: Heart,
@@ -59,7 +60,6 @@ export default function HostView({
   onExit,
   allResponses = responses,
   participants = [],
-  onFinalize,
 }) {
   const joinUrl = useMemo(() => getJoinUrl(session.code), [session.code])
   const presenceUrl = useMemo(() => getPresenceUrl(session.code), [session.code])
@@ -94,7 +94,7 @@ export default function HostView({
 
   return (
     <>
-      <div className="relative grid h-[100dvh] grid-cols-1 overflow-hidden bg-[#f6f4ef] font-sans text-[#17181d] lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="host-layout relative grid h-[100dvh] grid-cols-1 overflow-hidden bg-[#f6f4ef] font-sans text-[#17181d] lg:grid-cols-[minmax(0,1fr)_360px]">
         <BackgroundAurora />
 
         <main className="relative z-10 flex h-full min-w-0 flex-col overflow-hidden">
@@ -107,10 +107,14 @@ export default function HostView({
           />
 
           <section
-            className={`host-stage ${slideStyleClass} relative flex flex-1 items-center justify-center overflow-hidden px-4 py-6 sm:px-6 sm:py-8`}
+            className={`host-stage ${slideStyleClass} relative flex min-h-0 flex-1 items-center justify-start overflow-x-hidden overflow-y-auto px-4 py-6 sm:px-6 sm:py-8`}
             style={slideThemeVars}
           >
-            <div className="w-full max-w-5xl text-center">
+            <EducationWatermark
+              eventKey={session.eventKey}
+              presentationTitle={session.title}
+            />
+            <div className="mx-auto my-auto w-full max-w-5xl text-center">
               <button
                 type="button"
                 onClick={() => setFullscreenSlide(true)}
@@ -146,7 +150,7 @@ export default function HostView({
                             : 'Etapa'}
                   </Motion.p>
 
-                  <Motion.h1 className="host-stage__question mx-auto max-w-4xl px-2 font-display uppercase text-3xl font-semibold leading-[1.08] tracking-tight sm:text-4xl md:text-5xl lg:text-6xl">
+                  <Motion.h1 className="host-stage__question mx-auto px-2 font-display uppercase text-3xl font-semibold leading-[1.08] tracking-tight sm:text-4xl md:text-5xl lg:text-6xl">
                     {currentSlide?.question}
                   </Motion.h1>
 
@@ -212,6 +216,10 @@ export default function HostView({
             className={`host-stage ${slideStyleClass} relative flex h-full w-full max-w-7xl flex-col items-center justify-center gap-4 sm:gap-6`}
             style={slideThemeVars}
           >
+            <EducationWatermark
+              eventKey={session.eventKey}
+              presentationTitle={session.title}
+            />
             <button
               type="button"
               onClick={() => setFullscreenSlide(false)}
@@ -240,7 +248,7 @@ export default function HostView({
               <Motion.h1
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="host-stage__question mx-auto max-w-5xl px-4 font-display uppercase text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
+                className="host-stage__question mx-auto px-4 font-display uppercase text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
               >
                 {currentSlide?.question}
               </Motion.h1>
@@ -278,7 +286,6 @@ export default function HostView({
         session={session}
         responses={allResponses}
         participants={participants}
-        onFinalize={onFinalize}
         onClose={() => setReportOpen(false)}
       />
     </>
@@ -305,7 +312,7 @@ function TopSessionBar({ code, sessionTitle, onExit, connectedParticipants, resp
     }
   }
   return (
-    <header className="relative z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-5 sm:py-3 lg:px-7 lg:py-4">
+    <header className="host-topbar relative z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-5 sm:py-3 lg:px-7 lg:py-4">
       <div className="flex items-center gap-2">
         <span className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-emerald-700 sm:px-3 sm:py-1.5 sm:text-xs">
           <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
@@ -455,7 +462,7 @@ function SidePanel({
 
   return (
     <>
-      <aside className="relative z-20 hidden h-full min-h-0 w-full max-w-[360px] flex-col gap-3 overflow-y-auto border-l border-slate-200 bg-white p-3 sm:gap-4 sm:p-5 cs-scroll-thin lg:flex">
+      <aside className="host-side-panel relative z-20 hidden h-full min-h-0 w-full max-w-[360px] flex-col gap-3 overflow-y-auto border-l border-slate-200 bg-white p-3 sm:gap-4 sm:p-5 cs-scroll-thin lg:flex">
         <section className="relative shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
           <div className="flex items-center justify-between">
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 sm:text-[10px]">
@@ -672,7 +679,7 @@ function EventQrTools({
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100"
         >
           <FileText className="h-4 w-4" />
-          Encerrar e gerar ata
+          Gerar documento atualizado
         </button>
         <button
           type="button"

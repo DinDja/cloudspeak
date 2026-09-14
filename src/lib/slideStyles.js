@@ -3,6 +3,8 @@ export const DEFAULT_SLIDE_STYLE = Object.freeze({
   layout: 'editorial',
   font: 'dm-sans',
   titleSize: 'large',
+  titleWidth: 'wide',
+  titleAlign: 'center',
   titleCase: 'uppercase',
 })
 
@@ -143,6 +145,19 @@ export const SLIDE_TITLE_SIZE_OPTIONS = [
   { id: 'display', label: 'Destaque', scale: 1.18 },
 ]
 
+export const SLIDE_TITLE_WIDTH_OPTIONS = [
+  { id: 'narrow', label: 'Estreita', width: '62%' },
+  { id: 'wide', label: 'Ampla', width: '78%' },
+  { id: 'wider', label: 'Extra ampla', width: '92%' },
+  { id: 'full', label: 'Tela inteira', width: '100%' },
+]
+
+export const SLIDE_TITLE_ALIGN_OPTIONS = [
+  { id: 'left', label: 'Esquerda' },
+  { id: 'center', label: 'Centro' },
+  { id: 'right', label: 'Direita' },
+]
+
 export const SLIDE_TITLE_CASE_OPTIONS = [
   { id: 'sentence', label: 'Frase' },
   { id: 'uppercase', label: 'Maiúsculas' },
@@ -152,6 +167,8 @@ const themesById = new Map(SLIDE_STYLE_OPTIONS.map((theme) => [theme.id, theme])
 const layoutsById = new Map(SLIDE_LAYOUT_OPTIONS.map((layout) => [layout.id, layout]))
 const fontsById = new Map(SLIDE_FONT_OPTIONS.map((font) => [font.id, font]))
 const titleSizesById = new Map(SLIDE_TITLE_SIZE_OPTIONS.map((size) => [size.id, size]))
+const titleWidthsById = new Map(SLIDE_TITLE_WIDTH_OPTIONS.map((width) => [width.id, width]))
+const titleAlignsById = new Map(SLIDE_TITLE_ALIGN_OPTIONS.map((align) => [align.id, align]))
 const titleCasesById = new Map(SLIDE_TITLE_CASE_OPTIONS.map((titleCase) => [titleCase.id, titleCase]))
 
 export const normalizeSlideStyle = (style) => ({
@@ -159,6 +176,8 @@ export const normalizeSlideStyle = (style) => ({
   layout: layoutsById.has(style?.layout) ? style.layout : DEFAULT_SLIDE_STYLE.layout,
   font: fontsById.has(style?.font) ? style.font : DEFAULT_SLIDE_STYLE.font,
   titleSize: titleSizesById.has(style?.titleSize) ? style.titleSize : DEFAULT_SLIDE_STYLE.titleSize,
+  titleWidth: titleWidthsById.has(style?.titleWidth) ? style.titleWidth : DEFAULT_SLIDE_STYLE.titleWidth,
+  titleAlign: titleAlignsById.has(style?.titleAlign) ? style.titleAlign : DEFAULT_SLIDE_STYLE.titleAlign,
   titleCase: titleCasesById.has(style?.titleCase) ? style.titleCase : DEFAULT_SLIDE_STYLE.titleCase,
 })
 
@@ -170,6 +189,9 @@ export const getSlideFont = (slide) =>
 
 export const getSlideTitleSize = (slide) =>
   titleSizesById.get(normalizeSlideStyle(slide?.style).titleSize) ?? titleSizesById.get(DEFAULT_SLIDE_STYLE.titleSize)
+
+export const getSlideTitleWidth = (slide) =>
+  titleWidthsById.get(normalizeSlideStyle(slide?.style).titleWidth) ?? titleWidthsById.get(DEFAULT_SLIDE_STYLE.titleWidth)
 
 export const getSlideStyleClass = (slide) => {
   const style = normalizeSlideStyle(slide?.style)
@@ -190,6 +212,8 @@ export const getSlideThemeVars = (slide) => {
     '--slide-title-weight': getSlideFont(slide).weight,
     '--slide-title-letter-spacing': getSlideFont(slide).letterSpacing,
     '--slide-title-scale': getSlideTitleSize(slide).scale,
+    '--slide-title-width': getSlideTitleWidth(slide).width,
+    '--slide-title-align': normalizeSlideStyle(slide?.style).titleAlign,
     '--slide-title-transform': normalizeSlideStyle(slide?.style).titleCase === 'uppercase' ? 'uppercase' : 'none',
   }
 }
