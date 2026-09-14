@@ -36,6 +36,58 @@ export default function PresenterDashboard(props) {
   )
 }
 
+function SessionList({ sessions, selectedSessionCodes, onToggle, onResume, onDelete }) {
+  return (
+    <div className="ml-4 border-l-2 border-slate-200 pl-4 sm:ml-10">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          Seções desta apresentação
+        </p>
+        <span className="text-xs text-slate-400">{sessions.length}</span>
+      </div>
+      <div className="space-y-2">
+        {sessions.map((session) => (
+          <div key={session.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={selectedSessionCodes.includes(session.code)}
+                onChange={() => onToggle(session.code)}
+                aria-label={`Selecionar seção ${session.code}`}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+              />
+              <Radio size={15} className={session.status === 'live' ? 'text-emerald-600' : 'text-slate-400'} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-800">
+                  Código <span className="tracking-[0.18em]">{session.code}</span>
+                </p>
+                <p className="text-xs text-slate-500">
+                  {session.status === 'live' ? 'Ao vivo' : 'Encerrada'} · {formatRelativeDate(session.createdAt)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {session.status === 'live' && (
+                <button type="button" className="fala-button fala-button--secondary" onClick={() => onResume(session.code)}>
+                  Retomar seção <ArrowRight size={15} />
+                </button>
+              )}
+              <button
+                type="button"
+                className="fala-button fala-button--danger"
+                aria-label={`Apagar seção ${session.code}`}
+                onClick={() => onDelete(session)}
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function DashboardContent({
   presentations,
   loading,
@@ -55,12 +107,16 @@ export function DashboardContent({
   onLogout,
 }) {
   const [query, setQuery] = useState('')
+  const [sessionPickerTarget, setSessionPickerTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleteSessionTarget, setDeleteSessionTarget] = useState(null)
+  const [deleteSessionTargets, setDeleteSessionTargets] = useState([])
+  const [selectedSessionCodes, setSelectedSessionCodes] = useState([])
   const [deleting, setDeleting] = useState(false)
   const [deletingSession, setDeletingSession] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState('')
+  const allSessionsSelected = sessions.length > 0 && sessions.every((session) => selectedSessionCodes.includes(session.code))
+  const orphanSessions = sessions.filter((session) => !presentations.some((presentation) => presentation.id === session.presentationId))
   const filtered = presentations.filter((item) =>
     (item.title || '').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR')),
   )
@@ -93,13 +149,23 @@ export function DashboardContent({
     setDeletingSession(true)
     setActionError('')
     try {
-      await onDeleteSession(deleteSessionTarget)
-      setDeleteSessionTarget(null)
+      await Promise.all(deleteSessionTargets.map((session) => onDeleteSession(session)))
+      setSelectedSessionCodes([])
+      setDeleteSessionTargets([])
     } catch (err) {
       setActionError(err.message || 'Não foi possível apagar a seção. Tente novamente.')
     } finally {
       setDeletingSession(false)
     }
+  }
+  const createNewSession = (presentation) => runAction(onPresent, presentation)
+  const requestPresentation = (presentation) => {
+    const presentationSessions = sessions.filter((session) => session.presentationId === presentation.id)
+    if (presentationSessions.length) {
+      setSessionPickerTarget({ presentation, sessions: presentationSessions })
+      return
+    }
+    createNewSession(presentation)
   }
 
   return (
@@ -122,69 +188,9 @@ export function DashboardContent({
           Nova apresentação
         </button>
       </div>
-      <section className="mb-10" aria-labelledby="sessions-title">
-        <div className="library-tools">
-          <h2 id="sessions-title">
-            Suas seções <span className="text-xs text-stone-500">/ {sessions.length}</span>
-          </h2>
-          <p className="text-sm text-stone-500">Continue uma seção existente sem gerar outro código.</p>
-        </div>
-        {sessionsLoading ? (
-          <p className="workspace-empty" role="status">Carregando seções…</p>
-        ) : sessionsError ? (
-          <p className="fala-error" role="alert">{sessionsError}</p>
-        ) : sessions.length ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            {sessions.map((session) => (
-              <div key={session.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Radio size={16} className={session.status === 'live' ? 'text-emerald-600' : 'text-slate-400'} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                        {session.status === 'live' ? 'Ao vivo' : 'Encerrada'}
-                      </span>
-                    </div>
-                    <h3 className="mt-2 truncate text-lg font-semibold text-slate-900">{session.title}</h3>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Código <span className="font-bold tracking-[0.18em] text-slate-800">{session.code}</span>
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                    {session.slides?.length ?? 0} seções
-                  </span>
-                </div>
-                <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                  <span className="text-xs text-slate-500">{formatRelativeDate(session.createdAt)}</span>
-                  <div className="flex items-center gap-2">
-                    {session.status === 'live' && (
-                      <button type="button" className="fala-button fala-button--secondary" onClick={() => onResumeSession(session.code)}>
-                        Retomar seção <ArrowRight size={15} />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="fala-button fala-button--danger"
-                      aria-label={`Apagar seção ${session.title}`}
-                      onClick={() => {
-                        setActionError('')
-                        setDeleteSessionTarget(session)
-                      }}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="workspace-empty">As seções criadas aparecerão aqui.</p>
-        )}
-      </section>
       <div className="library-tools">
         <h2>
-          Sua biblioteca <span className="text-xs text-stone-500">/ {presentations.length}</span>
+          Sua biblioteca <span className="text-xs text-stone-500">/ {presentations.length} apresentações · {sessions.length} seções</span>
         </h2>
         <label className="library-search">
           <Search size={16} />
@@ -196,6 +202,35 @@ export function DashboardContent({
           />
         </label>
       </div>
+      {sessionsError && (
+        <p className="fala-error mb-4" role="alert">{sessionsError}</p>
+      )}
+      {sessionsLoading && (
+        <p className="mb-4 text-sm text-stone-500" role="status">Carregando seções salvas…</p>
+      )}
+      {sessions.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+            <input
+              type="checkbox"
+              checked={allSessionsSelected}
+              onChange={() => setSelectedSessionCodes(allSessionsSelected ? [] : sessions.map((session) => session.code))}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600"
+            />
+            Selecionar todas as seções
+          </label>
+          {selectedSessionCodes.length > 0 && (
+            <button
+              type="button"
+              className="fala-button fala-button--danger"
+              onClick={() => setDeleteSessionTargets(sessions.filter((session) => selectedSessionCodes.includes(session.code)))}
+            >
+              <Trash2 size={15} />
+              Apagar selecionadas ({selectedSessionCodes.length})
+            </button>
+          )}
+        </div>
+      )}
       {actionError && !deleteTarget && (
         <p role="alert" className="fala-error">
           {actionError}
@@ -211,21 +246,40 @@ export function DashboardContent({
         </p>
       ) : filtered.length ? (
         <div className="library-list">
-          {filtered.map((presentation) => (
-            <PresentationCard
-              key={presentation.id}
-              presentation={presentation}
-              onEdit={onEdit}
-              onPresent={(item) => runAction(onPresent, item)}
-              onDuplicate={(item) => runAction(onDuplicate, item)}
-              onDelete={(item) => {
-                setActionError('')
-                setDeleteTarget(item)
-              }}
-              formatRelativeDate={formatRelativeDate}
-              busy={busyId === presentation.id}
-            />
-          ))}
+          {filtered.map((presentation) => {
+            const presentationSessions = sessions.filter((session) => session.presentationId === presentation.id)
+            return (
+              <div key={presentation.id} className="space-y-3">
+                <PresentationCard
+                  presentation={presentation}
+                  onEdit={onEdit}
+                  onPresent={requestPresentation}
+                  onNewSession={createNewSession}
+                  onDuplicate={(item) => runAction(onDuplicate, item)}
+                  onDelete={(item) => {
+                    setActionError('')
+                    setDeleteTarget(item)
+                  }}
+                  formatRelativeDate={formatRelativeDate}
+                  busy={busyId === presentation.id}
+                />
+                {presentationSessions.length > 0 && (
+                  <SessionList
+                    sessions={presentationSessions}
+                    selectedSessionCodes={selectedSessionCodes}
+                    onToggle={(code) => setSelectedSessionCodes((current) => current.includes(code)
+                      ? current.filter((item) => item !== code)
+                      : [...current, code])}
+                    onResume={onResumeSession}
+                    onDelete={(session) => {
+                      setActionError('')
+                      setDeleteSessionTargets([session])
+                    }}
+                  />
+                )}
+              </div>
+            )
+          })}
         </div>
       ) : (
         <div className="workspace-empty">
@@ -240,6 +294,26 @@ export function DashboardContent({
             <ArrowRight size={16} />
           </button>
         </div>
+      )}
+      {orphanSessions.length > 0 && (
+        <section className="mt-10" aria-labelledby="orphan-sessions-title">
+          <div className="section-heading">
+            <h2 id="orphan-sessions-title">Seções sem apresentação vinculada</h2>
+            <span className="text-sm text-stone-500">{orphanSessions.length}</span>
+          </div>
+          <SessionList
+            sessions={orphanSessions}
+            selectedSessionCodes={selectedSessionCodes}
+            onToggle={(code) => setSelectedSessionCodes((current) => current.includes(code)
+              ? current.filter((item) => item !== code)
+              : [...current, code])}
+            onResume={onResumeSession}
+            onDelete={(session) => {
+              setActionError('')
+              setDeleteSessionTargets([session])
+            }}
+          />
+        </section>
       )}
       <section className="inspiration" aria-labelledby="inspiration-title">
         <div className="section-heading">
@@ -259,6 +333,56 @@ export function DashboardContent({
           ))}
         </div>
       </section>
+      <Modal
+        open={Boolean(sessionPickerTarget)}
+        onClose={() => setSessionPickerTarget(null)}
+        maxWidth="max-w-lg"
+      >
+        <p className="fala-eyebrow">SEÇÕES DISPONÍVEIS</p>
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+          Como deseja apresentar?
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Escolha uma seção ao vivo para retomar ou crie uma nova seção para esta apresentação.
+        </p>
+        <div className="mt-5 space-y-2">
+          {sessionPickerTarget?.sessions.map((session) => (
+            <div key={session.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-800">
+                  Código <span className="tracking-[0.18em]">{session.code}</span>
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {session.status === 'live' ? 'Ao vivo' : 'Encerrada'} · {formatRelativeDate(session.createdAt)}
+                </p>
+              </div>
+              {session.status === 'live' ? (
+                <button type="button" className="fala-button fala-button--secondary shrink-0" onClick={() => {
+                  setSessionPickerTarget(null)
+                  onResumeSession(session.code)
+                }}>
+                  Retomar seção <ArrowRight size={15} />
+                </button>
+              ) : (
+                <span className="shrink-0 text-xs font-medium text-slate-400">Indisponível</span>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <button type="button" className="fala-button fala-button--secondary" onClick={() => setSessionPickerTarget(null)}>
+            Cancelar
+          </button>
+          <button type="button" className="fala-button" onClick={() => {
+            const presentation = sessionPickerTarget?.presentation
+            setSessionPickerTarget(null)
+            if (presentation) createNewSession(presentation)
+          }}>
+            <Plus size={15} />
+            Nova seção
+          </button>
+        </div>
+      </Modal>
       <Modal
         open={Boolean(deleteTarget)}
         onClose={() => {
@@ -294,14 +418,19 @@ export function DashboardContent({
         </div>
       </Modal>
       <Modal
-        open={Boolean(deleteSessionTarget)}
+        open={deleteSessionTargets.length > 0}
         onClose={() => {
-          if (!deletingSession) setDeleteSessionTarget(null)
+          if (!deletingSession) setDeleteSessionTargets([])
         }}
       >
-        <h2 className="text-xl font-semibold">Apagar seção?</h2>
+        <h2 className="text-xl font-semibold">
+          Apagar {deleteSessionTargets.length === 1 ? 'seção' : 'seções'}?
+        </h2>
         <p className="mt-4 text-sm leading-6 text-stone-600">
-          A seção “{deleteSessionTarget?.title}” e o código {deleteSessionTarget?.code} serão removidos, junto com as respostas e os registros associados. Essa ação não pode ser desfeita.
+          {deleteSessionTargets.length === 1
+            ? `A seção “${deleteSessionTargets[0]?.title}” e o código ${deleteSessionTargets[0]?.code} serão removidos.`
+            : `${deleteSessionTargets.length} seções serão removidas.`}{' '}
+          As respostas e os registros associados também serão apagados. Essa ação não pode ser desfeita.
         </p>
         {actionError && (
           <p className="fala-error" role="alert">
@@ -313,7 +442,7 @@ export function DashboardContent({
             type="button"
             className="fala-button fala-button--secondary"
             disabled={deletingSession}
-            onClick={() => setDeleteSessionTarget(null)}
+            onClick={() => setDeleteSessionTargets([])}
           >
             Cancelar
           </button>
@@ -323,7 +452,7 @@ export function DashboardContent({
             disabled={deletingSession}
             onClick={confirmDeleteSession}
           >
-            {deletingSession ? 'Apagando…' : 'Apagar seção'}
+            {deletingSession ? 'Apagando…' : 'Apagar selecionadas'}
           </button>
         </div>
       </Modal>

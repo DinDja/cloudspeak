@@ -1,8 +1,16 @@
 import { EDUCATION_EVENT, getEventData } from './eventData'
+import { normalizeText } from './validators'
 
 const PAGE_WIDTH = 210
 const PAGE_HEIGHT = 297
-const MARGIN = 20
+const MARGIN_LEFT = 30
+const MARGIN_RIGHT = 20
+const MARGIN_BOTTOM = 20
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
+const CONTENT_BOTTOM = PAGE_HEIGHT - MARGIN_BOTTOM - 7
+const FIRST_LINE_INDENT = 12.5
+const BODY_FONT_SIZE = 12
+const BODY_LINE_HEIGHT = 6.35
 const PDF_RENDER_YIELD_EVERY = 25
 // Keep each literal contribution readable without allowing one oversized value
 // (including legacy or externally-created responses) to dominate the PDF.
@@ -54,7 +62,9 @@ const parseEventDate = (value) => {
   return match ? new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1])) : null
 }
 
-const text = (value) => String(value ?? '').trim()
+// Todas as entradas passam por texto puro: colagens não podem transportar
+// quebras, espaçamento ou qualquer outra formatação para a carta.
+const text = (value) => normalizeText(value).replace(/[→➜⇒⟶↦]/gu, '->')
 
 const limitPdfResponse = (value) => {
   const content = text(value)
@@ -80,6 +90,7 @@ const genericEvent = (session) => ({
   methodology: 'Registro das contribuições coletadas por meio da apresentação interativa.',
   objective: '',
   publicProfile: [],
+  institutions: [],
   program: [],
   guidedQuestions: [],
   schools: [],
@@ -120,28 +131,32 @@ const imageToDataUrl = async (url) => {
   }
 }
 
-const drawFooter = (pdf, pageNumber, totalPages) => {
+const drawFooter = (pdf, pageNumber) => {
   pdf.setDrawColor(215, 218, 215)
-  pdf.line(MARGIN, PAGE_HEIGHT - 15, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 15)
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(7)
+  pdf.line(MARGIN_LEFT, PAGE_HEIGHT - 15, PAGE_WIDTH - MARGIN_RIGHT, PAGE_HEIGHT - 15)
+  pdf.setCharSpace(0)
+  pdf.setFont('times', 'normal')
+  pdf.setFontSize(8)
   pdf.setTextColor(105, 110, 108)
-  pdf.text('Registro eletrônico do evento · CloudSpeak / Secretaria da Educação', MARGIN, PAGE_HEIGHT - 9)
-  pdf.text(`Página ${pageNumber} de ${totalPages}`, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 9, { align: 'right' })
+  pdf.text('Registro eletrônico do evento · CloudSpeak / Secretaria da Educação', MARGIN_LEFT, PAGE_HEIGHT - 9)
+  pdf.setTextColor(0, 0, 0)
+  pdf.setFontSize(10)
+  pdf.text(String(pageNumber), PAGE_WIDTH - MARGIN_RIGHT, 20, { align: 'right' })
 }
 
 const drawHeader = (pdf, logo, compact = false) => {
+  pdf.setCharSpace(0)
   if (logo) {
     const width = compact ? 62 : 80
     const height = compact ? 31 : 40
     pdf.addImage(logo, 'PNG', PAGE_WIDTH / 2 - width / 2, compact ? 7 : 9, width, height)
   } else {
     pdf.setTextColor(28, 34, 31)
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(compact ? 8 : 9)
+    pdf.setFont('times', 'bold')
+    pdf.setFontSize(compact ? 10 : 11)
     pdf.text('ESTADO DA BAHIA', PAGE_WIDTH / 2, compact ? 22 : 28, { align: 'center' })
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(compact ? 7 : 8)
+    pdf.setFont('times', 'normal')
+    pdf.setFontSize(compact ? 9 : 10)
     pdf.text('SECRETARIA DA EDUCAÇÃO DO ESTADO DA BAHIA', PAGE_WIDTH / 2, compact ? 27 : 33, { align: 'center' })
   }
   return compact ? 52 : 65
@@ -156,52 +171,66 @@ const makeWriter = (pdf, logo, autoTable) => {
   let y = drawHeader(pdf, logo)
 
   const ensure = (height = 10) => {
-    if (y + height <= PAGE_HEIGHT - 23) return
+    if (y + height <= CONTENT_BOTTOM) return
     y = addPage(pdf, logo)
   }
 
   const heading = (value, level = 1) => {
     ensure(level === 1 ? 13 : 10)
+    pdf.setCharSpace(0)
     pdf.setTextColor(28, 34, 31)
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(level === 1 ? 11 : 9)
-    const lines = pdf.splitTextToSize(text(value), PAGE_WIDTH - MARGIN * 2)
-    pdf.text(lines, MARGIN, y)
-    y += lines.length * (level === 1 ? 5.2 : 4.5) + 3
+    pdf.setFont('times', 'bold')
+    pdf.setFontSize(level === 1 ? BODY_FONT_SIZE : 11)
+    const lines = pdf.splitTextToSize(text(value), CONTENT_WIDTH)
+    pdf.text(lines, MARGIN_LEFT, y)
+    y += lines.length * (level === 1 ? BODY_LINE_HEIGHT : 5.5) + BODY_LINE_HEIGHT
   }
 
   const paragraph = (value, options = {}) => {
     const content = text(value)
     if (!content) return
     const fontStyle = options.bold ? 'bold' : 'normal'
-    const fontSize = options.size ?? 9.5
+    const fontSize = options.size ?? BODY_FONT_SIZE
     const applyParagraphStyle = () => {
-      pdf.setFont('helvetica', fontStyle)
+      // AutoTable/jsPDF can leave character spacing enabled between draws.
+      // Reset it so literal responses use the same typography as the letter.
+      pdf.setCharSpace(0)
+      pdf.setFont('times', fontStyle)
       pdf.setFontSize(fontSize)
-      pdf.setTextColor(55, 61, 58)
+      pdf.setTextColor(0, 0, 0)
     }
     applyParagraphStyle()
-    const lines = pdf.splitTextToSize(content, options.width ?? PAGE_WIDTH - MARGIN * 2)
-    const lineHeight = options.lineHeight ?? 4.6
-    for (const line of lines) {
+    const width = options.width ?? CONTENT_WIDTH
+    const indent = options.indent ?? FIRST_LINE_INDENT
+    const shouldJustify = options.justify ?? true
+    const lines = pdf.splitTextToSize(content, Math.max(width - indent, 40))
+    const lineHeight = options.lineHeight ?? BODY_LINE_HEIGHT
+    lines.forEach((line, index) => {
       ensure(lineHeight)
       // addPage() reapplies the compact header style; restore the paragraph
       // style before writing the first line on the new page.
       applyParagraphStyle()
-      pdf.text(line, MARGIN, y)
+      const x = MARGIN_LEFT + (index === 0 ? indent : 0)
+      const lineWidth = width - (index === 0 ? indent : 0)
+      const textOptions = shouldJustify && index < lines.length - 1
+        ? { align: 'justify', maxWidth: lineWidth }
+        : { align: 'left', charSpace: 0 }
+      pdf.text(line, x, y, textOptions)
+      pdf.setCharSpace(0)
       y += lineHeight
-    }
-    y += options.after ?? 2
+    })
+    y += options.after ?? 0
   }
 
   const centeredTitle = (value) => {
     ensure(20)
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(16)
-    pdf.setTextColor(28, 34, 31)
-    const lines = pdf.splitTextToSize(text(value).toUpperCase(), PAGE_WIDTH - 45)
+    pdf.setCharSpace(0)
+    pdf.setFont('times', 'bold')
+    pdf.setFontSize(14)
+    pdf.setTextColor(0, 0, 0)
+    const lines = pdf.splitTextToSize(text(value).toUpperCase(), CONTENT_WIDTH)
     pdf.text(lines, PAGE_WIDTH / 2, y + 2, { align: 'center' })
-    y += lines.length * 7 + 4
+    y += lines.length * 7 + BODY_LINE_HEIGHT
   }
 
   const table = (head, body, options = {}) => {
@@ -210,24 +239,24 @@ const makeWriter = (pdf, logo, autoTable) => {
       startY: y,
       head: [head],
       body,
-      margin: { left: MARGIN, right: MARGIN, bottom: 22 },
+      margin: { left: MARGIN_LEFT, right: MARGIN_RIGHT, bottom: MARGIN_BOTTOM },
       theme: 'grid',
       styles: {
-        font: 'helvetica',
-        fontSize: options.fontSize ?? 8,
-        cellPadding: 2.2,
-        textColor: [45, 50, 48],
-        lineColor: [210, 214, 211],
+        font: 'times',
+        fontSize: options.fontSize ?? 10,
+        cellPadding: 1.8,
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
         lineWidth: 0.2,
         overflow: 'linebreak',
         valign: 'top',
       },
       headStyles: {
-        fillColor: [31, 80, 72],
-        textColor: [255, 255, 255],
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
         fontStyle: 'bold',
       },
-      alternateRowStyles: { fillColor: [247, 248, 246] },
+      alternateRowStyles: { fillColor: [255, 255, 255] },
       columnStyles: options.columnStyles,
       didDrawPage: options.didDrawPage,
     })
@@ -304,7 +333,7 @@ export const createAttendancePdf = async ({ session, participants = [], authorNa
   const totalPages = pdf.getNumberOfPages()
   for (let page = 1; page <= totalPages; page += 1) {
     pdf.setPage(page)
-    drawFooter(pdf, page, totalPages)
+    drawFooter(pdf, page)
   }
   return pdf
 }
@@ -334,7 +363,6 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
   const eventDate = parseEventDate(event.date) || toDate(session?.launchedAt)
   const openingDate = formatDate(eventDate)
   writer.centeredTitle('CARTA PARA EDUCAÇÃO INTEGRAL E INTEGRADA PARA O DESENVOLVIMENTO ECONÔMICO E SOCIAL DA BAHIA')
-  writer.paragraph('À Secretaria da Educação do Estado da Bahia,')
   writer.paragraph(
     `Aos ${openingDate}, no ${event.location}, realizou-se o evento “${event.title}”, promovido pela ${event.organizer}. Este documento registra, em forma de carta e sem substituição das manifestações por sínteses automáticas, o desenvolvimento do encontro e as contribuições enviadas pela plataforma interativa.`,
   )
@@ -342,13 +370,13 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
   writer.paragraph(`A metodologia adotada consistiu em ${event.methodology.toLocaleLowerCase('pt-BR')}`)
   if (event.expectedAudience || event.publicProfile.length) {
     writer.paragraph(
-      `O público previsto era de ${event.expectedAudience || 'representantes do ecossistema educacional baiano'}. Foram consideradas as seguintes representações: ${joinNatural(event.publicProfile)}.`,
+      `O público previsto era de ${event.expectedAudience || 'representantes do ecossistema educacional baiano'}. A apresentação ocorreu com a participação de representantes das instituições: ${joinNatural(event.institutions ?? event.publicProfile)}.`,
     )
   }
   if (event.program.length) {
     writer.paragraph(
       `A programação ocorreu da seguinte forma: ${event.program
-        .map((item) => `às ${item.time}, ${item.theme}, com condução de ${item.speakers}`)
+        .map((item) => `às ${item.time}, ${item.theme}, com participação de representantes de ${item.institutions}`)
         .join('; ')}.`,
     )
   }
@@ -359,29 +387,39 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
   let renderedResponses = 0
   for (const [index, slide] of slides.entries()) {
     const slideResponses = responseEntries(slide, responses, participantMap)
+    const questionText = `Na ${index + 1}ª pergunta, “${text(slide.question)}”, foram registradas ${slideResponses.length} contribuição${slideResponses.length === 1 ? '' : 'ões'}.`
+    const contributionText = slideResponses.length
+      ? slideResponses
+          .map((entry) => {
+            const institution = entry.participantInstitution ? `, vinculado a ${entry.participantInstitution}` : ''
+            return `${entry.participantName}${institution} registrou a seguinte contribuição: “${entry.value}”.`
+          })
+          .join(' ')
+      : 'Não houve resposta registrada para esta etapa.'
     writer.paragraph(
-      `Na ${index + 1}ª pergunta, “${text(slide.question)}”, foram registradas ${slideResponses.length} contribuição${slideResponses.length === 1 ? '' : 'ões'}.`,
-      { bold: true },
+      `${questionText} ${contributionText}`,
+      {
+        bold: false,
+        justify: false,
+        size: BODY_FONT_SIZE,
+        lineHeight: BODY_LINE_HEIGHT,
+        indent: FIRST_LINE_INDENT,
+      },
     )
-    if (!slideResponses.length) {
-      writer.paragraph('Não houve resposta registrada para esta etapa.')
-      continue
-    }
-    for (const entry of slideResponses) {
-      const institution = entry.participantInstitution ? `, vinculado a ${entry.participantInstitution}` : ''
-      writer.paragraph(
-        `${entry.participantName}${institution} registrou a seguinte contribuição: “${entry.value}”.`,
-      )
-      renderedResponses += 1
-      if (renderedResponses % PDF_RENDER_YIELD_EVERY === 0) await yieldToBrowser()
-    }
+    renderedResponses += slideResponses.length
+    if (renderedResponses && renderedResponses % PDF_RENDER_YIELD_EVERY === 0) await yieldToBrowser()
+    /*
+     * As perguntas e respostas permanecem no mesmo parágrafo para que a
+     * carta seja lida como narrativa contínua, sem herança de estilo entre
+     * blocos independentes.
+     */
   }
   writer.paragraph(
     'As contribuições apresentadas foram organizadas nas dimensões de desafios identificados, prioridades estratégicas e proposições para o futuro, conforme o documento-base do seminário. O conteúdo registrado neste documento constitui a fonte literal para a leitura, sistematização e validação pela Secretaria.',
   )
   if (event.schools.length) {
     writer.paragraph(
-      `A documentação de referência do evento também relaciona ${event.schools.length} unidades escolares e registra a coordenação de ${joinNatural(event.coordinators.map((coordinator) => coordinator.name))}. Essas referências integram o documento-base e não substituem a frequência registrada pelo QR Code específico de presença.`,
+      `A documentação de referência do evento também relaciona ${event.schools.length} unidades escolares e registra a participação de representantes das instituições envolvidas. Essas referências integram o documento-base e não substituem a frequência registrada pelo QR Code específico de presença.`,
     )
   }
   writer.paragraph(
@@ -411,7 +449,7 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
   const totalPages = pdf.getNumberOfPages()
   for (let page = 1; page <= totalPages; page += 1) {
     pdf.setPage(page)
-    drawFooter(pdf, page, totalPages)
+    drawFooter(pdf, page)
   }
   return pdf
 }

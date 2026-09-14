@@ -1,10 +1,11 @@
-import { Copy, Trash2, Play, Pencil } from 'lucide-react'
+import { Copy, Trash2, Play, Pencil, Plus } from 'lucide-react'
 import SlideThumbnail from './SlideThumbnail'
 
 export default function PresentationCard({
   presentation,
   onEdit,
   onPresent,
+  onNewSession,
   onDuplicate,
   onDelete,
   formatRelativeDate,
@@ -50,6 +51,15 @@ export default function PresentationCard({
         >
           <Play size={13} />
           {busy ? 'Abrindo…' : 'Apresentar'}
+        </button>
+        <button
+          type="button"
+          className="fala-button fala-button--secondary"
+          disabled={busy}
+          onClick={() => onNewSession(presentation)}
+        >
+          <Plus size={13} />
+          Nova seção
         </button>
         <button
           type="button"

@@ -320,18 +320,6 @@ export default function App() {
   const handlePresent = async (presentation) => {
     setGlobalError('')
     try {
-      const canResumeSession =
-        sessionCode &&
-        session?.status === 'live' &&
-        session.ownerUid === uid &&
-        session.presentationId === presentation.id &&
-        session.title === presentation.title &&
-        (session.eventKey ?? null) === (presentation.eventKey ?? null) &&
-        JSON.stringify(session.slides ?? []) === JSON.stringify(presentation.slides ?? [])
-      if (canResumeSession) {
-        goHost(sessionCode)
-        return
-      }
       const code = await launchPresentationAsSession({ presentation, ownerUid: uid, ownerEmail: email })
       goHost(code)
     } catch (err) {

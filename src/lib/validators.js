@@ -1,7 +1,33 @@
 import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, TEAM_SELECTION_TYPE } from './constants'
 import { DEFAULT_SLIDE_STYLE, normalizeSlideStyle } from './slideStyles'
 
-export const normalizeText = (value) => value.trim().replace(/\s+/g, ' ')
+const RESPONSE_VALUE_LABELS = {
+  name: 'Nome',
+  institution: 'Instituição',
+  contributions: 'Contribuições',
+  transversalities: 'Temas transversais',
+  pillars: 'Pilares',
+}
+
+export const formatResponseValue = (value) => {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) return value.map(formatResponseValue).filter(Boolean).join(', ')
+  if (typeof value === 'object') {
+    return Object.entries(value)
+      .filter(([key]) => key !== 'email')
+      .map(([key, entryValue]) => {
+        const formattedValue = formatResponseValue(entryValue)
+        return formattedValue ? `${RESPONSE_VALUE_LABELS[key] || key}: ${formattedValue}` : ''
+      })
+      .filter(Boolean)
+      .join(' · ')
+  }
+  return String(value)
+}
+
+export const normalizeText = (value) => formatResponseValue(value).trim().replace(/\s+/g, ' ')
 
 export const getFirebaseErrorCode = (error) => {
   const code = String(error?.code ?? '').trim()

@@ -23,7 +23,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react'
 import { TEAM_SELECTION_TYPE } from '../lib/constants'
 import { BAHIA_QR_COLORS, COLORS } from '../lib/colors'
-import { buildTeamSelectionStats, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
+import { buildTeamSelectionStats, formatResponseValue, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
 import { getSlideStyleClass, getSlideThemeVars } from '../lib/slideStyles'
 import MultipleChoiceResults from '../components/slides/MultipleChoiceResults'
 import WordCloudResults from '../components/slides/WordCloudResults'
@@ -781,8 +781,10 @@ function LiveFeed({ responses, currentSlide }) {
   const recent = responses.slice(0, 8)
   return (
     <AnimatePresence initial={false}>
-      {recent.map((entry, index) => (
-        <Motion.div
+      {recent.map((entry, index) => {
+        const displayValue = formatResponseValue(entry.value)
+        return (
+          <Motion.div
           key={entry.id ?? `${entry.participantId}-${index}`}
           initial={{ opacity: 0, y: 12, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -804,13 +806,14 @@ function LiveFeed({ responses, currentSlide }) {
           <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-700">
             {currentSlide?.type === 'multiple_choice' && (
               <span className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                <Check className="h-3 w-3" /> {entry.value}
+                <Check className="h-3 w-3" /> {displayValue}
               </span>
             )}
-            {currentSlide?.type !== 'multiple_choice' && entry.value}
+            {currentSlide?.type !== 'multiple_choice' && displayValue}
           </p>
-        </Motion.div>
-      ))}
+          </Motion.div>
+        )
+      })}
     </AnimatePresence>
   )
 }
