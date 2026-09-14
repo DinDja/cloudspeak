@@ -1,4 +1,5 @@
 import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, TEAM_SELECTION_TYPE } from './constants'
+import { DEFAULT_SLIDE_STYLE, normalizeSlideStyle } from './slideStyles'
 
 export const normalizeText = (value) => value.trim().replace(/\s+/g, ' ')
 
@@ -97,6 +98,7 @@ export const createSlideDraft = (type = 'multiple_choice') => ({
   question: '',
   options: type === 'multiple_choice' ? ['', ''] : [],
   teams: type === TEAM_SELECTION_TYPE ? getDefaultTeamSelectionTeams() : [],
+  style: { ...DEFAULT_SLIDE_STYLE },
 })
 
 export const buildTeamSelectionStats = (slide, responses = []) => {
@@ -160,7 +162,7 @@ export const sanitizeSlides = (slides = []) => {
 
         if (options.length < 2) return null
 
-        return { id: slide.id || crypto.randomUUID(), type, question, options }
+        return { id: slide.id || crypto.randomUUID(), type, question, options, style: normalizeSlideStyle(slide.style) }
       }
 
       if (type === TEAM_SELECTION_TYPE) {
@@ -191,10 +193,10 @@ export const sanitizeSlides = (slides = []) => {
           return null
         }
 
-        return { id: slide.id || crypto.randomUUID(), type, question, teams }
+        return { id: slide.id || crypto.randomUUID(), type, question, teams, style: normalizeSlideStyle(slide.style) }
       }
 
-      return { id: slide.id || crypto.randomUUID(), type, question }
+      return { id: slide.id || crypto.randomUUID(), type, question, style: normalizeSlideStyle(slide.style) }
     })
     .filter(Boolean)
 

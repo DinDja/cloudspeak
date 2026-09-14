@@ -1,9 +1,6 @@
 import { useMemo, useState } from 'react'
 import { motion as Motion, AnimatePresence } from 'framer-motion'
 import {
-  Heart,
-  ThumbsUp,
-  HelpCircle,
   Users,
   Check,
   Loader2,
@@ -25,7 +22,6 @@ export default function ParticipantView({
   responses,
   participantResponse,
   onSubmit,
-  onReact,
   sending,
   onExit,
 }) {
@@ -255,7 +251,6 @@ export default function ParticipantView({
         </Motion.div>
       </main>
 
-      <FooterReactions onReact={onReact} />
     </div>
   )
 }
@@ -300,40 +295,6 @@ function SubmittedStateGeneric({ type }) {
         {type === 'multiple_choice' ? 'Enquete' : type === 'open_text' ? 'Resposta aberta' : 'Interação'}
       </p>
     </Motion.div>
-  )
-}
-
-function FooterReactions({ onReact }) {
-  return (
-    <footer className="sticky bottom-5 z-10 px-5">
-      <div className="mx-auto flex w-full max-w-md items-center justify-around rounded-2xl border border-slate-200 bg-white p-2.5 shadow-lg shadow-slate-900/5">
-        <ReactionButton color="rose" icon={Heart} onClick={() => onReact('heart')} label="Curtir" />
-        <span className="h-7 w-px bg-slate-200" />
-        <ReactionButton color="brand" icon={ThumbsUp} onClick={() => onReact('thumb')} label="Joinha" />
-        <span className="h-7 w-px bg-slate-200" />
-        <ReactionButton color="amber" icon={HelpCircle} onClick={() => onReact('question')} label="Dúvida" />
-      </div>
-    </footer>
-  )
-}
-
-function ReactionButton({ icon, onClick, color, label }) {
-  const Icon = icon
-  const map = {
-    rose: { bg: 'bg-rose-50', text: 'text-rose-500', fill: 'group-hover:fill-rose-500' },
-    brand: { bg: 'bg-brand-50', text: 'text-brand-500', fill: 'group-hover:fill-brand-500' },
-    amber: { bg: 'bg-amber-50', text: 'text-amber-500', fill: 'group-hover:fill-amber-500' },
-  }
-  const tone = map[color]
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group rounded-xl p-3.5 transition-colors ${tone.bg} hover:brightness-95`}
-      aria-label={label}
-    >
-      <Icon className={`h-7 w-7 ${tone.text} ${tone.fill} transition-transform`} />
-    </button>
   )
 }
 

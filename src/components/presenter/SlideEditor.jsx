@@ -1,7 +1,15 @@
 import { useId } from 'react'
-import { Plus, Trash2, X } from 'lucide-react'
+import { AlignCenter, AlignLeft, Palette, Plus, Trash2, X } from 'lucide-react'
 import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
 import { createTeamDraft } from '../../lib/validators'
+import {
+  normalizeSlideStyle,
+  SLIDE_FONT_OPTIONS,
+  SLIDE_LAYOUT_OPTIONS,
+  SLIDE_STYLE_OPTIONS,
+  SLIDE_TITLE_CASE_OPTIONS,
+  SLIDE_TITLE_SIZE_OPTIONS,
+} from '../../lib/slideStyles'
 
 export default function SlideEditor({
   slide,
@@ -159,6 +167,10 @@ export default function SlideEditor({
           </button>
         </div>
       )}
+      <SlideStyleControls
+        style={normalizeSlideStyle(slide.style)}
+        onChange={(style) => update({ style })}
+      />
       <p className="editor-hint">
         {slide.type === 'word_cloud'
           ? 'O público pode enviar mais de uma palavra. Termos repetidos ganham destaque.'
@@ -172,5 +184,104 @@ export default function SlideEditor({
         Slide {index + 1} de {total}
       </p>
     </fieldset>
+  )
+}
+
+function SlideStyleControls({ style, onChange }) {
+  return (
+    <div className="editor-field slide-style-controls">
+      <p className="flex items-center gap-1.5">
+        <Palette size={14} />
+        Estilo visual
+      </p>
+      <div className="slide-style-grid">
+        {SLIDE_STYLE_OPTIONS.map((theme) => (
+          <button
+            key={theme.id}
+            type="button"
+            aria-pressed={style.theme === theme.id}
+            className={`slide-style-card${style.theme === theme.id ? ' slide-style-card--active' : ''}`}
+            onClick={() => onChange({ ...style, theme: theme.id })}
+          >
+            <span className={`slide-style-swatch slide-style-swatch--${theme.id}`} />
+            <span className="slide-style-card__label">{theme.label}</span>
+            <span className="slide-style-card__description">{theme.description}</span>
+          </button>
+        ))}
+      </div>
+      <div className="slide-layout-grid">
+        {SLIDE_LAYOUT_OPTIONS.map((layout) => {
+          const Icon = layout.id === 'centered' ? AlignCenter : AlignLeft
+          return (
+            <button
+              key={layout.id}
+              type="button"
+              aria-pressed={style.layout === layout.id}
+              className={`slide-layout-card${style.layout === layout.id ? ' slide-layout-card--active' : ''}`}
+              onClick={() => onChange({ ...style, layout: layout.id })}
+            >
+              <Icon size={14} />
+              <span>
+                <strong>{layout.label}</strong>
+                <small>{layout.description}</small>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <div className="slide-typography-section">
+        <span className="slide-style-label">Fonte do título</span>
+        <div className="slide-font-grid">
+          {SLIDE_FONT_OPTIONS.map((font) => (
+            <button
+              key={font.id}
+              type="button"
+              aria-pressed={style.font === font.id}
+              className={`slide-font-card${style.font === font.id ? ' slide-font-card--active' : ''}`}
+              onClick={() => onChange({ ...style, font: font.id })}
+              style={{ fontFamily: font.family }}
+            >
+              <strong>Aa</strong>
+              <span>{font.label}</span>
+              <small>{font.description}</small>
+            </button>
+          ))}
+        </div>
+        <div className="slide-type-options">
+          <div>
+            <span className="slide-style-label">Tamanho</span>
+            <div className="slide-type-option-list">
+              {SLIDE_TITLE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size.id}
+                  type="button"
+                  aria-pressed={style.titleSize === size.id}
+                  className={style.titleSize === size.id ? 'slide-type-option--active' : ''}
+                  onClick={() => onChange({ ...style, titleSize: size.id })}
+                >
+                  {size.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <span className="slide-style-label">Caixa</span>
+            <div className="slide-type-option-list">
+              {SLIDE_TITLE_CASE_OPTIONS.map((titleCase) => (
+                <button
+                  key={titleCase.id}
+                  type="button"
+                  aria-pressed={style.titleCase === titleCase.id}
+                  className={style.titleCase === titleCase.id ? 'slide-type-option--active' : ''}
+                  onClick={() => onChange({ ...style, titleCase: titleCase.id })}
+                >
+                  {titleCase.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

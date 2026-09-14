@@ -143,13 +143,21 @@ const makeWriter = (pdf, crest) => {
   const paragraph = (value, options = {}) => {
     const content = text(value)
     if (!content) return
-    pdf.setFont(options.bold ? 'helvetica' : 'helvetica', options.bold ? 'bold' : 'normal')
-    pdf.setFontSize(options.size ?? 9.5)
-    pdf.setTextColor(55, 61, 58)
+    const fontStyle = options.bold ? 'bold' : 'normal'
+    const fontSize = options.size ?? 9.5
+    const applyParagraphStyle = () => {
+      pdf.setFont('helvetica', fontStyle)
+      pdf.setFontSize(fontSize)
+      pdf.setTextColor(55, 61, 58)
+    }
+    applyParagraphStyle()
     const lines = pdf.splitTextToSize(content, options.width ?? PAGE_WIDTH - MARGIN * 2)
     const lineHeight = options.lineHeight ?? 4.6
     for (const line of lines) {
       ensure(lineHeight)
+      // addPage() reapplies the compact header style; restore the paragraph
+      // style before writing the first line on the new page.
+      applyParagraphStyle()
       pdf.text(line, MARGIN, y)
       y += lineHeight
     }
@@ -296,7 +304,7 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
   const eventDateLabel = text(event.date) || openingDate
   const eventTimeLabel = text(event.time) || 'horário não informado'
 
-  writer.centeredTitle('ATA')
+  writer.centeredTitle('Frente Baiana pela Educação de Qualidade Socialmente Referenciada')
   writer.paragraph(event.title, { bold: true, size: 11, after: 1 })
   writer.paragraph('À Secretaria da Educação do Estado da Bahia,')
   writer.paragraph(`Data do evento: ${eventDateLabel}. Horário: ${eventTimeLabel}. Local: ${event.location}.`)

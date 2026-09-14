@@ -24,6 +24,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { TEAM_SELECTION_TYPE } from '../lib/constants'
 import { BAHIA_QR_COLORS, COLORS } from '../lib/colors'
 import { buildTeamSelectionStats, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
+import { getSlideStyleClass, getSlideThemeVars } from '../lib/slideStyles'
 import MultipleChoiceResults from '../components/slides/MultipleChoiceResults'
 import WordCloudResults from '../components/slides/WordCloudResults'
 import OpenTextResults from '../components/slides/OpenTextResults'
@@ -67,6 +68,8 @@ export default function HostView({
   const [reportOpen, setReportOpen] = useState(false)
   const [attendanceDownloading, setAttendanceDownloading] = useState(false)
   const [attendanceError, setAttendanceError] = useState('')
+  const slideStyleClass = getSlideStyleClass(currentSlide)
+  const slideThemeVars = getSlideThemeVars(currentSlide)
 
   const responseCount = useMemo(() => {
     if (currentSlide?.type === TEAM_SELECTION_TYPE) {
@@ -103,7 +106,10 @@ export default function HostView({
             responseCount={responseCount}
           />
 
-          <section className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-6 sm:px-6 sm:py-8">
+          <section
+            className={`host-stage ${slideStyleClass} relative flex flex-1 items-center justify-center overflow-hidden px-4 py-6 sm:px-6 sm:py-8`}
+            style={slideThemeVars}
+          >
             <div className="w-full max-w-5xl text-center">
               <button
                 type="button"
@@ -126,7 +132,7 @@ export default function HostView({
                   <Motion.p
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-700 sm:px-4 sm:py-1.5 sm:text-xs"
+                    className="host-stage__badge inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-700 sm:px-4 sm:py-1.5 sm:text-xs"
                   >
                     Etapa {currentSlideIndex + 1} ·{' '}
                     {currentSlide?.type === 'multiple_choice'
@@ -140,7 +146,7 @@ export default function HostView({
                             : 'Etapa'}
                   </Motion.p>
 
-                  <Motion.h1 className="mx-auto max-w-4xl px-2 font-display uppercase text-3xl font-semibold leading-[1.08] tracking-tight text-[#17181d] sm:text-4xl md:text-5xl lg:text-6xl">
+                  <Motion.h1 className="host-stage__question mx-auto max-w-4xl px-2 font-display uppercase text-3xl font-semibold leading-[1.08] tracking-tight sm:text-4xl md:text-5xl lg:text-6xl">
                     {currentSlide?.question}
                   </Motion.h1>
 
@@ -202,7 +208,10 @@ export default function HostView({
 
       {fullscreenSlide && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 sm:p-6">
-          <div className="relative flex h-full w-full max-w-7xl flex-col items-center justify-center gap-4 sm:gap-6">
+          <div
+            className={`host-stage ${slideStyleClass} relative flex h-full w-full max-w-7xl flex-col items-center justify-center gap-4 sm:gap-6`}
+            style={slideThemeVars}
+          >
             <button
               type="button"
               onClick={() => setFullscreenSlide(false)}
@@ -214,7 +223,7 @@ export default function HostView({
               <Motion.p
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#17181d] sm:px-6 sm:py-3 sm:text-sm"
+                className="host-stage__badge inline-flex items-center gap-2 rounded-full border border-white/20 bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#17181d] sm:px-6 sm:py-3 sm:text-sm"
               >
                 Etapa {currentSlideIndex + 1} ·{' '}
                 {currentSlide?.type === 'multiple_choice'
@@ -231,7 +240,7 @@ export default function HostView({
               <Motion.h1
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mx-auto max-w-5xl px-4 font-display uppercase text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
+                className="host-stage__question mx-auto max-w-5xl px-4 font-display uppercase text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
               >
                 {currentSlide?.question}
               </Motion.h1>
@@ -446,8 +455,8 @@ function SidePanel({
 
   return (
     <>
-      <aside className="relative z-20 hidden h-full w-full max-w-[360px] flex-col gap-3 overflow-y-auto border-l border-slate-200 bg-white p-3 sm:gap-4 sm:p-5 cs-scroll-thin lg:flex">
-        <section className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-3 sm:p-5 shadow-sm">
+      <aside className="relative z-20 hidden h-full min-h-0 w-full max-w-[360px] flex-col gap-3 overflow-y-auto border-l border-slate-200 bg-white p-3 sm:gap-4 sm:p-5 cs-scroll-thin lg:flex">
+        <section className="relative shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
           <div className="flex items-center justify-between">
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 sm:text-[10px]">
               Como entrar
@@ -502,7 +511,7 @@ function SidePanel({
           attendanceError={attendanceError}
         />
 
-        <section>
+        <section className="shrink-0">
           <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
             {['live', 'ranking', 'público'].map((tab) => (
               <button
@@ -526,7 +535,7 @@ function SidePanel({
           </div>
         </section>
 
-        <section className="mt-auto rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm sm:p-5">
+        <section className="mt-auto shrink-0 rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm sm:p-5">
           <Badge2>Modo apresentador</Badge2>
           <p className="mt-1.5 text-xs font-bold leading-relaxed text-slate-700 sm:text-sm">
             A plateia está respondendo em tempo real. Você controla o avanço.
@@ -608,7 +617,7 @@ function EventQrTools({
 
   return (
     <>
-      <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <section className="shrink-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Acesso rápido</p>

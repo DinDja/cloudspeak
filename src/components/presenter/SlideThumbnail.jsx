@@ -1,8 +1,12 @@
 import { SLIDE_TYPES } from '../../lib/constants'
+import { getSlideStyleClass, getSlideThemeVars } from '../../lib/slideStyles'
 
 export default function SlideThumbnail({ slide, className = '', compact = false, index = 0, total = 1 }) {
   return (
-    <div className={`slide-print ${compact ? 'slide-print--compact' : ''} ${className}`}>
+    <div
+      className={`slide-print ${getSlideStyleClass(slide)} ${compact ? 'slide-print--compact' : ''} ${className}`}
+      style={getSlideThemeVars(slide)}
+    >
       <div className="slide-print__inner">
         <div className="slide-print__top">
           <span>Fala SEC</span>

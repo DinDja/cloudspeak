@@ -63,7 +63,7 @@ export default function App() {
     previous,
     retry: retrySession,
   } = useSession(sessionCode)
-  const { reactions, react } = useReactions(sessionCode)
+  const { reactions } = useReactions(route === 'host' ? sessionCode : '')
 
   const { error: presenceError, retry: retryPresence } = usePresence({
     enabled: route === 'participant' && Boolean(sessionCode),
@@ -310,14 +310,6 @@ export default function App() {
     }
   }
 
-  const handleReact = async (type) => {
-    try {
-      await react(type, participantId)
-    } catch {
-      setGlobalError('Falha ao enviar reação.')
-    }
-  }
-
   let view = route
   if (status === 'loading') view = 'loading'
   else if ((route === 'dashboard' || route === 'builder' || route === 'templates') && status !== 'verified') {
@@ -470,7 +462,6 @@ export default function App() {
           responses={currentSlideResponses}
           participantResponse={currentParticipantResponse}
           onSubmit={handleSubmitResponse}
-          onReact={handleReact}
           sending={sending}
           onExit={goPublic}
         />
