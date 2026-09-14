@@ -4,6 +4,9 @@ const PAGE_WIDTH = 210
 const PAGE_HEIGHT = 297
 const MARGIN = 20
 const PDF_RENDER_YIELD_EVERY = 25
+// Keep each literal contribution readable without allowing one oversized value
+// (including legacy or externally-created responses) to dominate the PDF.
+const PDF_RESPONSE_MAX_CHARS = 600
 
 const yieldToBrowser = () =>
   new Promise((resolve) => {
@@ -52,6 +55,12 @@ const parseEventDate = (value) => {
 }
 
 const text = (value) => String(value ?? '').trim()
+
+const limitPdfResponse = (value) => {
+  const content = text(value)
+  if (content.length <= PDF_RESPONSE_MAX_CHARS) return content
+  return `${content.slice(0, PDF_RESPONSE_MAX_CHARS).trimEnd()}… [resposta limitada no PDF]`
+}
 
 const joinNatural = (values) => {
   const items = values.map((value) => text(value)).filter(Boolean)
@@ -309,7 +318,7 @@ const responseEntries = (slide, responses, participantMap) =>
       return {
         participantName: text(entry.participantName) || 'Anônimo',
         participantInstitution: text(participant?.participantInstitution),
-        value: text(entry.value),
+        value: limitPdfResponse(entry.value),
       }
     })
 

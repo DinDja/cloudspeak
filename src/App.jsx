@@ -33,6 +33,35 @@ import PresentationBuilder from './views/PresentationBuilder'
 import HostView from './views/HostView'
 import ParticipantView from './views/ParticipantView'
 
+const ACTIVE_SESSION_STORAGE_KEY = 'cloudspeak-active-session'
+
+const clearActiveSession = () => {
+  try {
+    window.localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+  } catch {
+    // Storage may be unavailable in privacy-restricted browser contexts.
+  }
+}
+
+const saveActiveSession = (value) => {
+  try {
+    window.localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, JSON.stringify(value))
+  } catch {
+    // The live session still works when persistence is unavailable.
+  }
+}
+
+const readActiveSession = () => {
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY)
+    if (!raw) return null
+    const value = JSON.parse(raw)
+    return isValidSessionCode(value?.code) ? value : null
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
   const { status, uid, email } = useAuth()
 
@@ -90,6 +119,27 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (route !== 'public') return
+    const saved = readActiveSession()
+    if (!saved) return
+
+    if (saved.route === 'host') {
+      if (status !== 'verified') return
+      setSessionCode(saved.code)
+      setRoute('host')
+      return
+    }
+
+    if (saved.route === 'participant') {
+      setSessionCode(saved.code)
+      setParticipantName(saved.participantName ?? '')
+      setParticipantInstitution(saved.participantInstitution ?? '')
+      setRequestedSlideId(saved.requestedSlideId ?? '')
+      setRoute('participant')
+    }
+  }, [route, status])
+
+  useEffect(() => {
     if (!globalError) return undefined
     const timeout = window.setTimeout(() => setGlobalError(''), 4000)
     return () => window.clearTimeout(timeout)
@@ -138,6 +188,7 @@ export default function App() {
   }, [participants])
 
   const goPublic = () => {
+    clearActiveSession()
     setRoute('public')
     setSessionCode('')
     setPrefilledCode('')
@@ -149,12 +200,14 @@ export default function App() {
   const goLogin = () => setRoute('login')
   const goRegister = () => setRoute('register')
   const goDashboard = () => {
+    clearActiveSession()
     setRoute('dashboard')
     setSessionCode('')
     setRequestedSlideId('')
     setAttendanceMode(false)
   }
   const leaveHost = () => {
+    clearActiveSession()
     setRoute('dashboard')
     setRequestedSlideId('')
     setAttendanceMode(false)
@@ -171,10 +224,18 @@ export default function App() {
     setRoute('builder')
   }
   const goHost = (code) => {
+    saveActiveSession({ route: 'host', code })
     setSessionCode(code)
     setRoute('host')
   }
   const goParticipant = (code) => {
+    saveActiveSession({
+      route: 'participant',
+      code,
+      participantName,
+      participantInstitution,
+      requestedSlideId,
+    })
     setSessionCode(code)
     setRoute('participant')
   }
@@ -222,6 +283,13 @@ export default function App() {
         setSessionCode(code)
         setParticipantName(normalizedName)
         setParticipantInstitution(finalInstitution)
+        saveActiveSession({
+          route: 'participant',
+          code,
+          participantName: normalizedName,
+          participantInstitution: finalInstitution,
+          requestedSlideId,
+        })
         setAttendanceMode(false)
         setRoute('attendance')
         return
@@ -232,6 +300,13 @@ export default function App() {
       setAttendanceMode(Boolean(metadata.attendance))
       setParticipantName(normalizedName)
       setParticipantInstitution(finalInstitution)
+      saveActiveSession({
+        route: 'participant',
+        code,
+        participantName: normalizedName,
+        participantInstitution: finalInstitution,
+        requestedSlideId,
+      })
       goParticipant(code)
     } catch (error) {
       console.error('Join session error', error)
