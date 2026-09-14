@@ -3,6 +3,8 @@ import { normalizeText } from './validators'
 
 const PAGE_WIDTH = 210
 const PAGE_HEIGHT = 297
+const MARGIN_TOP = 30
+const HEADER_CLEARANCE = 8
 const MARGIN_LEFT = 30
 const MARGIN_RIGHT = 20
 const MARGIN_BOTTOM = 20
@@ -147,19 +149,19 @@ const drawFooter = (pdf, pageNumber) => {
 const drawHeader = (pdf, logo, compact = false) => {
   pdf.setCharSpace(0)
   if (logo) {
-    const width = compact ? 62 : 80
-    const height = compact ? 31 : 40
-    pdf.addImage(logo, 'PNG', PAGE_WIDTH / 2 - width / 2, compact ? 7 : 9, width, height)
+    const width = compact ? 50 : 60
+    const height = compact ? 25 : 30
+    pdf.addImage(logo, 'PNG', PAGE_WIDTH / 2 - width / 2, 1, width, height)
   } else {
     pdf.setTextColor(28, 34, 31)
     pdf.setFont('times', 'bold')
-    pdf.setFontSize(compact ? 10 : 11)
-    pdf.text('ESTADO DA BAHIA', PAGE_WIDTH / 2, compact ? 22 : 28, { align: 'center' })
-    pdf.setFont('times', 'normal')
     pdf.setFontSize(compact ? 9 : 10)
-    pdf.text('SECRETARIA DA EDUCAÇÃO DO ESTADO DA BAHIA', PAGE_WIDTH / 2, compact ? 27 : 33, { align: 'center' })
+    pdf.text('ESTADO DA BAHIA', PAGE_WIDTH / 2, 11, { align: 'center' })
+    pdf.setFont('times', 'normal')
+    pdf.setFontSize(compact ? 8 : 9)
+    pdf.text('SECRETARIA DA EDUCAÇÃO DO ESTADO DA BAHIA', PAGE_WIDTH / 2, 17, { align: 'center' })
   }
-  return compact ? 52 : 65
+  return MARGIN_TOP + HEADER_CLEARANCE
 }
 
 const addPage = (pdf, logo) => {
@@ -205,20 +207,60 @@ const makeWriter = (pdf, logo, autoTable) => {
     const shouldJustify = options.justify ?? true
     const lines = pdf.splitTextToSize(content, Math.max(width - indent, 40))
     const lineHeight = options.lineHeight ?? BODY_LINE_HEIGHT
-    lines.forEach((line, index) => {
+    const lineHeightFactor = lineHeight / (fontSize / pdf.internal.scaleFactor)
+    let lineIndex = 0
+    while (lineIndex < lines.length) {
       ensure(lineHeight)
-      // addPage() reapplies the compact header style; restore the paragraph
-      // style before writing the first line on the new page.
-      applyParagraphStyle()
-      const x = MARGIN_LEFT + (index === 0 ? indent : 0)
-      const lineWidth = width - (index === 0 ? indent : 0)
-      const textOptions = shouldJustify && index < lines.length - 1
-        ? { align: 'justify', maxWidth: lineWidth }
-        : { align: 'left', charSpace: 0 }
-      pdf.text(line, x, y, textOptions)
-      pdf.setCharSpace(0)
-      y += lineHeight
-    })
+      const availableLines = Math.max(1, Math.floor((CONTENT_BOTTOM - y) / lineHeight))
+      const pageLines = lines.slice(lineIndex, lineIndex + availableLines)
+      const continuesOnNextPage = lineIndex + pageLines.length < lines.length
+      const textOptions = (align, maxWidth) => ({
+        align,
+        maxWidth,
+        lineHeightFactor,
+        charSpace: 0,
+      })
+
+      if (lineIndex === 0) {
+        const firstLineIsJustified = shouldJustify && lines.length > 1
+        applyParagraphStyle()
+        pdf.text(
+          firstLineIsJustified ? [pageLines[0], ''] : pageLines[0],
+          MARGIN_LEFT + indent,
+          y,
+          textOptions(firstLineIsJustified ? 'justify' : 'left', width - indent),
+        )
+        pdf.setCharSpace(0)
+
+        if (pageLines.length > 1) {
+          const continuationLines = shouldJustify && continuesOnNextPage
+            ? [...pageLines.slice(1), '']
+            : pageLines.slice(1)
+          applyParagraphStyle()
+          pdf.text(
+            continuationLines,
+            MARGIN_LEFT,
+            y + lineHeight,
+            textOptions(shouldJustify ? 'justify' : 'left', width),
+          )
+          pdf.setCharSpace(0)
+        }
+      } else {
+        const continuationLines = shouldJustify && continuesOnNextPage ? [...pageLines, ''] : pageLines
+        applyParagraphStyle()
+        pdf.text(
+          continuationLines,
+          MARGIN_LEFT,
+          y,
+          textOptions(shouldJustify ? 'justify' : 'left', width),
+        )
+        pdf.setCharSpace(0)
+      }
+
+      y += pageLines.length * lineHeight
+      lineIndex += pageLines.length
+      if (lineIndex < lines.length) y = addPage(pdf, logo)
+    }
     y += options.after ?? 0
   }
 
@@ -229,8 +271,8 @@ const makeWriter = (pdf, logo, autoTable) => {
     pdf.setFontSize(14)
     pdf.setTextColor(0, 0, 0)
     const lines = pdf.splitTextToSize(text(value).toUpperCase(), CONTENT_WIDTH)
-    pdf.text(lines, PAGE_WIDTH / 2, y + 2, { align: 'center' })
-    y += lines.length * 7 + BODY_LINE_HEIGHT
+    pdf.text(lines, PAGE_WIDTH / 2, y + 8, { align: 'center' })
+    y += lines.length * 7 + BODY_LINE_HEIGHT + 6
   }
 
   const table = (head, body, options = {}) => {
@@ -306,20 +348,31 @@ export const createAttendancePdf = async ({ session, participants = [], authorNa
   writer.paragraph(`Data do evento: ${eventDateLabel}. Horário: ${eventTimeLabel}. Local: ${event.location}.`)
   writer.paragraph(`Código da sessão: ${text(session?.code) || 'sem código'}.`)
   writer.paragraph(
-    'Documento emitido a partir dos registros de presença confirmados pelo QR Code específico de presença. Cada linha corresponde a um participante registrado no Firestore.',
+    'Para fins de comprovação, este documento reúne os registros de presença confirmados pelo QR Code específico de presença. Cada linha corresponde a um participante registrado no Firestore.',
   )
   writer.paragraph(`Total de presenças confirmadas: ${participantRows.length}.`, { bold: true })
 
   if (participantRows.length) {
     writer.table(
-      ['Nº', 'Nome registrado', 'Órgão, escola ou instituição', 'Entrada'],
-      participantRows.map((entry, index) => [
-        String(index + 1),
+      ['Nome completo', 'Lotação', 'E-mail/Telefone', 'CPF'],
+      participantRows.map((entry) => [
         text(entry.participantName) || 'Nome não informado',
-        text(entry.participantInstitution) || 'Órgão ou instituição não informado',
-        entry.joinedAt ? `${formatDate(entry.joinedAt)} às ${formatTime(entry.joinedAt)}` : 'Não informado',
+        text(entry.participantInstitution) || 'Lotação não informada',
+        [entry.participantEmail ?? entry.email, entry.participantPhone ?? entry.phone]
+          .map((value) => text(value))
+          .filter(Boolean)
+          .join(' / '),
+        text(entry.participantCpf ?? entry.cpf),
       ]),
-      { columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 48 }, 2: { cellWidth: 84 }, 3: { cellWidth: 30 } } },
+      {
+        minimumHeight: 25,
+        columnStyles: {
+          0: { cellWidth: 50 },
+          1: { cellWidth: 50 },
+          2: { cellWidth: 35 },
+          3: { cellWidth: 25 },
+        },
+      },
     )
   } else {
     writer.paragraph('Não houve registro confirmado pelo QR Code de presença.')
@@ -400,7 +453,7 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
       `${questionText} ${contributionText}`,
       {
         bold: false,
-        justify: false,
+        justify: true,
         size: BODY_FONT_SIZE,
         lineHeight: BODY_LINE_HEIGHT,
         indent: FIRST_LINE_INDENT,
