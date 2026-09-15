@@ -81,6 +81,8 @@ const joinNatural = (values) => {
   return `${items.slice(0, -1).join('; ')} e ${items.at(-1)}`
 }
 
+const contributionLabel = (count) => (count === 1 ? 'contribuição' : 'contribuições')
+
 const genericEvent = (session) => ({
   ...EDUCATION_EVENT,
   key: null,
@@ -434,13 +436,13 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
     )
   }
   writer.paragraph(
-    `Ao longo da sessão, foram recebidas ${responses.length} contribuição${responses.length === 1 ? '' : 'ões'} distribuída${responses.length === 1 ? '' : 's'} entre ${slides.length} pergunta${slides.length === 1 ? '' : 's'}. As manifestações foram preservadas abaixo em sua forma literal para conferência e validação pela Secretaria.`,
+    `Ao longo da sessão, foram recebidas ${responses.length} ${contributionLabel(responses.length)} distribuída${responses.length === 1 ? '' : 's'} entre ${slides.length} pergunta${slides.length === 1 ? '' : 's'}. As manifestações foram preservadas abaixo em sua forma literal para conferência e validação pela Secretaria.`,
   )
 
   let renderedResponses = 0
   for (const [index, slide] of slides.entries()) {
     const slideResponses = responseEntries(slide, responses, participantMap)
-    const questionText = `Na ${index + 1}ª pergunta, “${text(slide.question)}”, foram registradas ${slideResponses.length} contribuição${slideResponses.length === 1 ? '' : 'ões'}.`
+    const questionText = `Na ${index + 1}ª pergunta, “${text(slide.question)}”, foram registradas ${slideResponses.length} ${contributionLabel(slideResponses.length)}.`
     const contributionText = slideResponses.length
       ? slideResponses
           .map((entry) => {
