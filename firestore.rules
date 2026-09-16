@@ -192,7 +192,8 @@ service cloud.firestore {
           && (!request.resource.data.keys().hasAll(['participantCpf'])
               || isString(request.resource.data.participantCpf, 0, 11))
           && (!(request.resource.data.keys().hasAll(['attendance']) && request.resource.data.attendance == true)
-              || (request.resource.data.keys().hasAll(['participantContact', 'participantCpf'])
+              || (request.resource.data.keys().hasAll(['participantInstitution', 'participantContact', 'participantCpf'])
+                  && isString(request.resource.data.participantInstitution, 1, 120)
                   && isString(request.resource.data.participantContact, 5, 120)
                   && isString(request.resource.data.participantCpf, 11, 11)));
       }
@@ -216,7 +217,8 @@ service cloud.firestore {
               || resource.data.attendance == false
               || (request.resource.data.keys().hasAll(['attendance']) && request.resource.data.attendance == true))
           && (!(resource.data.keys().hasAll(['attendance']) && resource.data.attendance == true)
-              || (request.resource.data.keys().hasAll(['participantContact', 'participantCpf'])
+              || (request.resource.data.keys().hasAll(['participantInstitution', 'participantContact', 'participantCpf'])
+                  && isString(request.resource.data.participantInstitution, 1, 120)
                   && isString(request.resource.data.participantContact, 5, 120)
                   && isString(request.resource.data.participantCpf, 11, 11)));
       }

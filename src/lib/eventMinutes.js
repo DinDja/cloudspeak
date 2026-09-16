@@ -295,6 +295,7 @@ const makeWriter = (pdf, logo, autoTable) => {
         overflow: 'linebreak',
         valign: 'top',
       },
+      rowPageBreak: 'avoid',
       headStyles: {
         fillColor: [255, 255, 255],
         textColor: [0, 0, 0],

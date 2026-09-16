@@ -77,7 +77,10 @@ export const getParticipants = async (code) => {
   return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
 }
 
-export const getParticipantsWithRetry = (code) => retryFirestoreOperation(() => getParticipants(code))
+export const getParticipantsWithRetry = (code) => retryFirestoreOperation(async () => {
+  const snapshot = await getDocsFromServer(participantsRef(code))
+  return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
+})
 
 export const getResponses = async (code) => {
   const snapshot = await getDocs(responsesRef(code))
@@ -229,11 +232,16 @@ export const syncPresence = async ({
   const payload = {
     participantId,
     participantName: getParticipantDisplayName(participantName),
-    participantInstitution: normalizeText(participantInstitution ?? '').slice(0, 120),
-    participantContact: normalizeText(participantContact ?? '').slice(0, 120),
-    participantCpf: String(participantCpf ?? '').replace(/\D/g, '').slice(0, 11),
     lastSeenAt: serverTimestamp(),
   }
+  const institution = normalizeText(participantInstitution ?? '').slice(0, 120)
+  const contact = normalizeText(participantContact ?? '').slice(0, 120)
+  const cpf = String(participantCpf ?? '').replace(/\D/g, '').slice(0, 11)
+  // Regular presence heartbeats do not collect these fields. Omitting empty
+  // values preserves any complete attendance registration already on the doc.
+  if (institution) payload.participantInstitution = institution
+  if (contact) payload.participantContact = contact
+  if (cpf) payload.participantCpf = cpf
   if (attendance) payload.attendance = true
   if (includeJoinedAt) {
     const existing = await getDoc(participantReference)
