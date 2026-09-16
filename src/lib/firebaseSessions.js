@@ -109,6 +109,7 @@ export const createSession = async ({ code, title, slides, ownerUid, ownerEmail,
   const payload = {
     code,
     title,
+    sessionLabel: '',
     status: 'live',
     createdAt: serverTimestamp(),
     launchedAt: serverTimestamp(),
@@ -136,6 +137,13 @@ export const launchPresentationAsSession = async ({ presentation, ownerUid, owne
     eventKey: presentation.eventKey ?? null,
   })
   return code
+}
+
+export const updateSessionLabel = async (code, value) => {
+  await updateDoc(sessionRef(code), {
+    sessionLabel: normalizeText(value ?? '').slice(0, 80),
+    updatedAt: serverTimestamp(),
+  })
 }
 
 export const goNextSlide = (session) => {

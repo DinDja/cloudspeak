@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Search, ArrowRight, Radio, Trash2 } from 'lucide-react'
+import { Plus, Search, ArrowRight, Radio, Trash2, Pencil } from 'lucide-react'
 import WorkspaceShell from '../components/ui/WorkspaceShell'
 import Modal from '../components/ui/Modal'
 import PresentationCard from '../components/presenter/PresentationCard'
@@ -36,7 +36,7 @@ export default function PresenterDashboard(props) {
   )
 }
 
-function SessionList({ sessions, selectedSessionCodes, onToggle, onResume, onDelete }) {
+function SessionList({ sessions, selectedSessionCodes, onToggle, onResume, onRename, onDelete }) {
   return (
     <div className="ml-4 border-l-2 border-slate-200 pl-4 sm:ml-10">
       <div className="mb-2 flex items-center justify-between gap-3">
@@ -59,16 +59,19 @@ function SessionList({ sessions, selectedSessionCodes, onToggle, onResume, onDel
               <Radio size={15} className={session.status === 'live' ? 'text-emerald-600' : 'text-slate-400'} />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-slate-800">
-                  Código <span className="tracking-[0.18em]">{session.code}</span>
+                  {session.sessionLabel || `Seção ${session.code}`}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {session.status === 'live' ? 'Ao vivo' : 'Encerrada'} · {formatRelativeDate(session.createdAt)}
+                  Código <span className="tracking-[0.18em]">{session.code}</span> · {session.status === 'live' ? 'Ao vivo' : 'Encerrada'} · {formatRelativeDate(session.createdAt)}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button type="button" className="fala-button fala-button--secondary" onClick={() => onResume(session.code)}>
                 {session.status === 'live' ? 'Retomar seção' : 'Ver respostas'} <ArrowRight size={15} />
+              </button>
+              <button type="button" className="fala-button fala-button--secondary" onClick={() => onRename(session)}>
+                <Pencil size={14} /> {session.sessionLabel ? 'Editar nome' : 'Dar nome'}
               </button>
               <button
                 type="button"
@@ -101,6 +104,7 @@ export function DashboardContent({
   onDuplicate,
   onDelete,
   onResumeSession,
+  onRenameSession,
   onDeleteSession,
   onLogout,
 }) {
@@ -108,9 +112,12 @@ export function DashboardContent({
   const [sessionPickerTarget, setSessionPickerTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteSessionTargets, setDeleteSessionTargets] = useState([])
+  const [sessionNameTarget, setSessionNameTarget] = useState(null)
+  const [sessionNameDraft, setSessionNameDraft] = useState('')
   const [selectedSessionCodes, setSelectedSessionCodes] = useState([])
   const [deleting, setDeleting] = useState(false)
   const [deletingSession, setDeletingSession] = useState(false)
+  const [savingSessionName, setSavingSessionName] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState('')
   const allSessionsSelected = sessions.length > 0 && sessions.every((session) => selectedSessionCodes.includes(session.code))
@@ -154,6 +161,26 @@ export function DashboardContent({
       setActionError(err.message || 'Não foi possível apagar a seção. Tente novamente.')
     } finally {
       setDeletingSession(false)
+    }
+  }
+  const openSessionNameEditor = (session) => {
+    setActionError('')
+    setSessionNameTarget(session)
+    setSessionNameDraft(session.sessionLabel ?? '')
+  }
+  const saveSessionName = async (event) => {
+    event.preventDefault()
+    if (!sessionNameTarget) return
+    setSavingSessionName(true)
+    setActionError('')
+    try {
+      await onRenameSession(sessionNameTarget.code, sessionNameDraft)
+      setSessionNameTarget(null)
+      setSessionNameDraft('')
+    } catch (err) {
+      setActionError(err.message || 'Não foi possível salvar o nome da seção.')
+    } finally {
+      setSavingSessionName(false)
     }
   }
   const createNewSession = (presentation) => runAction(onPresent, presentation)
@@ -269,6 +296,7 @@ export function DashboardContent({
                       ? current.filter((item) => item !== code)
                       : [...current, code])}
                     onResume={onResumeSession}
+                    onRename={openSessionNameEditor}
                     onDelete={(session) => {
                       setActionError('')
                       setDeleteSessionTargets([session])
@@ -306,6 +334,7 @@ export function DashboardContent({
               ? current.filter((item) => item !== code)
               : [...current, code])}
             onResume={onResumeSession}
+            onRename={openSessionNameEditor}
             onDelete={(session) => {
               setActionError('')
               setDeleteSessionTargets([session])
@@ -348,10 +377,10 @@ export function DashboardContent({
             <div key={session.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-slate-800">
-                  Código <span className="tracking-[0.18em]">{session.code}</span>
+                  {session.sessionLabel || `Seção ${session.code}`}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {session.status === 'live' ? 'Ao vivo' : 'Encerrada'} · {formatRelativeDate(session.createdAt)}
+                  Código <span className="tracking-[0.18em]">{session.code}</span> · {session.status === 'live' ? 'Ao vivo' : 'Encerrada'} · {formatRelativeDate(session.createdAt)}
                 </p>
               </div>
               {session.status === 'live' ? (
@@ -380,6 +409,52 @@ export function DashboardContent({
             Nova seção
           </button>
         </div>
+      </Modal>
+      <Modal
+        open={Boolean(sessionNameTarget)}
+        onClose={() => {
+          if (!savingSessionName) {
+            setSessionNameTarget(null)
+            setSessionNameDraft('')
+          }
+        }}
+      >
+        <form onSubmit={saveSessionName}>
+          <h2 className="text-xl font-semibold">
+            {sessionNameTarget?.sessionLabel ? 'Editar nome da seção' : 'Dar nome à seção'}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-stone-600">
+            Use um nome para identificar esta seção na lista, por exemplo, turma ou turno.
+          </p>
+          <label className="editor-field mt-5">
+            <span>Nome da seção</span>
+            <input
+              className="fala-input"
+              value={sessionNameDraft}
+              onChange={(event) => setSessionNameDraft(event.target.value)}
+              maxLength={80}
+              autoFocus
+              placeholder="Ex.: Turma da manhã"
+            />
+          </label>
+          {actionError && <p className="fala-error mt-3" role="alert">{actionError}</p>}
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              className="fala-button fala-button--secondary"
+              disabled={savingSessionName}
+              onClick={() => {
+                setSessionNameTarget(null)
+                setSessionNameDraft('')
+              }}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="fala-button" disabled={savingSessionName}>
+              {savingSessionName ? 'Salvando…' : 'Salvar nome'}
+            </button>
+          </div>
+        </form>
       </Modal>
       <Modal
         open={Boolean(deleteTarget)}
@@ -426,7 +501,7 @@ export function DashboardContent({
         </h2>
         <p className="mt-4 text-sm leading-6 text-stone-600">
           {deleteSessionTargets.length === 1
-            ? `A seção “${deleteSessionTargets[0]?.title}” e o código ${deleteSessionTargets[0]?.code} serão removidos.`
+            ? `A seção “${deleteSessionTargets[0]?.sessionLabel || deleteSessionTargets[0]?.title}” e o código ${deleteSessionTargets[0]?.code} serão removidos.`
             : `${deleteSessionTargets.length} seções serão removidas.`}{' '}
           As respostas e os registros associados também serão apagados. Essa ação não pode ser desfeita.
         </p>

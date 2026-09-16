@@ -75,7 +75,7 @@ service cloud.firestore {
     // ---------- Sessões ao vivo ----------
     function isSessionCreate() {
       return request.resource.data.keys().hasOnly([
-          'code', 'title', 'status', 'slides', 'currentSlideIndex',
+          'code', 'title', 'sessionLabel', 'status', 'slides', 'currentSlideIndex',
            'ownerUid', 'ownerEmail', 'presentationId', 'eventKey', 'endedAt',
            'createdAt', 'launchedAt', 'updatedAt'
         ])
@@ -85,6 +85,8 @@ service cloud.firestore {
         ])
         && isValidSessionCode(request.resource.data.code)
         && isString(request.resource.data.title, 1, 120)
+        && (!request.resource.data.keys().hasAll(['sessionLabel'])
+            || isString(request.resource.data.sessionLabel, 0, 80))
         && request.resource.data.status == 'live'
         && isValidSlides(request.resource.data.slides)
         && request.resource.data.currentSlideIndex is int
@@ -103,12 +105,15 @@ service cloud.firestore {
 
     function isSessionUpdate() {
       return request.resource.data.keys().hasOnly([
-          'code', 'title', 'status', 'slides', 'currentSlideIndex',
+          'code', 'title', 'sessionLabel', 'status', 'slides', 'currentSlideIndex',
            'ownerUid', 'ownerEmail', 'presentationId', 'eventKey', 'endedAt',
            'createdAt', 'launchedAt', 'updatedAt'
         ])
         && request.resource.data.code == resource.data.code
         && request.resource.data.title == resource.data.title
+        && ((!request.resource.data.keys().hasAll(['sessionLabel']) && !resource.data.keys().hasAll(['sessionLabel']))
+            || (request.resource.data.keys().hasAll(['sessionLabel'])
+                && isString(request.resource.data.sessionLabel, 0, 80)))
         && request.resource.data.slides == resource.data.slides
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.ownerEmail == resource.data.ownerEmail

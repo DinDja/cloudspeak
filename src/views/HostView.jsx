@@ -101,7 +101,7 @@ export default function HostView({
           <TopSessionBar
             code={session.code}
             status={session.status}
-            sessionTitle={session.title}
+            sessionTitle={session.sessionLabel || session.title}
             onExit={onExit}
             connectedParticipants={connectedParticipants}
             responseCount={responseCount}

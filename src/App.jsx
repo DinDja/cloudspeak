@@ -17,6 +17,7 @@ import {
   launchPresentationAsSession,
   submitResponse,
   syncPresenceWithRetry,
+  updateSessionLabel,
 } from './lib/firebaseSessions'
 import { deletePresentation, duplicatePresentation } from './lib/firebasePresentations'
 import { TEMPLATE_BY_ID } from './lib/templates'
@@ -454,6 +455,7 @@ export default function App() {
         onEdit={goBuilderEdit}
         onPresent={handlePresent}
         onResumeSession={goHost}
+        onRenameSession={updateSessionLabel}
         onDeleteSession={(session) => deleteSession(session.code)}
         onDuplicate={handleDuplicate}
         onDelete={handleDelete}
