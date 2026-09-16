@@ -38,6 +38,7 @@ export default function PresenterDashboard(props) {
 
 function SessionList({
   sessions,
+  presentationTitle,
   selectedSessionCodes,
   onToggle,
   onResume,
@@ -53,15 +54,21 @@ function SessionList({
   const isExpanded = expanded || selectingSessions
 
   return (
-    <section className="session-group">
+    <section className="session-group" aria-label={presentationTitle ? `Seções da apresentação ${presentationTitle}` : undefined}>
       <button
         type="button"
         className="session-group__toggle"
         aria-expanded={isExpanded}
+        aria-label={presentationTitle ? `Seções da apresentação ${presentationTitle}` : undefined}
         onClick={() => setExpanded((current) => !current)}
       >
         <ChevronDown size={15} className={`session-group__chevron${isExpanded ? ' is-open' : ''}`} />
-        <span>Seções</span>
+        <span className="session-group__heading">{presentationTitle ? 'Seções de' : 'Seções'}</span>
+        {presentationTitle && (
+          <span className="session-group__presentation" title={presentationTitle}>
+            {presentationTitle}
+          </span>
+        )}
         <span className="session-group__count">{sessions.length}</span>
         <span className="session-group__summary">
           {liveCount ? `${liveCount} ao vivo · ` : ''}{sessions.length - liveCount} encerradas
@@ -381,7 +388,7 @@ export function DashboardContent({
           {filtered.map((presentation) => {
             const presentationSessions = sessions.filter((session) => session.presentationId === presentation.id)
             return (
-              <div key={presentation.id} className="space-y-3">
+              <div key={presentation.id} className="presentation-group">
                 <PresentationCard
                   presentation={presentation}
                   onEdit={onEdit}
@@ -398,6 +405,7 @@ export function DashboardContent({
                 {presentationSessions.length > 0 && (
                   <SessionList
                     sessions={presentationSessions}
+                    presentationTitle={presentation.title}
                     selectedSessionCodes={selectedSessionCodes}
                     onToggle={(code) => setSelectedSessionCodes((current) => current.includes(code)
                       ? current.filter((item) => item !== code)
