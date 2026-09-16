@@ -100,6 +100,7 @@ export default function HostView({
         <main className="relative z-10 flex h-full min-w-0 flex-col overflow-hidden">
           <TopSessionBar
             code={session.code}
+            status={session.status}
             sessionTitle={session.title}
             onExit={onExit}
             connectedParticipants={connectedParticipants}
@@ -296,7 +297,8 @@ function BackgroundAurora() {
   return <div className="pointer-events-none absolute inset-0 bg-[#f6f4ef]" />
 }
 
-function TopSessionBar({ code, sessionTitle, onExit, connectedParticipants, responseCount }) {
+function TopSessionBar({ code, status, sessionTitle, onExit, connectedParticipants, responseCount }) {
+  const isLive = status === 'live'
   const [copied, setCopied] = useState(false)
   useEffect(() => {
     if (!copied) return undefined
@@ -314,12 +316,14 @@ function TopSessionBar({ code, sessionTitle, onExit, connectedParticipants, resp
   return (
     <header className="host-topbar relative z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-5 sm:py-3 lg:px-7 lg:py-4">
       <div className="flex items-center gap-2">
-        <span className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-emerald-700 sm:px-3 sm:py-1.5 sm:text-xs">
-          <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
-            <span className="absolute inline-flex h-full w-full bg-emerald-500 opacity-75" />
-            <span className="relative inline-flex h-1.5 w-1.5 sm:h-2 sm:w-2 bg-emerald-600" />
-          </span>
-          <span className="hidden sm:inline">Ao vivo</span>
+        <span className={`flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-widest sm:px-3 sm:py-1.5 sm:text-xs ${isLive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
+          {isLive && (
+            <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
+              <span className="absolute inline-flex h-full w-full bg-emerald-500 opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 bg-emerald-600 sm:h-2 sm:w-2" />
+            </span>
+          )}
+          <span>{isLive ? 'Ao vivo' : 'Encerrada'}</span>
         </span>
         <p className="truncate text-xs font-medium text-slate-600 sm:text-sm lg:block">{sessionTitle}</p>
       </div>

@@ -67,11 +67,9 @@ function SessionList({ sessions, selectedSessionCodes, onToggle, onResume, onDel
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {session.status === 'live' && (
-                <button type="button" className="fala-button fala-button--secondary" onClick={() => onResume(session.code)}>
-                  Retomar seção <ArrowRight size={15} />
-                </button>
-              )}
+              <button type="button" className="fala-button fala-button--secondary" onClick={() => onResume(session.code)}>
+                {session.status === 'live' ? 'Retomar seção' : 'Ver respostas'} <ArrowRight size={15} />
+              </button>
               <button
                 type="button"
                 className="fala-button fala-button--danger"
