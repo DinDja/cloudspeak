@@ -36,7 +36,7 @@ export default function TeamSelectionResults({ slide, responses }) {
         ))}
       </div>
       {activeTeam && (
-        <TeamReportModal team={activeTeam} color="#244fe6" onClose={() => setActiveTeamId(null)} />
+        <TeamReportModal team={activeTeam} color="#6843a1" onClose={() => setActiveTeamId(null)} />
       )}
     </>
   )

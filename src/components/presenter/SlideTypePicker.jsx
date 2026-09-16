@@ -17,11 +17,11 @@ export default function SlideTypePicker({ value, onChange, compact = false }) {
             onClick={() => onChange(typeId)}
             aria-pressed={active}
             className={[
-              'group flex flex-col items-start gap-2 rounded-lg border p-3 text-left transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-100',
-              active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
+              'group flex flex-col items-start gap-2 rounded-lg border p-3 text-left transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-200',
+              active ? 'border-violet-500 bg-violet-50' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
             ].join(' ')}
           >
-            <span className={['flex h-8 w-8 items-center justify-center rounded-lg', active ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-500'].join(' ')}><Icon className="h-4 w-4" /></span>
+            <span className={['flex h-8 w-8 items-center justify-center rounded-lg', active ? 'bg-[#6843a1] text-white' : 'bg-slate-100 text-slate-500'].join(' ')}><Icon className="h-4 w-4" /></span>
             <span className="text-sm font-medium text-slate-800">{type.label}</span>
             {!compact && <span className="text-xs leading-4 text-slate-500">{type.tagline}</span>}
           </button>

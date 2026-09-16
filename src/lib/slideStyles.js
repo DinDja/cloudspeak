@@ -17,8 +17,8 @@ export const SLIDE_STYLE_OPTIONS = [
     surface: '#ffffff',
     text: '#20211e',
     muted: '#6b6c66',
-    accent: '#244fe6',
-    accentSoft: '#e7edff',
+    accent: '#6843a1',
+    accentSoft: '#eee8f6',
     rule: '#d6d5cf',
   },
   {

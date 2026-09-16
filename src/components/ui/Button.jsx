@@ -1,5 +1,5 @@
 const VARIANTS = {
-  primary: 'bg-blue-700 text-white hover:bg-blue-800',
+  primary: 'bg-[#6843a1] text-white hover:bg-[#52337f]',
   solid: 'bg-slate-900 text-white hover:bg-slate-800',
   ocean: 'bg-emerald-700 text-white hover:bg-emerald-800',
   ghost: 'bg-transparent text-slate-700 hover:bg-slate-100',
@@ -37,7 +37,7 @@ export default function Button({
     <Component
       disabled={isDisabled}
       className={[
-        'inline-flex items-center justify-center rounded-lg border font-semibold transition-colors duration-150 outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex items-center justify-center rounded-lg border font-semibold transition-colors duration-150 outline-none focus-visible:ring-4 focus-visible:ring-violet-200 disabled:pointer-events-none disabled:opacity-50',
         VARIANTS[variant] ?? VARIANTS.solid,
         SIZES[size] ?? SIZES.md,
         fullWidth ? 'w-full' : '',

@@ -119,7 +119,7 @@ export default function LoginView({ onBack, onGoRegister }) {
                 <li
                   key={idx}
                   onMouseDown={() => selectSuggestion(suggestion)}
-                  className="cursor-pointer border-b border-slate-100 px-4 py-3 text-sm text-slate-700 last:border-b-0 hover:bg-blue-50"
+                  className="cursor-pointer border-b border-slate-100 px-4 py-3 text-sm text-slate-700 last:border-b-0 hover:bg-violet-50"
                 >
                   {suggestion}
                 </li>

@@ -1,5 +1,5 @@
 const TONES = {
-  brand: 'border-blue-100 bg-blue-50 text-blue-700',
+  brand: 'border-violet-200 bg-violet-50 text-violet-900',
   ocean: 'border-emerald-100 bg-emerald-50 text-emerald-700',
   sunset: 'border-amber-100 bg-amber-50 text-amber-700',
   coral: 'border-red-100 bg-red-50 text-red-700',

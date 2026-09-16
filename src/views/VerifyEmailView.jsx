@@ -62,7 +62,7 @@ export default function VerifyEmailView({ onBackToPublic }) {
           transition={{ duration: 0.4 }}
         >
           <div className="relative">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-violet-50 text-violet-900">
               <Inbox className="h-7 w-7" />
             </div>
             <p className="text-sm font-medium text-slate-500">Enviamos para</p>

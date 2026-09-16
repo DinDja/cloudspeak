@@ -21,7 +21,7 @@ export function FullPageLoader({ label = 'Carregando...' }) {
         transition={{ duration: 0.4 }}
       >
         <div className="relative mx-auto h-8 w-8">
-          <div className="absolute inset-0 animate-spin rounded-full border-2 border-stone-300 border-t-[#244fe6]" />
+          <div className="absolute inset-0 animate-spin rounded-full border-2 border-stone-300 border-t-violet-700" />
         </div>
         {label && <p className="mt-5 text-base font-medium text-[#09090B]">{label}</p>}
       </Motion.div>

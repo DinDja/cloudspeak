@@ -79,10 +79,10 @@ export default function ParticipantView({
             <Logo size="sm" />
           </div>
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+            <span className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-stone-400 opacity-50" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-stone-600" />
               </span>
               Conectado
             </span>
@@ -132,7 +132,7 @@ export default function ParticipantView({
                       key={option}
                       onClick={(event) => submit(event, option)}
                       disabled={sending}
-                      className="group relative w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 disabled:opacity-60"
+                      className="group relative w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors hover:border-stone-400 hover:bg-stone-50 disabled:opacity-60"
                     >
                       <span className="relative z-10 flex items-center justify-between text-base font-medium text-slate-800">
                         {option}
@@ -151,7 +151,7 @@ export default function ParticipantView({
                           key={team.id ?? team.name}
                           onClick={(event) => submit(event, team.name)}
                           disabled={isDisabled}
-                          className="group relative w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 disabled:pointer-events-none disabled:opacity-60"
+                          className="group relative w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors hover:border-stone-400 hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-60"
                         >
                           <div className="relative z-10 flex items-start justify-between gap-4">
                             <div>
@@ -210,7 +210,7 @@ export default function ParticipantView({
                       Enviar palavra
                     </button>
                     {hasSubmittedThisSlide && (
-                      <p className="flex items-center justify-center gap-1.5 text-center text-sm font-medium text-blue-700">
+                      <p className="flex items-center justify-center gap-1.5 text-center text-sm font-medium text-stone-700">
                         <Check className="h-4 w-4" /> Enviado! Mande mais se quiser.
                       </p>
                     )}
@@ -266,7 +266,7 @@ function SubmittedStateTeam({ submittedValue }) {
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">
           <Users className="h-10 w-10 text-white" />
         </div>
-        <p className="text-xs font-medium tracking-wide text-blue-200">Escolha confirmada</p>
+        <p className="text-xs font-medium tracking-wide text-stone-300">Escolha confirmada</p>
         <h3 className="mt-2.5 text-3xl font-semibold tracking-tight">{submittedValue}</h3>
         <p className="mt-2.5 text-base leading-6 text-white/75">
           Sua escolha foi registrada. O apresentador já vê em qual clube você está. Olhe a tela principal!

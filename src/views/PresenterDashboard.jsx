@@ -15,6 +15,21 @@ function formatRelativeDate(timestamp) {
   return new Date(millis).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }
 
+function AnimatedCheckbox({ checked, onChange, label, className = '' }) {
+  return (
+    <label className={`dashboard-checkbox ${className}`}>
+      <input type="checkbox" checked={checked} onChange={onChange} aria-label={label} />
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path
+          d="M 0 16 V 56 A 8 8 90 0 0 8 64 H 56 A 8 8 90 0 0 64 56 V 8 A 8 8 90 0 0 56 0 H 8 A 8 8 90 0 0 0 8 V 16 L 32 48 L 64 16 V 8 A 8 8 90 0 0 56 0 H 8 A 8 8 90 0 0 0 8 V 56 A 8 8 90 0 0 8 64 H 56 A 8 8 90 0 0 64 56 V 16"
+          pathLength="575.0541381835938"
+          className="dashboard-checkbox__path"
+        />
+      </svg>
+    </label>
+  )
+}
+
 export default function PresenterDashboard(props) {
   const { displayName, email, uid, logout } = useAuth()
   const saved = useSavedPresentations(uid)
@@ -80,12 +95,11 @@ function SessionList({
             <div key={session.id} className="session-row">
               <span className="session-row__selection">
                 {selectingSessions && (
-                  <input
-                    type="checkbox"
+                  <AnimatedCheckbox
                     checked={selectedSessionCodes.includes(session.code)}
                     onChange={() => onToggle(session.code)}
-                    aria-label={`Selecionar seção ${session.code}`}
-                    className="session-row__checkbox h-4 w-4 rounded border-slate-300 text-blue-600"
+                    label={`Selecionar seção ${session.code}`}
+                    className="session-row__checkbox"
                   />
                 )}
               </span>
@@ -347,11 +361,10 @@ export function DashboardContent({
       {selectingSessions && sessions.length > 0 && (
         <div className="session-management">
           <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
-            <input
-              type="checkbox"
+            <AnimatedCheckbox
               checked={allSessionsSelected}
               onChange={() => setSelectedSessionCodes(allSessionsSelected ? [] : sessions.map((session) => session.code))}
-              className="h-4 w-4 rounded border-slate-300 text-blue-600"
+              label="Selecionar todas as seções"
             />
             Selecionar todas as seções
           </label>

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { TEAM_SELECTION_TYPE } from '../lib/constants'
-import { BAHIA_QR_COLORS, COLORS } from '../lib/colors'
+import { QR_CODE_COLORS, COLORS } from '../lib/colors'
 import { buildTeamSelectionStats, formatResponseValue, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
 import { getSlideStyleClass, getSlideThemeVars } from '../lib/slideStyles'
 import MultipleChoiceResults from '../components/slides/MultipleChoiceResults'
@@ -122,7 +122,7 @@ export default function HostView({
               <button
                 type="button"
                 onClick={() => setFullscreenSlide(true)}
-                className="absolute right-2 top-2 z-20 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-700 sm:right-4 sm:top-4 sm:px-3 sm:py-2 sm:text-xs"
+                className="absolute right-2 top-2 z-20 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition-colors hover:border-stone-400 hover:bg-stone-50 hover:text-stone-800 sm:right-4 sm:top-4 sm:px-3 sm:py-2 sm:text-xs"
                 title="Slide em tela cheia"
               >
                 <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />{' '}
@@ -140,7 +140,7 @@ export default function HostView({
                   <Motion.p
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="host-stage__badge inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-700 sm:px-4 sm:py-1.5 sm:text-xs"
+                    className="host-stage__badge inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest sm:px-4 sm:py-1.5 sm:text-xs"
                   >
                     Etapa {currentSlideIndex + 1} ·{' '}
                     {currentSlide?.type === 'multiple_choice'
@@ -319,11 +319,11 @@ function TopSessionBar({ code, status, sessionTitle, onEndProjection, onExit, co
   return (
     <header className="host-topbar relative z-20 grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b border-slate-200 bg-white/95 px-3 py-2.5 backdrop-blur sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-5 sm:py-3 lg:px-7 lg:py-4">
       <div className="flex items-center gap-2">
-        <span className={`flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-widest sm:px-3 sm:py-1.5 sm:text-xs ${isLive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
+        <span className={`flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-widest sm:px-3 sm:py-1.5 sm:text-xs ${isLive ? 'border-stone-300 bg-stone-100 text-stone-700' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
           {isLive && (
             <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
-              <span className="absolute inline-flex h-full w-full bg-emerald-500 opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 bg-emerald-600 sm:h-2 sm:w-2" />
+              <span className="absolute inline-flex h-full w-full bg-stone-500 opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 bg-stone-700 sm:h-2 sm:w-2" />
             </span>
           )}
           <span>{isLive ? 'Ao vivo' : 'Encerrada'}</span>
@@ -340,13 +340,13 @@ function TopSessionBar({ code, status, sessionTitle, onEndProjection, onExit, co
           <button
             type="button"
             onClick={handleCopy}
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 sm:h-8 sm:w-8"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:border-stone-400 hover:bg-stone-50 hover:text-stone-800 sm:h-8 sm:w-8"
             title={copied ? 'Copiado!' : 'Copiar código'}
           >
             <AnimatePresence mode="wait">
               {copied ? (
                 <Motion.span key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                  <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />
+                  <Check className="h-4 w-4 text-stone-700" strokeWidth={3} />
                 </Motion.span>
               ) : (
                 <Motion.span key="copy" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
@@ -489,7 +489,7 @@ function SidePanel({
             <button
               type="button"
               onClick={() => setQrFullscreen(true)}
-              className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 sm:px-2 sm:py-1 sm:text-[10px]"
+              className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600 transition-colors hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800 sm:px-2 sm:py-1 sm:text-[10px]"
               title="QR code em tela cheia"
             >
               <Maximize2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />{' '}
@@ -501,7 +501,7 @@ function SidePanel({
           </p>
           <div className="mt-3 flex items-center gap-3 sm:gap-4">
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-1.5 sm:h-28 sm:w-28 sm:p-2">
-              <QRCodeSVG value={joinUrl} size={72} bgColor="transparent" fgColor={BAHIA_QR_COLORS[0]} />
+              <QRCodeSVG value={joinUrl} size={72} bgColor="transparent" fgColor={QR_CODE_COLORS[0]} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold text-slate-600 sm:text-xs">Acesse</p>
@@ -515,7 +515,7 @@ function SidePanel({
             type="button"
             onClick={share}
             aria-label="Copiar link de participação"
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 sm:mt-4 sm:py-2 sm:text-xs"
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-700 transition-colors hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800 sm:mt-4 sm:py-2 sm:text-xs"
           >
             <Share2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />{' '}
             <span className="hidden sm:inline" role="status">
@@ -583,7 +583,7 @@ function SidePanel({
               <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
             </button>
             <div className="flex h-64 w-64 items-center justify-center border-4 border-white bg-white p-4 shadow-2xl sm:h-80 sm:w-80 sm:p-6">
-              <QRCodeSVG value={joinUrl} size={200} bgColor="transparent" fgColor={BAHIA_QR_COLORS[0]} />
+              <QRCodeSVG value={joinUrl} size={200} bgColor="transparent" fgColor={QR_CODE_COLORS[0]} />
             </div>
             <div className="text-center">
               <p className="text-xl font-black tracking-[0.25em] text-white sm:text-2xl">{session.code}</p>
@@ -613,21 +613,21 @@ function EventQrTools({
       label: 'Participar',
       hint: 'Entrada geral',
       value: joinUrl,
-      color: BAHIA_QR_COLORS[0],
+      color: QR_CODE_COLORS[0],
       filename: `qrcode-${code.toLowerCase()}-participar`,
     },
     {
       label: 'Presença',
       hint: 'Lista de frequência',
       value: presenceUrl,
-      color: BAHIA_QR_COLORS[1],
+      color: QR_CODE_COLORS[1],
       filename: `qrcode-${code.toLowerCase()}-presenca`,
     },
     {
       label: 'Pergunta atual',
       hint: 'Resposta do painel',
       value: slideJoinUrl,
-      color: BAHIA_QR_COLORS[0],
+      color: QR_CODE_COLORS[0],
       filename: `qrcode-${code.toLowerCase()}-pergunta-atual`,
     },
   ]
@@ -636,7 +636,7 @@ function EventQrTools({
     hint: 'QR da etapa',
     detail: slide.question,
     value: getSlideJoinUrl(code, slide.id),
-    color: BAHIA_QR_COLORS[(index + 3) % BAHIA_QR_COLORS.length],
+    color: QR_CODE_COLORS[(index + 3) % QR_CODE_COLORS.length],
     filename: `qrcode-${code.toLowerCase()}-pergunta-${index + 1}`,
   }))
 
@@ -648,7 +648,7 @@ function EventQrTools({
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Acesso rápido</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">Entrada, frequência e perguntas</p>
           </div>
-          <QrCode className="h-5 w-5 text-emerald-700" />
+          <QrCode className="h-5 w-5 text-stone-700" />
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {entries.map((entry) => (
@@ -656,7 +656,7 @@ function EventQrTools({
               key={entry.label}
               type="button"
               onClick={() => setSelectedQr(entry)}
-              className="group rounded-lg border border-slate-200 bg-slate-50 p-2 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50"
+              className="group rounded-lg border border-slate-200 bg-slate-50 p-2 text-left transition-colors hover:border-stone-400 hover:bg-stone-100"
               title={`Ampliar QR code: ${entry.label}`}
             >
               <span className="flex aspect-square items-center justify-center rounded-md bg-white p-1">
@@ -676,7 +676,7 @@ function EventQrTools({
                   key={entry.label}
                   type="button"
                   onClick={() => setSelectedQr(entry)}
-                  className="group rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+                  className="group rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-left transition-colors hover:border-stone-400 hover:bg-stone-100"
                   title={`Ampliar ${entry.label}`}
                 >
                   <span className="flex aspect-square items-center justify-center rounded-md bg-white p-1">
@@ -694,7 +694,7 @@ function EventQrTools({
         <button
           type="button"
           onClick={onOpenReport}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-stone-300 bg-stone-100 px-3 py-2 text-xs font-bold text-stone-800 transition-colors hover:bg-stone-200"
         >
           <FileText className="h-4 w-4" />
           Gerar documento atualizado
@@ -703,7 +703,7 @@ function EventQrTools({
           type="button"
           onClick={onDownloadAttendance}
           disabled={attendanceDownloading}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800 transition-colors hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60"
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-stone-300 bg-stone-100 px-3 py-2 text-xs font-bold text-stone-800 transition-colors hover:bg-stone-200 disabled:cursor-wait disabled:opacity-60"
         >
           {attendanceDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {attendanceDownloading ? 'Gerando lista…' : 'Baixar lista de presença (PDF)'}
@@ -722,7 +722,7 @@ function EventQrTools({
             >
               <X className="h-5 w-5" />
             </button>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">{selectedQr.hint}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-stone-700">{selectedQr.hint}</p>
             <h2 className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">{selectedQr.label}</h2>
             {selectedQr.detail && <p className="mt-2 max-w-sm text-sm leading-5 text-slate-600">{selectedQr.detail}</p>}
             <div data-event-qr-modal className="mx-auto mt-6 flex aspect-square w-[min(82vw,32rem)] max-w-full items-center justify-center rounded-2xl border-[10px] border-slate-900 bg-white p-4 sm:p-5">
@@ -730,7 +730,7 @@ function EventQrTools({
                 value={selectedQr.value}
                 size={480}
                 className="h-full w-full"
-                fgColor={selectedQr.color ?? BAHIA_QR_COLORS[0]}
+                fgColor={selectedQr.color ?? QR_CODE_COLORS[0]}
               />
             </div>
             <p className="mt-4 break-all text-[10px] leading-4 text-slate-500">{selectedQr.value}</p>
@@ -771,7 +771,7 @@ function downloadQrCode(entry) {
 
 function Badge2({ children }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-blue-700 sm:px-3 sm:py-1 sm:text-[10px]">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-100 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-stone-700 sm:px-3 sm:py-1 sm:text-[10px]">
       <Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> {children}
     </span>
   )
@@ -823,7 +823,7 @@ function LiveFeed({ responses, currentSlide }) {
           </div>
           <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-700">
             {currentSlide?.type === 'multiple_choice' && (
-              <span className="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+              <span className="inline-flex items-center gap-2 rounded-md border border-stone-200 bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-700">
                 <Check className="h-3 w-3" /> {displayValue}
               </span>
             )}
@@ -871,7 +871,7 @@ function RankingFeed({ currentSlide, responses }) {
               initial={{ width: 0 }}
               animate={{ width: `${(row.count / total) * 100}%` }}
               transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-              className="h-full rounded-full bg-[#5367dc]"
+              className="h-full rounded-full bg-stone-700"
             />
           </div>
         </div>
@@ -909,9 +909,9 @@ function ReactionLayer({ reactions }) {
           const palette =
             {
               heart: 'from-rose-400 to-rose-500',
-              thumb: 'from-brand-500 to-brand-600',
+              thumb: 'from-slate-700 to-slate-900',
               question: 'from-amber-400 to-amber-500',
-            }[reaction.type] ?? 'from-brand-500 to-violet-500'
+            }[reaction.type] ?? 'from-slate-600 to-slate-800'
           return (
             <Motion.div
               key={reaction.id}
