@@ -17,6 +17,7 @@ import {
   launchPresentationAsSession,
   submitResponse,
   syncPresenceWithRetry,
+  setSessionStatus,
   updateSessionLabel,
 } from './lib/firebaseSessions'
 import { deletePresentation, duplicatePresentation } from './lib/firebasePresentations'
@@ -373,6 +374,15 @@ export default function App() {
     await deletePresentation(presentation.id)
   }
 
+  const handleEndProjection = async (code) => {
+    setGlobalError('')
+    try {
+      await setSessionStatus(code, 'ended')
+    } catch (err) {
+      setGlobalError(err.message || 'Não foi possível encerrar a projeção.')
+    }
+  }
+
   const handleSubmitResponse = async (value) => {
     if (!session || !currentSlide) return false
     if (session.status !== 'live') {
@@ -455,6 +465,7 @@ export default function App() {
         onEdit={goBuilderEdit}
         onPresent={handlePresent}
         onResumeSession={goHost}
+        onSetSessionStatus={setSessionStatus}
         onRenameSession={updateSessionLabel}
         onDeleteSession={(session) => deleteSession(session.code)}
         onDuplicate={handleDuplicate}
@@ -515,6 +526,7 @@ export default function App() {
           connectedParticipants={connectedParticipants}
           onNext={next}
           onPrevious={previous}
+          onEndProjection={handleEndProjection}
           canGoBack={session.currentSlideIndex > 0}
           canGoForward={session.currentSlideIndex < session.slides.length - 1}
           onExit={leaveHost}

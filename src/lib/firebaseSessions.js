@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
@@ -142,6 +143,15 @@ export const launchPresentationAsSession = async ({ presentation, ownerUid, owne
 export const updateSessionLabel = async (code, value) => {
   await updateDoc(sessionRef(code), {
     sessionLabel: normalizeText(value ?? '').slice(0, 80),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export const setSessionStatus = async (code, status) => {
+  if (!['live', 'ended'].includes(status)) throw new Error('INVALID_SESSION_STATUS')
+  await updateDoc(sessionRef(code), {
+    status,
+    endedAt: status === 'ended' ? serverTimestamp() : deleteField(),
     updatedAt: serverTimestamp(),
   })
 }

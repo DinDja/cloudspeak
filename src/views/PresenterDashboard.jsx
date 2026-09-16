@@ -36,7 +36,17 @@ export default function PresenterDashboard(props) {
   )
 }
 
-function SessionList({ sessions, selectedSessionCodes, onToggle, onResume, onRename, onDelete }) {
+function SessionList({
+  sessions,
+  selectedSessionCodes,
+  onToggle,
+  onResume,
+  onViewResponses,
+  onEndProjection,
+  onRename,
+  onDelete,
+  busyCode,
+}) {
   return (
     <div className="ml-4 border-l-2 border-slate-200 pl-4 sm:ml-10">
       <div className="mb-2 flex items-center justify-between gap-3">
@@ -66,9 +76,31 @@ function SessionList({ sessions, selectedSessionCodes, onToggle, onResume, onRen
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button type="button" className="fala-button fala-button--secondary" onClick={() => onResume(session.code)}>
-                {session.status === 'live' ? 'Retomar seção' : 'Ver respostas'} <ArrowRight size={15} />
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="fala-button fala-button--secondary"
+                disabled={busyCode === session.code}
+                onClick={() => onResume(session)}
+              >
+                {session.status === 'live' ? 'Retomar seção' : 'Tornar ao vivo'} <ArrowRight size={15} />
+              </button>
+              {session.status === 'ended' && (
+                <button
+                  type="button"
+                  className="fala-button fala-button--secondary"
+                  onClick={() => onViewResponses(session)}
+                >
+                  Ver respostas
+                </button>
+              )}
+              <button
+                type="button"
+                className="fala-button fala-button--secondary"
+                disabled={session.status === 'ended' || busyCode === session.code}
+                onClick={() => onEndProjection(session)}
+              >
+                {session.status === 'live' ? 'Encerrar projeção' : 'Projeção encerrada'}
               </button>
               <button type="button" className="fala-button fala-button--secondary" onClick={() => onRename(session)}>
                 <Pencil size={14} /> {session.sessionLabel ? 'Editar nome' : 'Dar nome'}
@@ -104,6 +136,7 @@ export function DashboardContent({
   onDuplicate,
   onDelete,
   onResumeSession,
+  onSetSessionStatus,
   onRenameSession,
   onDeleteSession,
   onLogout,
@@ -118,6 +151,7 @@ export function DashboardContent({
   const [deleting, setDeleting] = useState(false)
   const [deletingSession, setDeletingSession] = useState(false)
   const [savingSessionName, setSavingSessionName] = useState(false)
+  const [sessionActionCode, setSessionActionCode] = useState('')
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState('')
   const allSessionsSelected = sessions.length > 0 && sessions.every((session) => selectedSessionCodes.includes(session.code))
@@ -181,6 +215,29 @@ export function DashboardContent({
       setActionError(err.message || 'Não foi possível salvar o nome da seção.')
     } finally {
       setSavingSessionName(false)
+    }
+  }
+  const resumeSession = async (session) => {
+    setActionError('')
+    setSessionActionCode(session.code)
+    try {
+      if (session.status === 'ended') await onSetSessionStatus(session.code, 'live')
+      onResumeSession(session.code)
+    } catch (err) {
+      setActionError(err.message || 'Não foi possível retomar a projeção.')
+    } finally {
+      setSessionActionCode('')
+    }
+  }
+  const endSessionProjection = async (session) => {
+    setActionError('')
+    setSessionActionCode(session.code)
+    try {
+      await onSetSessionStatus(session.code, 'ended')
+    } catch (err) {
+      setActionError(err.message || 'Não foi possível encerrar a projeção.')
+    } finally {
+      setSessionActionCode('')
     }
   }
   const createNewSession = (presentation) => runAction(onPresent, presentation)
@@ -295,12 +352,15 @@ export function DashboardContent({
                     onToggle={(code) => setSelectedSessionCodes((current) => current.includes(code)
                       ? current.filter((item) => item !== code)
                       : [...current, code])}
-                    onResume={onResumeSession}
+                    onResume={resumeSession}
+                    onViewResponses={(session) => onResumeSession(session.code)}
+                    onEndProjection={endSessionProjection}
                     onRename={openSessionNameEditor}
                     onDelete={(session) => {
                       setActionError('')
                       setDeleteSessionTargets([session])
                     }}
+                    busyCode={sessionActionCode}
                   />
                 )}
               </div>
@@ -333,12 +393,15 @@ export function DashboardContent({
             onToggle={(code) => setSelectedSessionCodes((current) => current.includes(code)
               ? current.filter((item) => item !== code)
               : [...current, code])}
-            onResume={onResumeSession}
+            onResume={resumeSession}
+            onViewResponses={(session) => onResumeSession(session.code)}
+            onEndProjection={endSessionProjection}
             onRename={openSessionNameEditor}
             onDelete={(session) => {
               setActionError('')
               setDeleteSessionTargets([session])
             }}
+            busyCode={sessionActionCode}
           />
         </section>
       )}

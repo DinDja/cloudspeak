@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Power,
   Users,
   BarChart3,
   Heart,
@@ -55,6 +56,7 @@ export default function HostView({
   currentSlideIndex,
   onNext,
   onPrevious,
+  onEndProjection,
   canGoBack,
   canGoForward,
   onExit,
@@ -102,6 +104,7 @@ export default function HostView({
             code={session.code}
             status={session.status}
             sessionTitle={session.sessionLabel || session.title}
+            onEndProjection={() => onEndProjection(session.code)}
             onExit={onExit}
             connectedParticipants={connectedParticipants}
             responseCount={responseCount}
@@ -297,7 +300,7 @@ function BackgroundAurora() {
   return <div className="pointer-events-none absolute inset-0 bg-[#f6f4ef]" />
 }
 
-function TopSessionBar({ code, status, sessionTitle, onExit, connectedParticipants, responseCount }) {
+function TopSessionBar({ code, status, sessionTitle, onEndProjection, onExit, connectedParticipants, responseCount }) {
   const isLive = status === 'live'
   const [copied, setCopied] = useState(false)
   useEffect(() => {
@@ -358,6 +361,17 @@ function TopSessionBar({ code, status, sessionTitle, onExit, connectedParticipan
       <div className="flex items-center justify-end gap-1.5 sm:gap-2 lg:gap-3">
         <StatChip icon={Users} label="Online" value={connectedParticipants} tone="brand" size="sm" />
         <StatChip icon={BarChart3} label="Respostas" value={responseCount} tone="violet" size="sm" />
+        {isLive && (
+          <button
+            type="button"
+            onClick={onEndProjection}
+            aria-label="Encerrar projeção"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-700 transition-colors hover:bg-red-50 sm:h-10 sm:w-10"
+            title="Encerrar projeção"
+          >
+            <Power className="h-4 w-4" />
+          </button>
+        )}
         <button
           type="button"
           onClick={onExit}

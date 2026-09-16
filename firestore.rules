@@ -125,7 +125,7 @@ service cloud.firestore {
         && request.resource.data.currentSlideIndex is int
         && request.resource.data.currentSlideIndex >= 0
         && request.resource.data.currentSlideIndex < resource.data.slides.size()
-        && request.resource.data.status == resource.data.status
+        && request.resource.data.status in ['live', 'ended']
         && request.resource.data.updatedAt is timestamp
         && (!request.resource.data.keys().hasAll(['endedAt'])
             || request.resource.data.endedAt is timestamp);
