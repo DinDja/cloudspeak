@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Search, ArrowRight, Radio, Trash2, Pencil } from 'lucide-react'
+import { Plus, Search, ArrowRight, Radio, Trash2, Pencil, ChevronDown, MoreHorizontal, Power, ListChecks, X } from 'lucide-react'
 import WorkspaceShell from '../components/ui/WorkspaceShell'
 import Modal from '../components/ui/Modal'
 import PresentationCard from '../components/presenter/PresentationCard'
@@ -46,78 +46,102 @@ function SessionList({
   onRename,
   onDelete,
   busyCode,
+  selectingSessions,
 }) {
+  const [expanded, setExpanded] = useState(false)
+  const liveCount = sessions.filter((session) => session.status === 'live').length
+  const isExpanded = expanded || selectingSessions
+
   return (
-    <div className="ml-4 border-l-2 border-slate-200 pl-4 sm:ml-10">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-          Seções desta apresentação
-        </p>
-        <span className="text-xs text-slate-400">{sessions.length}</span>
-      </div>
-      <div className="space-y-2">
-        {sessions.map((session) => (
-          <div key={session.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <input
-                type="checkbox"
-                checked={selectedSessionCodes.includes(session.code)}
-                onChange={() => onToggle(session.code)}
-                aria-label={`Selecionar seção ${session.code}`}
-                className="h-4 w-4 rounded border-slate-300 text-blue-600"
-              />
-              <Radio size={15} className={session.status === 'live' ? 'text-emerald-600' : 'text-slate-400'} />
-              <div className="min-w-0">
+    <section className="session-group">
+      <button
+        type="button"
+        className="session-group__toggle"
+        aria-expanded={isExpanded}
+        onClick={() => setExpanded((current) => !current)}
+      >
+        <ChevronDown size={15} className={`session-group__chevron${isExpanded ? ' is-open' : ''}`} />
+        <span>Seções</span>
+        <span className="session-group__count">{sessions.length}</span>
+        <span className="session-group__summary">
+          {liveCount ? `${liveCount} ao vivo · ` : ''}{sessions.length - liveCount} encerradas
+        </span>
+      </button>
+      {isExpanded && (
+        <div className="session-list">
+          {sessions.map((session) => (
+            <div key={session.id} className="session-row">
+              <span className="session-row__selection">
+                {selectingSessions && (
+                  <input
+                    type="checkbox"
+                    checked={selectedSessionCodes.includes(session.code)}
+                    onChange={() => onToggle(session.code)}
+                    aria-label={`Selecionar seção ${session.code}`}
+                    className="session-row__checkbox h-4 w-4 rounded border-slate-300 text-blue-600"
+                  />
+                )}
+              </span>
+              <Radio size={15} className={session.status === 'live' ? 'session-row__radio is-live' : 'session-row__radio'} />
+              <div className="session-row__copy">
                 <p className="truncate text-sm font-semibold text-slate-800">
                   {session.sessionLabel || `Seção ${session.code}`}
                 </p>
-                <p className="text-xs text-slate-500">
-                  Código <span className="tracking-[0.18em]">{session.code}</span> · {session.status === 'live' ? 'Ao vivo' : 'Encerrada'} · {formatRelativeDate(session.createdAt)}
+                <p className="session-row__meta">
+                  Código <span className="tracking-[0.18em]">{session.code}</span> · {formatRelativeDate(session.createdAt)}
                 </p>
               </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="fala-button fala-button--secondary"
-                disabled={busyCode === session.code}
-                onClick={() => onResume(session)}
-              >
-                {session.status === 'live' ? 'Retomar seção' : 'Tornar ao vivo'} <ArrowRight size={15} />
-              </button>
-              {session.status === 'ended' && (
+              <span className={`session-row__status${session.status === 'live' ? ' is-live' : ''}`}>
+                {session.status === 'live' ? 'Ao vivo' : 'Encerrada'}
+              </span>
+              <div className="session-row__actions">
                 <button
                   type="button"
                   className="fala-button fala-button--secondary"
-                  onClick={() => onViewResponses(session)}
+                  disabled={busyCode === session.code}
+                  onClick={() => onResume(session)}
                 >
-                  Ver respostas
+                  {session.status === 'live' ? 'Retomar seção' : 'Tornar ao vivo'}
                 </button>
-              )}
-              <button
-                type="button"
-                className="fala-button fala-button--secondary"
-                disabled={session.status === 'ended' || busyCode === session.code}
-                onClick={() => onEndProjection(session)}
-              >
-                {session.status === 'live' ? 'Encerrar projeção' : 'Projeção encerrada'}
-              </button>
-              <button type="button" className="fala-button fala-button--secondary" onClick={() => onRename(session)}>
-                <Pencil size={14} /> {session.sessionLabel ? 'Editar nome' : 'Dar nome'}
-              </button>
-              <button
-                type="button"
-                className="fala-button fala-button--danger"
-                aria-label={`Apagar seção ${session.code}`}
-                onClick={() => onDelete(session)}
-              >
-                <Trash2 size={15} />
-              </button>
+                {session.status === 'ended' ? (
+                  <button type="button" className="session-row__link" onClick={() => onViewResponses(session)}>
+                    Ver respostas
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="session-row__end"
+                    disabled={busyCode === session.code}
+                    onClick={() => onEndProjection(session)}
+                  >
+                    <Power size={14} /> Encerrar
+                  </button>
+                )}
+                <details className="dashboard-menu">
+                  <summary className="fala-icon-button" aria-label={`Mais ações para seção ${session.code}`} title="Mais ações">
+                    <MoreHorizontal size={17} />
+                  </summary>
+                  <div className="dashboard-menu__popover">
+                    <button type="button" onClick={(event) => {
+                      event.currentTarget.closest('details').open = false
+                      onRename(session)
+                    }}>
+                      <Pencil size={14} /> {session.sessionLabel ? 'Editar nome' : 'Dar nome'}
+                    </button>
+                    <button type="button" className="dashboard-menu__danger" onClick={(event) => {
+                      event.currentTarget.closest('details').open = false
+                      onDelete(session)
+                    }}>
+                      <Trash2 size={14} /> Apagar seção
+                    </button>
+                  </div>
+                </details>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -147,6 +171,7 @@ export function DashboardContent({
   const [deleteSessionTargets, setDeleteSessionTargets] = useState([])
   const [sessionNameTarget, setSessionNameTarget] = useState(null)
   const [sessionNameDraft, setSessionNameDraft] = useState('')
+  const [selectingSessions, setSelectingSessions] = useState(false)
   const [selectedSessionCodes, setSelectedSessionCodes] = useState([])
   const [deleting, setDeleting] = useState(false)
   const [deletingSession, setDeletingSession] = useState(false)
@@ -190,6 +215,7 @@ export function DashboardContent({
     try {
       await Promise.all(deleteSessionTargets.map((session) => onDeleteSession(session)))
       setSelectedSessionCodes([])
+      setSelectingSessions(false)
       setDeleteSessionTargets([])
     } catch (err) {
       setActionError(err.message || 'Não foi possível apagar a seção. Tente novamente.')
@@ -271,18 +297,39 @@ export function DashboardContent({
         </button>
       </div>
       <div className="library-tools">
-        <h2>
-          Sua biblioteca <span className="text-xs text-stone-500">/ {presentations.length} apresentações · {sessions.length} seções</span>
-        </h2>
-        <label className="library-search">
-          <Search size={16} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar pelo título"
-            aria-label="Buscar apresentações"
-          />
-        </label>
+        <div className="library-tools__heading">
+          <h2>Sua biblioteca</h2>
+          <p>{presentations.length} apresentações · {sessions.length} seções</p>
+        </div>
+        <div className="library-tools__controls">
+          <label className="library-search">
+            <Search size={16} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar pelo título"
+              aria-label="Buscar apresentações"
+            />
+          </label>
+          {sessions.length > 0 && (
+            <button
+              type="button"
+              className="library-tool-button"
+              aria-pressed={selectingSessions}
+              onClick={() => {
+                if (selectingSessions) {
+                  setSelectingSessions(false)
+                  setSelectedSessionCodes([])
+                } else {
+                  setSelectingSessions(true)
+                }
+              }}
+            >
+              {selectingSessions ? <X size={15} /> : <ListChecks size={15} />}
+              {selectingSessions ? 'Cancelar seleção' : 'Gerenciar seções'}
+            </button>
+          )}
+        </div>
       </div>
       {sessionsError && (
         <p className="fala-error mb-4" role="alert">{sessionsError}</p>
@@ -290,8 +337,8 @@ export function DashboardContent({
       {sessionsLoading && (
         <p className="mb-4 text-sm text-stone-500" role="status">Carregando seções salvas…</p>
       )}
-      {sessions.length > 0 && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      {selectingSessions && sessions.length > 0 && (
+        <div className="session-management">
           <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
             <input
               type="checkbox"
@@ -301,6 +348,9 @@ export function DashboardContent({
             />
             Selecionar todas as seções
           </label>
+          <span className="session-management__count">
+            {selectedSessionCodes.length} selecionadas
+          </span>
           {selectedSessionCodes.length > 0 && (
             <button
               type="button"
@@ -361,6 +411,7 @@ export function DashboardContent({
                       setDeleteSessionTargets([session])
                     }}
                     busyCode={sessionActionCode}
+                    selectingSessions={selectingSessions}
                   />
                 )}
               </div>
@@ -402,27 +453,30 @@ export function DashboardContent({
               setDeleteSessionTargets([session])
             }}
             busyCode={sessionActionCode}
+            selectingSessions={selectingSessions}
           />
         </section>
       )}
-      <section className="inspiration" aria-labelledby="inspiration-title">
-        <div className="section-heading">
-          <h2 id="inspiration-title">Um ponto de partida</h2>
-          <button type="button" className="fala-link" onClick={() => onNew('blank')}>
-            Todos os modelos <ArrowRight size={16} />
-          </button>
-        </div>
-        <div className="template-grid">
-          {starters.map((template, index) => (
-            <TemplateCover
-              key={template.id}
-              template={template}
-              index={index}
-              onClick={() => onNew(template.id)}
-            />
-          ))}
-        </div>
-      </section>
+      {!loading && presentations.length === 0 && (
+        <section className="inspiration" aria-labelledby="inspiration-title">
+          <div className="section-heading">
+            <h2 id="inspiration-title">Um ponto de partida</h2>
+            <button type="button" className="fala-link" onClick={() => onNew('blank')}>
+              Todos os modelos <ArrowRight size={16} />
+            </button>
+          </div>
+          <div className="template-grid">
+            {starters.map((template, index) => (
+              <TemplateCover
+                key={template.id}
+                template={template}
+                index={index}
+                onClick={() => onNew(template.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
       <Modal
         open={Boolean(sessionPickerTarget)}
         onClose={() => setSessionPickerTarget(null)}

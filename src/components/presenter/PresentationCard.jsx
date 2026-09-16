@@ -1,4 +1,4 @@
-import { Copy, Trash2, Play, Pencil, Plus } from 'lucide-react'
+import { Copy, Trash2, Play, Pencil, Plus, MoreHorizontal } from 'lucide-react'
 import SlideThumbnail from './SlideThumbnail'
 
 export default function PresentationCard({
@@ -34,18 +34,7 @@ export default function PresentationCard({
       <div className="deck-row__actions">
         <button
           type="button"
-          className="fala-button fala-button--secondary"
-          disabled={busy}
-          onClick={edit}
-          aria-label={`Editar ${title}`}
-          title="Editar apresentação"
-        >
-          <Pencil size={13} />
-          Editar
-        </button>
-        <button
-          type="button"
-          className="fala-button fala-button--secondary"
+          className="fala-button"
           disabled={busy}
           onClick={() => onPresent(presentation)}
         >
@@ -56,31 +45,38 @@ export default function PresentationCard({
           type="button"
           className="fala-button fala-button--secondary"
           disabled={busy}
-          onClick={() => onNewSession(presentation)}
+          onClick={edit}
+          aria-label={`Editar ${title}`}
+          title="Editar apresentação"
         >
-          <Plus size={13} />
-          Nova seção
+          <Pencil size={13} />
+          Editar
         </button>
-        <button
-          type="button"
-          className="fala-icon-button"
-          onClick={() => onDuplicate(presentation)}
-          disabled={busy}
-          aria-label={`Duplicar ${title}`}
-          title="Duplicar"
-        >
-          <Copy size={15} />
-        </button>
-        <button
-          type="button"
-          className="fala-icon-button"
-          onClick={() => onDelete(presentation)}
-          disabled={busy}
-          aria-label={`Apagar ${title}`}
-          title="Apagar"
-        >
-          <Trash2 size={15} />
-        </button>
+        <details className="dashboard-menu">
+          <summary className="fala-icon-button" aria-label={`Mais ações para ${title}`} title="Mais ações">
+            <MoreHorizontal size={17} />
+          </summary>
+          <div className="dashboard-menu__popover">
+            <button type="button" disabled={busy} onClick={(event) => {
+              event.currentTarget.closest('details').open = false
+              onNewSession(presentation)
+            }}>
+              <Plus size={14} /> Nova seção
+            </button>
+            <button type="button" disabled={busy} onClick={(event) => {
+              event.currentTarget.closest('details').open = false
+              onDuplicate(presentation)
+            }}>
+              <Copy size={14} /> Duplicar
+            </button>
+            <button type="button" className="dashboard-menu__danger" disabled={busy} onClick={(event) => {
+              event.currentTarget.closest('details').open = false
+              onDelete(presentation)
+            }}>
+              <Trash2 size={14} /> Apagar
+            </button>
+          </div>
+        </details>
       </div>
     </article>
   )
