@@ -20,6 +20,8 @@ import {
   QrCode,
   Download,
   Loader2,
+  ShieldCheck,
+  ExternalLink,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { TEAM_SELECTION_TYPE } from '../lib/constants'
@@ -31,7 +33,7 @@ import WordCloudResults from '../components/slides/WordCloudResults'
 import OpenTextResults from '../components/slides/OpenTextResults'
 import TeamSelectionResults from '../components/slides/TeamSelectionResults'
 import MinutesReportModal from '../components/host/MinutesReportModal'
-import { downloadAttendancePdf } from '../lib/eventMinutes'
+import { downloadIssuedAttendanceReport } from '../lib/attendanceReportService'
 import { getParticipantsWithRetry } from '../lib/firebaseSessions'
 import EducationWatermark from '../components/presenter/EducationWatermark'
 
@@ -49,6 +51,8 @@ const TONE = {
 
 export default function HostView({
   session,
+  ownerUid,
+  ownerEmail,
   currentSlide,
   responses,
   reactions,
@@ -70,6 +74,7 @@ export default function HostView({
   const [reportOpen, setReportOpen] = useState(false)
   const [attendanceDownloading, setAttendanceDownloading] = useState(false)
   const [attendanceError, setAttendanceError] = useState('')
+  const [attendanceReport, setAttendanceReport] = useState(null)
   const slideStyleClass = getSlideStyleClass(currentSlide)
   const slideThemeVars = getSlideThemeVars(currentSlide)
 
@@ -85,7 +90,13 @@ export default function HostView({
     setAttendanceError('')
     try {
       const latestParticipants = await getParticipantsWithRetry(session.code)
-      await downloadAttendancePdf({ session, participants: latestParticipants })
+      const result = await downloadIssuedAttendanceReport({
+        session,
+        participants: latestParticipants,
+        ownerUid,
+        ownerEmail,
+      })
+      setAttendanceReport(result.report)
     } catch (error) {
       console.error('attendance report failed', error)
       setAttendanceError('Não foi possível gerar a lista de presença. Tente novamente.')
@@ -211,6 +222,7 @@ export default function HostView({
           onDownloadAttendance={downloadAttendance}
           attendanceDownloading={attendanceDownloading}
           attendanceError={attendanceError}
+          attendanceReport={attendanceReport}
         />
       </div>
 
@@ -290,6 +302,9 @@ export default function HostView({
         session={session}
         responses={allResponses}
         participants={participants}
+        ownerUid={ownerUid}
+        ownerEmail={ownerEmail}
+        onAttendanceIssued={setAttendanceReport}
         onClose={() => setReportOpen(false)}
       />
     </>
@@ -465,6 +480,7 @@ function SidePanel({
   onDownloadAttendance,
   attendanceDownloading,
   attendanceError,
+  attendanceReport,
 }) {
   const [feedTab, setFeedTab] = useState('live')
   const [qrFullscreen, setQrFullscreen] = useState(false)
@@ -534,6 +550,7 @@ function SidePanel({
           onDownloadAttendance={onDownloadAttendance}
           attendanceDownloading={attendanceDownloading}
           attendanceError={attendanceError}
+          attendanceReport={attendanceReport}
         />
 
         <section className="shrink-0">
@@ -606,6 +623,7 @@ function EventQrTools({
   onDownloadAttendance,
   attendanceDownloading,
   attendanceError,
+  attendanceReport,
 }) {
   const [selectedQr, setSelectedQr] = useState(null)
   const entries = [
@@ -709,6 +727,19 @@ function EventQrTools({
           {attendanceDownloading ? 'Gerando lista…' : 'Baixar lista de presença (PDF)'}
         </button>
         {attendanceError && <p className="mt-2 text-[10px] leading-4 text-red-700" role="alert">{attendanceError}</p>}
+        {attendanceReport?.verificationUrl && (
+          <div className="mt-3 border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+            <p className="flex items-center gap-1.5 font-bold"><ShieldCheck className="h-4 w-4" /> Lista verificável emitida</p>
+            <a
+              href={attendanceReport.verificationUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1 font-semibold underline underline-offset-2"
+            >
+              Conferir certificado <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        )}
       </section>
 
       {selectedQr && (

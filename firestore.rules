@@ -125,10 +125,88 @@ service cloud.firestore {
         && request.resource.data.currentSlideIndex is int
         && request.resource.data.currentSlideIndex >= 0
         && request.resource.data.currentSlideIndex < resource.data.slides.size()
+        // A sessão pode ser encerrada pelo proprietário, mas não reaberta.
+        // O cliente envia live -> ended junto com endedAt.
         && request.resource.data.status in ['live', 'ended']
+        && (request.resource.data.status == resource.data.status
+            || (resource.data.status == 'live' && request.resource.data.status == 'ended'))
         && request.resource.data.updatedAt is timestamp
         && (!request.resource.data.keys().hasAll(['endedAt'])
             || request.resource.data.endedAt is timestamp);
+    }
+
+    // ---------- Relatórios verificáveis de presença ----------
+    match /attendanceReports/{reportId} {
+      function reportOwner() {
+        return isSecUser() && resource.data.ownerUid == request.auth.uid;
+      }
+
+      function validHash(value) {
+        return isString(value, 64, 64) && value.matches('^[a-f0-9]{64}$');
+      }
+
+      allow get: if resource.data.status == 'sealed' || reportOwner();
+      allow list: if isSecUser() && resource.data.ownerUid == request.auth.uid;
+
+      allow create: if isSecUser()
+        && request.resource.data.keys().hasOnly([
+          'reportId', 'source', 'schemaVersion', 'sessionCode', 'sessionTitle',
+          'sessionStatus', 'ownerUid', 'ownerEmail', 'participantCount',
+          'listHash', 'authorName', 'createdAt', 'status'
+        ])
+        && request.resource.data.keys().hasAll([
+          'reportId', 'source', 'schemaVersion', 'sessionCode', 'sessionTitle',
+          'sessionStatus', 'ownerUid', 'ownerEmail', 'participantCount',
+          'listHash', 'authorName', 'createdAt', 'status'
+        ])
+        && request.resource.data.reportId == reportId
+        && request.resource.data.source == 'fala-sec'
+        && request.resource.data.schemaVersion == 1
+        && isValidSessionCode(request.resource.data.sessionCode)
+        && isString(request.resource.data.sessionTitle, 1, 120)
+        && request.resource.data.sessionStatus in ['live', 'ended']
+        && matchesAuthUser(request.resource.data.ownerUid, request.resource.data.ownerEmail)
+        && isString(request.resource.data.ownerEmail, 1, 160)
+        && request.resource.data.participantCount is int
+        && request.resource.data.participantCount >= 0
+        && request.resource.data.participantCount <= 5000
+        && validHash(request.resource.data.listHash)
+        && isString(request.resource.data.authorName, 0, 120)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.status == 'draft'
+        && get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionCode)).data.ownerUid == request.auth.uid
+        && get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionCode)).data.status == request.resource.data.sessionStatus;
+
+      allow update: if isSecUser()
+        && reportOwner()
+        && resource.data.status == 'draft'
+        && request.resource.data.keys().hasOnly([
+          'reportId', 'source', 'schemaVersion', 'sessionCode', 'sessionTitle',
+          'sessionStatus', 'ownerUid', 'ownerEmail', 'participantCount',
+          'listHash', 'authorName', 'createdAt', 'status', 'pdfHash', 'sealedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'reportId', 'source', 'schemaVersion', 'sessionCode', 'sessionTitle',
+          'sessionStatus', 'ownerUid', 'ownerEmail', 'participantCount',
+          'listHash', 'authorName', 'createdAt', 'status', 'pdfHash', 'sealedAt'
+        ])
+        && request.resource.data.reportId == resource.data.reportId
+        && request.resource.data.source == resource.data.source
+        && request.resource.data.schemaVersion == resource.data.schemaVersion
+        && request.resource.data.sessionCode == resource.data.sessionCode
+        && request.resource.data.sessionTitle == resource.data.sessionTitle
+        && request.resource.data.sessionStatus == resource.data.sessionStatus
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.ownerEmail == resource.data.ownerEmail
+        && request.resource.data.participantCount == resource.data.participantCount
+        && request.resource.data.listHash == resource.data.listHash
+        && request.resource.data.authorName == resource.data.authorName
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.status == 'sealed'
+        && validHash(request.resource.data.pdfHash)
+        && request.resource.data.sealedAt is timestamp;
+
+      allow delete: if false;
     }
 
     match /sessions/{sessionCode} {

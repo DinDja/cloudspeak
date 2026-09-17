@@ -69,6 +69,16 @@ O app separa **decks editáveis** de **instâncias ao vivo**:
 
 ---
 
+### Lista de presença verificável
+
+Ao gerar a lista de presença, o Fala SEC cria um relatório selado em `attendanceReports/{reportId}`. O relatório guarda o código da sessão, o responsável autenticado, a quantidade de registros, o hash SHA-256 da lista e, após a geração, o hash SHA-256 do PDF.
+
+O PDF inclui um QR Code e um endereço público `?verify={reportId}`. A página de validação consulta o relatório selado no Firestore e permite selecionar o PDF para conferir sua impressão digital no navegador. Relatórios selados não podem ser editados ou apagados pelas regras do Firestore.
+
+Esse mecanismo comprova a origem e a integridade do arquivo dentro do Fala SEC. Ele não constitui assinatura digital ICP-Brasil nem prova física de presença.
+
+---
+
 ## Stack
 
 | Camada | Tecnologia |

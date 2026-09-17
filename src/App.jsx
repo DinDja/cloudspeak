@@ -11,6 +11,7 @@ import {
   normalizeText,
   describeFirebaseError,
 } from './lib/validators'
+import { isValidAttendanceReportId } from './lib/attendanceReports'
 import {
   getSessionWithRetry,
   deleteSession,
@@ -35,6 +36,7 @@ import TemplatePicker from './views/TemplatePicker'
 import PresentationBuilder from './views/PresentationBuilder'
 import HostView from './views/HostView'
 import ParticipantView from './views/ParticipantView'
+import AttendanceVerificationView from './views/AttendanceVerificationView'
 
 const ACTIVE_SESSION_STORAGE_KEY = 'cloudspeak-active-session'
 
@@ -79,6 +81,7 @@ export default function App() {
   const [pendingTemplateId, setPendingTemplateId] = useState('blank')
   const [prefilledCode, setPrefilledCode] = useState('')
   const [prefilledAttendance, setPrefilledAttendance] = useState(false)
+  const [verificationReportId, setVerificationReportId] = useState('')
   const [requestedSlideId, setRequestedSlideId] = useState('')
   const [attendanceMode, setAttendanceMode] = useState(false)
   const [joinError, setJoinError] = useState('')
@@ -120,8 +123,10 @@ export default function App() {
     const params = new URLSearchParams(window.location.search)
     const codeFromUrl = params.get('code')?.trim().toUpperCase() ?? ''
     const slideFromUrl = params.get('slide')?.trim() ?? ''
+    const reportFromUrl = params.get('verify')?.trim() ?? ''
     if (codeFromUrl) setPrefilledCode(codeFromUrl)
     if (slideFromUrl) setRequestedSlideId(slideFromUrl)
+    if (isValidAttendanceReportId(reportFromUrl)) setVerificationReportId(reportFromUrl)
     setPrefilledAttendance(params.get('mode') === 'attendance' || params.get('presence') === '1')
   }, [])
 
@@ -202,6 +207,7 @@ export default function App() {
     setSessionCode('')
     setPrefilledCode('')
     setPrefilledAttendance(false)
+    setVerificationReportId('')
     setRequestedSlideId('')
     setAttendanceMode(false)
     setJoinError('')
@@ -418,13 +424,13 @@ export default function App() {
     }
   }
 
-  let view = route
-  if (status === 'loading') view = 'loading'
-  else if ((route === 'dashboard' || route === 'builder' || route === 'templates') && status !== 'verified') {
+  let view = verificationReportId ? 'attendance-verification' : route
+  if (!verificationReportId && status === 'loading') view = 'loading'
+  else if (!verificationReportId && (route === 'dashboard' || route === 'builder' || route === 'templates') && status !== 'verified') {
     view = status === 'anonymous' ? 'login' : 'verify'
-  } else if (status === 'verified' && (route === 'login' || route === 'register' || route === 'verify')) {
+  } else if (!verificationReportId && status === 'verified' && (route === 'login' || route === 'register' || route === 'verify')) {
     view = 'dashboard'
-  } else if (status === 'unverified' && (route === 'login' || route === 'register')) {
+  } else if (!verificationReportId && status === 'unverified' && (route === 'login' || route === 'register')) {
     view = 'verify'
   }
 
@@ -444,6 +450,10 @@ export default function App() {
         {globalError && <GlobalToast message={globalError} />}
       </>
     )
+  }
+
+  if (view === 'attendance-verification') {
+    return <AttendanceVerificationView key={verificationReportId} reportId={verificationReportId} onBack={goPublic} />
   }
 
   if (view === 'login') {
@@ -519,6 +529,8 @@ export default function App() {
       <>
         <HostView
           session={session}
+          ownerUid={uid}
+          ownerEmail={email}
           currentSlide={currentSlide}
           currentSlideIndex={session.currentSlideIndex ?? 0}
           responses={currentSlideResponses}

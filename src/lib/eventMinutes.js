@@ -1,5 +1,9 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { QRCodeSVG } from 'qrcode.react'
 import { EDUCATION_EVENT, getEventData } from './eventData'
 import { normalizeText } from './validators'
+import { getAttendanceRecords } from './attendanceReports'
 
 const PAGE_WIDTH = 210
 const PAGE_HEIGHT = 297
@@ -135,6 +139,44 @@ const imageToDataUrl = async (url) => {
   }
 }
 
+const qrCodeToDataUrl = async (value) => {
+  if (!value || typeof document === 'undefined') return null
+
+  try {
+    const svg = renderToStaticMarkup(createElement(QRCodeSVG, {
+      value,
+      size: 180,
+      level: 'M',
+      includeMargin: true,
+      bgColor: '#ffffff',
+      fgColor: '#111827',
+    }))
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
+    const objectUrl = URL.createObjectURL(blob)
+    const image = new Image()
+    const dataUrl = await new Promise((resolve) => {
+      image.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = 180
+        canvas.height = 180
+        const context = canvas.getContext('2d')
+        if (!context) {
+          resolve(null)
+          return
+        }
+        context.drawImage(image, 0, 0, 180, 180)
+        resolve(canvas.toDataURL('image/png'))
+      }
+      image.onerror = () => resolve(null)
+      image.src = objectUrl
+    })
+    URL.revokeObjectURL(objectUrl)
+    return dataUrl
+  } catch {
+    return null
+  }
+}
+
 const drawFooter = (pdf, pageNumber) => {
   pdf.setDrawColor(215, 218, 215)
   pdf.line(MARGIN_LEFT, PAGE_HEIGHT - 15, PAGE_WIDTH - MARGIN_RIGHT, PAGE_HEIGHT - 15)
@@ -142,7 +184,7 @@ const drawFooter = (pdf, pageNumber) => {
   pdf.setFont('times', 'normal')
   pdf.setFontSize(8)
   pdf.setTextColor(105, 110, 108)
-  pdf.text('Registro eletrônico do evento · CloudSpeak / Secretaria da Educação', MARGIN_LEFT, PAGE_HEIGHT - 9)
+  pdf.text('Registro eletrônico do evento · Fala SEC / Secretaria da Educação', MARGIN_LEFT, PAGE_HEIGHT - 9)
   pdf.setTextColor(0, 0, 0)
   pdf.setFontSize(10)
   pdf.text(String(pageNumber), PAGE_WIDTH - MARGIN_RIGHT, 20, { align: 'right' })
@@ -324,24 +366,20 @@ const makeWriter = (pdf, logo, autoTable) => {
 }
 
 export const getAttendanceParticipants = (participants = []) =>
-  (participants ?? [])
-    .filter((participant) => participant?.attendance === true)
-    .map((participant) => ({
-      ...participant,
-      participantId: text(participant.participantId || participant.id),
-    }))
-    .filter((participant) => participant.participantId)
+  getAttendanceRecords(participants)
     .sort((left, right) =>
       text(left.participantName || 'Anônimo').localeCompare(text(right.participantName || 'Anônimo'), 'pt-BR'),
     )
 
-export const createAttendancePdf = async ({ session, participants = [], authorName = '' }) => {
+export const createAttendancePdf = async ({ session, participants = [], authorName = '', report = null }) => {
   const { jsPDF, autoTable } = await loadPdfTools()
   const event = getEventForSession(session)
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
   const logo = await imageToDataUrl('/logo-mapa-educacao-integral.png')
   const writer = makeWriter(pdf, logo, autoTable)
   const participantRows = getAttendanceParticipants(participants)
+  const verificationUrl = text(report?.verificationUrl)
+  const verificationQr = await qrCodeToDataUrl(verificationUrl)
   const eventDate = parseEventDate(event.date) || toDate(session?.launchedAt)
   const eventDateLabel = text(event.date) || formatDate(eventDate)
   const eventTimeLabel = text(event.time) || 'horário não informado'
@@ -354,6 +392,36 @@ export const createAttendancePdf = async ({ session, participants = [], authorNa
     'Para fins de comprovação, este documento reúne os registros de presença confirmados pelo QR Code específico de presença. Cada linha corresponde a um participante registrado no Firestore.',
   )
   writer.paragraph(`Total de presenças confirmadas: ${participantRows.length}.`, { bold: true })
+
+  if (report?.reportId && report?.listHash) {
+    writer.ensure(34)
+    const verificationY = writer.y
+    writer.paragraph(`Certificado de origem: ${report.reportId}.`, {
+      width: 118,
+      indent: 0,
+      justify: false,
+      size: 9,
+      lineHeight: 4.5,
+    })
+    writer.paragraph(`Valide em: ${verificationUrl || 'pagina de validacao do Fala SEC'}.`, {
+      width: 118,
+      indent: 0,
+      justify: false,
+      size: 8,
+      lineHeight: 4.2,
+    })
+    writer.paragraph(`Hash da lista: ${report.listHash}.`, {
+      width: 118,
+      indent: 0,
+      justify: false,
+      size: 7,
+      lineHeight: 3.8,
+    })
+    if (verificationQr) {
+      pdf.addImage(verificationQr, 'PNG', PAGE_WIDTH - MARGIN_RIGHT - 30, verificationY - 2, 30, 30)
+      writer.y = Math.max(writer.y, verificationY + 32)
+    }
+  }
 
   if (participantRows.length) {
     writer.table(
@@ -382,7 +450,7 @@ export const createAttendancePdf = async ({ session, participants = [], authorNa
   }
 
   writer.paragraph(
-    `Lista gerada pelo CloudSpeak${text(authorName) ? ` para ${text(authorName)}` : ''}. A conferência e a assinatura do documento permanecem sob responsabilidade da organização do evento.`,
+    `Lista gerada pelo Fala SEC${text(authorName) ? ` para ${text(authorName)}` : ''}. A conferência e a assinatura do documento permanecem sob responsabilidade da organização do evento.`,
     { size: 8 },
   )
 

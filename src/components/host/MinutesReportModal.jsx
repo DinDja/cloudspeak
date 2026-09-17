@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { CheckCircle2, Download, FileText, ShieldCheck } from 'lucide-react'
 import Modal from '../ui/Modal'
-import { downloadAttendancePdf, downloadMinutesPdf, getAttendanceParticipants } from '../../lib/eventMinutes'
+import { downloadMinutesPdf, getAttendanceParticipants } from '../../lib/eventMinutes'
+import { downloadIssuedAttendanceReport } from '../../lib/attendanceReportService'
 import {
   getParticipantsWithRetry,
   getSessionReportSnapshotWithRetry,
@@ -12,12 +13,16 @@ export default function MinutesReportModal({
   session,
   responses,
   participants,
+  ownerUid,
+  ownerEmail,
+  onAttendanceIssued,
   onClose,
 }) {
   const [authorName, setAuthorName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [completed, setCompleted] = useState(false)
+  const [attendanceReport, setAttendanceReport] = useState(null)
   const attendanceCount = getAttendanceParticipants(participants).length
 
   const downloadAttendance = async () => {
@@ -25,7 +30,15 @@ export default function MinutesReportModal({
     setError('')
     try {
       const reportParticipants = session?.code ? await getParticipantsWithRetry(session.code) : participants
-      await downloadAttendancePdf({ session, participants: reportParticipants, authorName })
+      const result = await downloadIssuedAttendanceReport({
+        session,
+        participants: reportParticipants,
+        ownerUid,
+        ownerEmail,
+        authorName,
+      })
+      setAttendanceReport(result.report)
+      onAttendanceIssued?.(result.report)
     } catch (err) {
       console.error('attendance report failed', err)
       setError(err.message || 'Não foi possível gerar a lista de presença. Tente novamente.')
@@ -127,6 +140,21 @@ export default function MinutesReportModal({
               O documento preserva as respostas como foram enviadas. A conferência final pelo secretário continua necessária antes de assinatura ou protocolo.
             </p>
           </div>
+
+          {attendanceReport?.verificationUrl && (
+            <div className="mt-4 border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+              <p className="font-bold">Lista verificável emitida.</p>
+              <p className="mt-1">O PDF inclui um QR Code e um identificador para conferência pública.</p>
+              <a
+                href={attendanceReport.verificationUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-block font-bold underline underline-offset-2"
+              >
+                Abrir página de validação
+              </a>
+            </div>
+          )}
 
           {error && <p className="fala-error mt-4" role="alert">{error}</p>}
 

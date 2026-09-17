@@ -26,12 +26,21 @@ import {
   isRetryableFirebaseError,
   normalizeText,
 } from './validators'
+import {
+  ATTENDANCE_REPORT_SCHEMA_VERSION,
+  ATTENDANCE_REPORT_SOURCE,
+  getAttendanceListHash,
+  getCanonicalAttendanceRecords,
+  getAttendanceReportUrl,
+} from './attendanceReports'
 
 const sessionRef = (code) => doc(db, 'sessions', code)
 const sessionsCol = () => collection(db, 'sessions')
 const responsesRef = (code) => collection(db, 'sessions', code, 'responses')
 const participantsRef = (code) => collection(db, 'sessions', code, 'participants')
 const reactionsRef = (code) => collection(db, 'sessions', code, 'reactions')
+const attendanceReportsCol = () => collection(db, 'attendanceReports')
+const attendanceReportRef = (reportId) => doc(db, 'attendanceReports', reportId)
 
 const retryFirestoreOperation = async (operation, attempts = 3) => {
   let lastError
@@ -82,6 +91,62 @@ export const getParticipantsWithRetry = (code) => retryFirestoreOperation(async 
   const snapshot = await getDocsFromServer(participantsRef(code))
   return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
 })
+
+export const createAttendanceReport = async ({
+  session,
+  participants = [],
+  ownerUid,
+  ownerEmail,
+  authorName = '',
+}) => {
+  if (!session?.code || !ownerUid || !ownerEmail) throw new Error('INVALID_ATTENDANCE_REPORT')
+
+  const reportReference = doc(attendanceReportsCol())
+  const records = getCanonicalAttendanceRecords(participants)
+  const listHash = await getAttendanceListHash(session, participants)
+  const payload = {
+    reportId: reportReference.id,
+    source: ATTENDANCE_REPORT_SOURCE,
+    schemaVersion: ATTENDANCE_REPORT_SCHEMA_VERSION,
+    sessionCode: normalizeText(session.code),
+    sessionTitle: normalizeText(session.title).slice(0, 120),
+    sessionStatus: session.status,
+    ownerUid,
+    ownerEmail: normalizeText(ownerEmail).slice(0, 160),
+    participantCount: records.length,
+    listHash,
+    authorName: normalizeText(authorName).slice(0, 120),
+    createdAt: serverTimestamp(),
+    status: 'draft',
+  }
+
+  await setDoc(reportReference, payload)
+  return {
+    ...payload,
+    verificationUrl: getAttendanceReportUrl(reportReference.id),
+  }
+}
+
+export const sealAttendanceReport = async (reportId, pdfHash) => {
+  if (!reportId || !/^[a-f0-9]{64}$/.test(pdfHash ?? '')) {
+    throw new Error('INVALID_ATTENDANCE_REPORT_HASH')
+  }
+  await updateDoc(attendanceReportRef(reportId), {
+    pdfHash,
+    sealedAt: serverTimestamp(),
+    status: 'sealed',
+  })
+}
+
+export const getAttendanceReport = async (reportId) => {
+  if (!reportId) return null
+  const snapshot = await getDoc(attendanceReportRef(reportId))
+  if (!snapshot.exists()) return null
+  return { id: snapshot.id, ...snapshot.data() }
+}
+
+export const getAttendanceReportWithRetry = (reportId) =>
+  retryFirestoreOperation(() => getAttendanceReport(reportId))
 
 export const getResponses = async (code) => {
   const snapshot = await getDocs(responsesRef(code))
