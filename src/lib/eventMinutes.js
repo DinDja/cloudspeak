@@ -139,8 +139,8 @@ const imageToDataUrl = async (url) => {
   }
 }
 
-const qrCodeToDataUrl = async (value) => {
-  if (!value || typeof document === 'undefined') return null
+const getQrCodeVector = (value) => {
+  if (!value) return null
 
   try {
     const svg = renderToStaticMarkup(createElement(QRCodeSVG, {
@@ -151,30 +151,100 @@ const qrCodeToDataUrl = async (value) => {
       bgColor: '#ffffff',
       fgColor: '#111827',
     }))
-    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
-    const objectUrl = URL.createObjectURL(blob)
-    const image = new Image()
-    const dataUrl = await new Promise((resolve) => {
-      image.onload = () => {
-        const canvas = document.createElement('canvas')
-        canvas.width = 180
-        canvas.height = 180
-        const context = canvas.getContext('2d')
-        if (!context) {
-          resolve(null)
-          return
-        }
-        context.drawImage(image, 0, 0, 180, 180)
-        resolve(canvas.toDataURL('image/png'))
-      }
-      image.onerror = () => resolve(null)
-      image.src = objectUrl
-    })
-    URL.revokeObjectURL(objectUrl)
-    return dataUrl
+    const viewBoxMatch = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)
+    const paths = [...svg.matchAll(/<path\b[^>]*fill="([^"]+)"[^>]*d="([^"]+)"/g)]
+    const darkPath = paths.find(([, fill]) => !['#fff', '#ffffff'].includes(fill.toLowerCase()))
+    if (!viewBoxMatch || !darkPath) return null
+
+    const rectanglePattern = /M\s*(-?[\d.]+)[,\s]+(-?[\d.]+)\s*h\s*(-?[\d.]+)\s*v\s*(-?[\d.]+)\s*H\s*(-?[\d.]+)\s*z/gi
+    const rectangles = [...darkPath[2].matchAll(rectanglePattern)].map((match) => ({
+      x: Number(match[1]),
+      y: Number(match[2]),
+      width: Number(match[3]),
+      height: Number(match[4]),
+    }))
+    if (!rectangles.length) return null
+
+    return {
+      width: Number(viewBoxMatch[1]),
+      height: Number(viewBoxMatch[2]),
+      rectangles,
+    }
   } catch {
     return null
   }
+}
+
+const drawQrCode = (pdf, qrCode, x, y, size) => {
+  pdf.setFillColor(255, 255, 255)
+  pdf.rect(x, y, size, size, 'F')
+  pdf.setFillColor(17, 24, 39)
+  const scaleX = size / qrCode.width
+  const scaleY = size / qrCode.height
+  qrCode.rectangles.forEach(({ x: cellX, y: cellY, width, height }) => {
+    pdf.rect(x + cellX * scaleX, y + cellY * scaleY, width * scaleX, height * scaleY, 'F')
+  })
+  pdf.setFillColor(0, 0, 0)
+}
+
+const drawVerificationCard = (pdf, writer, { reportId, verificationUrl, listHash, qrCode }) => {
+  const cardHeight = 46
+  writer.ensure(cardHeight + 6)
+  const cardX = MARGIN_LEFT
+  const cardY = writer.y
+  const cardWidth = CONTENT_WIDTH
+  const qrBoxSize = 32
+  const qrBoxX = PAGE_WIDTH - MARGIN_RIGHT - qrBoxSize - 4
+  const qrBoxY = cardY + 5
+  const textX = cardX + 6
+  const textWidth = qrBoxX - textX - 5
+
+  pdf.setFillColor(241, 247, 243)
+  pdf.setDrawColor(165, 190, 173)
+  pdf.setLineWidth(0.35)
+  pdf.roundedRect(cardX, cardY, cardWidth, cardHeight, 2, 2, 'FD')
+
+  pdf.setCharSpace(0)
+  pdf.setTextColor(29, 78, 58)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(8.5)
+  pdf.text('VERIFICAÇÃO DIGITAL - FALA SEC', textX, cardY + 8)
+
+  let textY = cardY + 15
+  const writeCardText = (value, font, fontSize, lineHeight, after = 0) => {
+    pdf.setCharSpace(0)
+    pdf.setFont('helvetica', font)
+    pdf.setFontSize(fontSize)
+    pdf.setTextColor(28, 34, 31)
+    const lines = pdf.splitTextToSize(value, textWidth)
+    const lineHeightFactor = lineHeight / (fontSize / pdf.internal.scaleFactor)
+    pdf.text(lines, textX, textY, { align: 'left', maxWidth: textWidth, lineHeightFactor, charSpace: 0 })
+    textY += lines.length * lineHeight + after
+  }
+
+  writeCardText(`Certificado de origem: ${reportId}`, 'bold', 8, 3.8, 0.5)
+  writeCardText(`Valide em: ${verificationUrl}`, 'normal', 7, 3.5, 0.5)
+  pdf.setFont('courier', 'normal')
+  pdf.setFontSize(6.3)
+  pdf.setTextColor(28, 34, 31)
+  const hashLines = pdf.splitTextToSize(`Hash da lista: ${listHash}`, textWidth)
+  pdf.text(hashLines, textX, textY, {
+    align: 'left',
+    maxWidth: textWidth,
+    lineHeightFactor: 3.2 / (6.3 / pdf.internal.scaleFactor),
+    charSpace: 0,
+  })
+
+  pdf.setFillColor(255, 255, 255)
+  pdf.setDrawColor(165, 190, 173)
+  pdf.roundedRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 1.5, 1.5, 'FD')
+  drawQrCode(pdf, qrCode, qrBoxX + 2, qrBoxY + 2, qrBoxSize - 4)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(6.2)
+  pdf.setTextColor(29, 78, 58)
+  pdf.text('Escaneie para validar', qrBoxX + qrBoxSize / 2, cardY + 41, { align: 'center' })
+  pdf.setTextColor(0, 0, 0)
+  writer.y = cardY + cardHeight + 6
 }
 
 const drawFooter = (pdf, pageNumber) => {
@@ -379,7 +449,7 @@ export const createAttendancePdf = async ({ session, participants = [], authorNa
   const writer = makeWriter(pdf, logo, autoTable)
   const participantRows = getAttendanceParticipants(participants)
   const verificationUrl = text(report?.verificationUrl)
-  const verificationQr = await qrCodeToDataUrl(verificationUrl)
+  const verificationQr = getQrCodeVector(verificationUrl)
   const eventDate = parseEventDate(event.date) || toDate(session?.launchedAt)
   const eventDateLabel = text(event.date) || formatDate(eventDate)
   const eventTimeLabel = text(event.time) || 'horário não informado'
@@ -394,33 +464,15 @@ export const createAttendancePdf = async ({ session, participants = [], authorNa
   writer.paragraph(`Total de presenças confirmadas: ${participantRows.length}.`, { bold: true })
 
   if (report?.reportId && report?.listHash) {
-    writer.ensure(34)
-    const verificationY = writer.y
-    writer.paragraph(`Certificado de origem: ${report.reportId}.`, {
-      width: 118,
-      indent: 0,
-      justify: false,
-      size: 9,
-      lineHeight: 4.5,
-    })
-    writer.paragraph(`Valide em: ${verificationUrl || 'pagina de validacao do Fala SEC'}.`, {
-      width: 118,
-      indent: 0,
-      justify: false,
-      size: 8,
-      lineHeight: 4.2,
-    })
-    writer.paragraph(`Hash da lista: ${report.listHash}.`, {
-      width: 118,
-      indent: 0,
-      justify: false,
-      size: 7,
-      lineHeight: 3.8,
-    })
-    if (verificationQr) {
-      pdf.addImage(verificationQr, 'PNG', PAGE_WIDTH - MARGIN_RIGHT - 30, verificationY - 2, 30, 30)
-      writer.y = Math.max(writer.y, verificationY + 32)
+    if (!verificationUrl || !verificationQr) {
+      throw new Error('Não foi possível gerar o QR Code de verificação do documento.')
     }
+    drawVerificationCard(pdf, writer, {
+      reportId: report.reportId,
+      verificationUrl,
+      listHash: report.listHash,
+      qrCode: verificationQr,
+    })
   }
 
   if (participantRows.length) {

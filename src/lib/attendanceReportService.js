@@ -26,11 +26,13 @@ export const issueAttendanceReport = async ({
       verificationUrl: getAttendanceReportUrl(report.reportId),
     },
   })
-  const pdfHash = await sha256Hex(pdf.output('arraybuffer'))
+  const pdfBytes = pdf.output('arraybuffer')
+  const pdfHash = await sha256Hex(pdfBytes)
   await sealAttendanceReport(report.reportId, pdfHash)
 
   return {
     pdf,
+    pdfBytes,
     report: {
       ...report,
       status: 'sealed',
@@ -43,6 +45,16 @@ export const issueAttendanceReport = async ({
 export const downloadIssuedAttendanceReport = async (options) => {
   const result = await issueAttendanceReport(options)
   const code = String(options?.session?.code || 'evento').toLowerCase()
-  result.pdf.save(`lista-presenca-verificavel-${code}.pdf`)
+  const filename = `lista-presenca-verificavel-${code}.pdf`
+  const blob = new Blob([result.pdfBytes], { type: 'application/pdf' })
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = filename
+  link.style.display = 'none'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
   return result
 }
