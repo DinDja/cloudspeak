@@ -120,9 +120,9 @@ function SessionList({
                   type="button"
                   className="fala-button fala-button--secondary"
                   disabled={busyCode === session.code}
-                  onClick={() => onResume(session)}
+                  onClick={() => (session.status === 'live' ? onResume(session) : onViewResponses(session))}
                 >
-                  {session.status === 'live' ? 'Retomar seção' : 'Tornar ao vivo'}
+                  {session.status === 'live' ? 'Retomar seção' : 'Abrir resumo'}
                 </button>
                 {session.status === 'ended' ? (
                   <button type="button" className="session-row__link" onClick={() => onViewResponses(session)}>
@@ -265,10 +265,10 @@ export function DashboardContent({
     }
   }
   const resumeSession = async (session) => {
+    if (session.status !== 'live') return
     setActionError('')
     setSessionActionCode(session.code)
     try {
-      if (session.status === 'ended') await onSetSessionStatus(session.code, 'live')
       onResumeSession(session.code)
     } catch (err) {
       setActionError(err.message || 'Não foi possível retomar a projeção.')
