@@ -18,7 +18,9 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '../../firebase'
-import { REACTION_LIFETIME_MS, TEAM_SELECTION_TYPE } from './constants'
+import { AVANCA_EVENT_KEY } from './eventData'
+import { EVIDENCE_BOARD_TYPE, MAX_SLIDES, REACTION_LIFETIME_MS, TEAM_SELECTION_TYPE } from './constants'
+import { createEvidenceBoardSlide } from './evidenceBoard'
 import {
   generateCode,
   getParticipantDisplayName,
@@ -41,6 +43,17 @@ const participantsRef = (code) => collection(db, 'sessions', code, 'participants
 const reactionsRef = (code) => collection(db, 'sessions', code, 'reactions')
 const attendanceReportsCol = () => collection(db, 'attendanceReports')
 const attendanceReportRef = (reportId) => doc(db, 'attendanceReports', reportId)
+
+const isAvancaPresentation = (presentation, slides) => {
+  const normalizedTitle = String(presentation?.title ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+
+  return presentation?.eventKey === AVANCA_EVENT_KEY
+    || normalizedTitle.includes('avanca')
+    || slides.some((slide) => slide?.style?.theme === 'avanca')
+}
 
 const retryFirestoreOperation = async (operation, attempts = 3) => {
   let lastError
@@ -193,14 +206,27 @@ export const createSession = async ({ code, title, slides, ownerUid, ownerEmail,
 
 export const launchPresentationAsSession = async ({ presentation, ownerUid, ownerEmail }) => {
   const code = generateCode()
+  const presentationSlides = presentation.slides ?? []
+  const isAvanca = isAvancaPresentation(presentation, presentationSlides)
+  const needsEvidenceBoard = isAvanca
+    && !presentationSlides.some((slide) => slide.type === EVIDENCE_BOARD_TYPE)
+  if (needsEvidenceBoard && presentationSlides.length >= MAX_SLIDES) {
+    throw new Error('AVANCA_EVIDENCE_BOARD_LIMIT')
+  }
+  const slides = isAvanca
+    ? [
+        ...presentationSlides,
+        ...(needsEvidenceBoard ? [createEvidenceBoardSlide()] : []),
+      ]
+    : presentationSlides
   await createSession({
     code,
     title: presentation.title,
-    slides: presentation.slides,
+    slides,
     ownerUid,
     ownerEmail,
     presentationId: presentation.id ?? null,
-    eventKey: presentation.eventKey ?? null,
+    eventKey: isAvanca ? AVANCA_EVENT_KEY : presentation.eventKey ?? null,
   })
   return code
 }

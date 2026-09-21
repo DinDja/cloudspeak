@@ -3,7 +3,7 @@ import { useAuth } from './hooks/useAuth'
 import { useSession } from './hooks/useSession'
 import { useReactions } from './hooks/useReactions'
 import { usePresence } from './hooks/usePresence'
-import { PRESENCE_TTL_MS, TEAM_SELECTION_TYPE, AUTH_DOMAIN_LABEL } from './lib/constants'
+import { EVIDENCE_BOARD_TYPE, PRESENCE_TTL_MS, TEAM_SELECTION_TYPE, AUTH_DOMAIN_LABEL } from './lib/constants'
 import {
   createSlideDraft,
   getParticipantId,
@@ -360,6 +360,8 @@ export default function App() {
       console.error('Launch presentation error:', err)
       const message = err.code === 'permission-denied'
         ? `Permissão negada. Verifique se você está logado com e-mail autorizado: ${AUTH_DOMAIN_LABEL}.`
+        : err.message === 'AVANCA_EVIDENCE_BOARD_LIMIT'
+          ? 'O AvanÃ§a precisa de uma posiÃ§Ã£o livre para o quadro de evidÃªncias. Remova um slide antes de apresentar.'
         : err.message?.includes('ERR_BLOCKED_BY_CLIENT') || err.code === 'unavailable'
           ? 'Conexão bloqueada. Desative adblockers ou verifique seu firewall/antivírus.'
           : err.message || 'Não foi possível lançar a apresentação.'
@@ -391,6 +393,7 @@ export default function App() {
 
   const handleSubmitResponse = async (value) => {
     if (!session || !currentSlide) return false
+    if (currentSlide.type === EVIDENCE_BOARD_TYPE) return false
     if (session.status !== 'live') {
       setGlobalError('A sessão foi encerrada e não aceita novas respostas.')
       return false

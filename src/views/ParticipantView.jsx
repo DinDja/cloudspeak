@@ -8,12 +8,13 @@ import {
   Send,
   Type as TypeIcon,
   Hash,
+  FileText,
   Signal,
   Wifi,
 } from 'lucide-react'
 import Logo from '../components/ui/Logo'
 import Badge from '../components/ui/Badge'
-import { CHART_PALETTE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../lib/constants'
+import { CHART_PALETTE, EVIDENCE_BOARD_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../lib/constants'
 import { buildTeamSelectionStats } from '../lib/validators'
 
 export default function ParticipantView({
@@ -112,7 +113,9 @@ export default function ParticipantView({
           </h1>
 
           <AnimatePresence mode="wait">
-            {showSubmittedState ? (
+            {currentSlide?.type === EVIDENCE_BOARD_TYPE ? (
+              <ParticipantEvidenceState />
+            ) : showSubmittedState ? (
               currentSlide?.type === TEAM_SELECTION_TYPE ? (
                 <SubmittedStateTeam submittedValue={submittedValue} />
               ) : (
@@ -294,6 +297,27 @@ function SubmittedStateGeneric({ type }) {
         Tipo ·{' '}
         {type === 'multiple_choice' ? 'Enquete' : type === 'open_text' ? 'Resposta aberta' : 'Interação'}
       </p>
+    </Motion.div>
+  )
+}
+
+function ParticipantEvidenceState() {
+  return (
+    <Motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      className="relative overflow-hidden rounded-2xl bg-slate-900 p-9 text-center text-white shadow-xl shadow-slate-900/10"
+    >
+      <div className="relative">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">
+          <FileText className="h-10 w-10 text-white" />
+        </div>
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-stone-300">Etapa final</p>
+        <h3 className="mt-2.5 text-3xl font-semibold tracking-tight">Quadro de evidências</h3>
+        <p className="mt-2.5 text-base leading-6 text-white/75">
+          As contribuições do evento foram organizadas na tela principal.
+        </p>
+      </div>
     </Motion.div>
   )
 }

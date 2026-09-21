@@ -5,6 +5,7 @@ export const PRESENCE_HEARTBEAT_MS = 15000
 export const REACTION_LIFETIME_MS = 4200
 
 export const TEAM_SELECTION_TYPE = 'team_selection'
+export const EVIDENCE_BOARD_TYPE = 'evidence_board'
 export const MAX_TEAM_CAPACITY = 50
 export const MAX_SLIDES = 20
 export const MAX_TEAM_PER_SLIDE = 12

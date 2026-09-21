@@ -24,7 +24,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { TEAM_SELECTION_TYPE } from '../lib/constants'
+import { EVIDENCE_BOARD_TYPE, TEAM_SELECTION_TYPE } from '../lib/constants'
 import { QR_CODE_COLORS, COLORS } from '../lib/colors'
 import { buildTeamSelectionStats, formatResponseValue, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
 import { getSlideStyleClass, getSlideThemeVars } from '../lib/slideStyles'
@@ -32,6 +32,7 @@ import MultipleChoiceResults from '../components/slides/MultipleChoiceResults'
 import WordCloudResults from '../components/slides/WordCloudResults'
 import OpenTextResults from '../components/slides/OpenTextResults'
 import TeamSelectionResults from '../components/slides/TeamSelectionResults'
+import EvidenceBoard from '../components/slides/EvidenceBoard'
 import MinutesReportModal from '../components/host/MinutesReportModal'
 import { downloadIssuedAttendanceReport } from '../lib/attendanceReportService'
 import { getParticipantsWithRetry } from '../lib/firebaseSessions'
@@ -108,11 +109,12 @@ export default function HostView({
   }
 
   const responseCount = useMemo(() => {
+    if (currentSlide?.type === EVIDENCE_BOARD_TYPE) return allResponses.length
     if (currentSlide?.type === TEAM_SELECTION_TYPE) {
       return buildTeamSelectionStats(currentSlide, responses).reduce((total, team) => total + team.count, 0)
     }
     return responses.length
-  }, [currentSlide, responses])
+  }, [allResponses.length, currentSlide, responses])
 
   const downloadAttendance = async () => {
     setAttendanceDownloading(true)
@@ -177,7 +179,11 @@ export default function HostView({
                   transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
                   className="space-y-4 sm:space-y-6 md:space-y-8"
                 >
-                  <Motion.p
+                  {currentSlide?.type === EVIDENCE_BOARD_TYPE ? (
+                    <EvidenceBoard session={session} responses={allResponses} participants={participants} />
+                  ) : (
+                    <>
+                      <Motion.p
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="host-stage__badge inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest sm:px-4 sm:py-1.5 sm:text-xs"
@@ -192,11 +198,11 @@ export default function HostView({
                           : currentSlide?.type === TEAM_SELECTION_TYPE
                             ? 'Times'
                             : 'Etapa'}
-                  </Motion.p>
+                      </Motion.p>
 
                   <Motion.h1 className="host-stage__question mx-auto px-2 font-display uppercase text-3xl font-semibold leading-[1.08] tracking-tight sm:text-4xl md:text-5xl lg:text-6xl">
                     {currentSlide?.question}
-                  </Motion.h1>
+                      </Motion.h1>
 
                   <Motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
@@ -220,7 +226,9 @@ export default function HostView({
                         responseCount={responseCount}
                       />
                     )}
-                  </Motion.div>
+                      </Motion.div>
+                    </>
+                  )}
                 </Motion.div>
               </AnimatePresence>
             </div>
@@ -273,7 +281,11 @@ export default function HostView({
               <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
             </button>
             <div className="flex w-full flex-col items-center gap-4 sm:gap-6 md:gap-8">
-              <Motion.p
+              {currentSlide?.type === EVIDENCE_BOARD_TYPE ? (
+                <EvidenceBoard session={session} responses={allResponses} participants={participants} />
+              ) : (
+                <>
+                  <Motion.p
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="host-stage__badge inline-flex items-center gap-2 rounded-full border border-white/20 bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#17181d] sm:px-6 sm:py-3 sm:text-sm"
@@ -288,7 +300,7 @@ export default function HostView({
                       : currentSlide?.type === TEAM_SELECTION_TYPE
                         ? 'Times'
                         : 'Etapa'}
-              </Motion.p>
+                  </Motion.p>
 
               <Motion.h1
                 initial={{ opacity: 0, y: -8 }}
@@ -296,7 +308,7 @@ export default function HostView({
                 className="host-stage__question mx-auto px-4 font-display uppercase text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
               >
                 {currentSlide?.question}
-              </Motion.h1>
+                  </Motion.h1>
 
               <Motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
@@ -320,7 +332,9 @@ export default function HostView({
                     responseCount={responseCount}
                   />
                 )}
-              </Motion.div>
+                  </Motion.div>
+                </>
+              )}
             </div>
           </div>
         </div>
