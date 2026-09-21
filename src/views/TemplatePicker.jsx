@@ -7,7 +7,11 @@ import { useAuth } from '../hooks/useAuth'
 
 const FILTERS = [
   { id: 'all', label: 'Todos', templates: null },
-  { id: 'special', label: 'Evento especial', templates: ['educacao-integral-integrada-bahia'] },
+  {
+    id: 'special',
+    label: 'Evento especial',
+    templates: ['educacao-integral-integrada-bahia', 'avanca-mais-bahia'],
+  },
   { id: 'meetings', label: 'Reuniões', templates: ['blank', 'kickoff', 'retro', 'townhall'] },
   { id: 'learning', label: 'Aulas e oficinas', templates: ['lecture', 'workshop'] },
   { id: 'projects', label: 'Projetos', templates: ['pitch', 'demo'] },

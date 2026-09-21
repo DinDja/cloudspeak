@@ -1,6 +1,13 @@
 import { createSlideDraft, createTeamDraft } from './validators'
 import { TEAM_SELECTION_TYPE } from './constants'
-import { EDUCATION_EVENT_KEY, EDUCATION_EVENT, buildEducationEventSlides } from './eventData'
+import {
+  AVANCA_EVENT,
+  AVANCA_EVENT_KEY,
+  EDUCATION_EVENT_KEY,
+  EDUCATION_EVENT,
+  buildAvancaEventSlides,
+  buildEducationEventSlides,
+} from './eventData'
 
 const mc = (question, options) => ({ ...createSlideDraft('multiple_choice'), question, options: [...options] })
 const wc = (question) => ({ ...createSlideDraft('word_cloud'), question })
@@ -36,6 +43,16 @@ export const TEMPLATES = [
     icon: 'landmark',
     eventKey: EDUCATION_EVENT_KEY,
     build: buildEducationEventSlides,
+  },
+  {
+    id: AVANCA_EVENT_KEY,
+    name: AVANCA_EVENT.shortTitle,
+    summary: 'Q&A inspirado na nova arquitetura educacional: diagnóstico, recomposição, MAC e próximos passos.',
+    accent: 'from-blue-900 via-slate-700 to-red-500',
+    badge: 'Evento especial',
+    icon: 'landmark',
+    eventKey: AVANCA_EVENT_KEY,
+    build: buildAvancaEventSlides,
   },
   {
     id: 'pitch',

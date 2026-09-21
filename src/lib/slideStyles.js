@@ -22,6 +22,18 @@ export const SLIDE_STYLE_OPTIONS = [
     rule: '#d6d5cf',
   },
   {
+    id: 'avanca',
+    label: 'Avança + Bahia',
+    description: 'Marfim, azul e terracota',
+    background: '#f5f3ea',
+    surface: '#fffdf6',
+    text: '#102a4a',
+    muted: '#5e6a75',
+    accent: '#b16e58',
+    accentSoft: '#e8e3d8',
+    rule: '#b9a59d',
+  },
+  {
     id: 'cobalto',
     label: 'Cobalto',
     description: 'Impacto para telão',

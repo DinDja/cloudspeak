@@ -8,6 +8,13 @@ const COVER_TITLES = {
       desenvolver.
     </>
   ),
+  'avanca-mais-bahia': (
+    <>
+      Fazer a
+      <br />
+      rede avançar.
+    </>
+  ),
   blank: (
     <>
       Sua próxima

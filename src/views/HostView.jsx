@@ -78,6 +78,35 @@ export default function HostView({
   const slideStyleClass = getSlideStyleClass(currentSlide)
   const slideThemeVars = getSlideThemeVars(currentSlide)
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) setFullscreenSlide(false)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  const openFullscreenSlide = async () => {
+    setFullscreenSlide(true)
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen()
+      }
+    } catch {
+      // The application-level fullscreen overlay remains available if the browser blocks native fullscreen.
+    }
+  }
+
+  const closeFullscreenSlide = async () => {
+    setFullscreenSlide(false)
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen()
+    } catch {
+      // The overlay can still close even when native fullscreen cannot be exited programmatically.
+    }
+  }
+
   const responseCount = useMemo(() => {
     if (currentSlide?.type === TEAM_SELECTION_TYPE) {
       return buildTeamSelectionStats(currentSlide, responses).reduce((total, team) => total + team.count, 0)
@@ -132,7 +161,7 @@ export default function HostView({
             <div className="mx-auto my-auto w-full max-w-5xl text-center">
               <button
                 type="button"
-                onClick={() => setFullscreenSlide(true)}
+                onClick={openFullscreenSlide}
                 className="absolute right-2 top-2 z-20 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition-colors hover:border-stone-400 hover:bg-stone-50 hover:text-stone-800 sm:right-4 sm:top-4 sm:px-3 sm:py-2 sm:text-xs"
                 title="Slide em tela cheia"
               >
@@ -227,9 +256,9 @@ export default function HostView({
       </div>
 
       {fullscreenSlide && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 sm:p-6">
+        <div className="fixed inset-0 z-[9999] flex h-[100dvh] w-[100dvw] items-center justify-center overflow-hidden bg-black/95 p-0 backdrop-blur-sm">
           <div
-            className={`host-stage ${slideStyleClass} relative flex h-full w-full max-w-7xl flex-col items-center justify-center gap-4 sm:gap-6`}
+            className={`host-stage ${slideStyleClass} relative flex h-full min-h-0 w-full max-w-none flex-col items-center justify-center gap-4 overflow-hidden sm:gap-6`}
             style={slideThemeVars}
           >
             <EducationWatermark
@@ -238,7 +267,7 @@ export default function HostView({
             />
             <button
               type="button"
-              onClick={() => setFullscreenSlide(false)}
+              onClick={closeFullscreenSlide}
               className="absolute right-6 top-6 flex items-center gap-2 border-2 border-white bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition-all duration-100 hover:bg-white/20 sm:right-8 sm:top-8 sm:px-4 sm:py-2 sm:text-sm"
             >
               <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar

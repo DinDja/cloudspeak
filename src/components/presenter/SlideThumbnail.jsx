@@ -1,4 +1,5 @@
 import { SLIDE_TYPES } from '../../lib/constants'
+import { AVANCA_EVENT_KEY } from '../../lib/eventData'
 import { getSlideStyleClass, getSlideThemeVars } from '../../lib/slideStyles'
 import EducationWatermark from './EducationWatermark'
 
@@ -11,6 +12,8 @@ export default function SlideThumbnail({
   eventKey = null,
   presentationTitle = '',
 }) {
+  const isAvancaPresentation = eventKey === AVANCA_EVENT_KEY
+
   return (
     <div
       className={`slide-print relative ${getSlideStyleClass(slide)} ${compact ? 'slide-print--compact' : ''} ${className}`}
@@ -19,7 +22,7 @@ export default function SlideThumbnail({
       <EducationWatermark eventKey={eventKey} presentationTitle={presentationTitle} />
       <div className="slide-print__inner relative z-10">
         <div className="slide-print__top">
-          <span>Fala SEC</span>
+          <span>{isAvancaPresentation ? 'Avança + Bahia' : 'Fala SEC'}</span>
           <span>{SLIDE_TYPES[slide?.type]?.label || 'Apresentação'}</span>
         </div>
         <p className="slide-print__question">{slide?.question || 'Escreva sua pergunta'}</p>
