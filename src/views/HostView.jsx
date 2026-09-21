@@ -28,6 +28,7 @@ import { EVIDENCE_BOARD_TYPE, TEAM_SELECTION_TYPE } from '../lib/constants'
 import { QR_CODE_COLORS, COLORS } from '../lib/colors'
 import { buildTeamSelectionStats, formatResponseValue, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
 import { getSlideStyleClass, getSlideThemeVars } from '../lib/slideStyles'
+import { AVANCA_EVENT_KEY } from '../lib/eventData'
 import MultipleChoiceResults from '../components/slides/MultipleChoiceResults'
 import WordCloudResults from '../components/slides/WordCloudResults'
 import OpenTextResults from '../components/slides/OpenTextResults'
@@ -78,6 +79,14 @@ export default function HostView({
   const [attendanceReport, setAttendanceReport] = useState(null)
   const slideStyleClass = getSlideStyleClass(currentSlide)
   const slideThemeVars = getSlideThemeVars(currentSlide)
+  const normalizedSessionTitle = String(session.title ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+  const isAvancaEvent =
+    session.eventKey === AVANCA_EVENT_KEY ||
+    normalizedSessionTitle.includes('avanca') ||
+    currentSlide?.style?.theme === 'avanca'
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -218,7 +227,9 @@ export default function HostView({
                       />
                     )}
                     {currentSlide?.type === 'word_cloud' && <WordCloudResults responses={responses} />}
-                    {currentSlide?.type === 'open_text' && <OpenTextResults responses={responses} />}
+                    {currentSlide?.type === 'open_text' && (
+                      <OpenTextResults responses={responses} cardStyle={isAvancaEvent} />
+                    )}
                     {currentSlide?.type === TEAM_SELECTION_TYPE && (
                       <TeamSelectionResults
                         slide={currentSlide}
@@ -324,7 +335,9 @@ export default function HostView({
                   />
                 )}
                 {currentSlide?.type === 'word_cloud' && <WordCloudResults responses={responses} />}
-                {currentSlide?.type === 'open_text' && <OpenTextResults responses={responses} />}
+                {currentSlide?.type === 'open_text' && (
+                  <OpenTextResults responses={responses} cardStyle={isAvancaEvent} />
+                )}
                 {currentSlide?.type === TEAM_SELECTION_TYPE && (
                   <TeamSelectionResults
                     slide={currentSlide}

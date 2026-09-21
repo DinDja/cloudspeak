@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+
 /* Fala SEC — typography, ink and working surfaces. */
 .result-chart {
   display: grid;
@@ -58,6 +60,126 @@
   margin-top: 16px;
   color: #7b8074;
   font-size: 12px;
+}
+.response-wall--cards {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  flex-wrap: wrap;
+  column-gap: 0;
+  row-gap: 24px;
+  width: min(100%, 1020px);
+  margin: 0 auto;
+  text-align: left;
+  font-family: 'Special Elite', system-ui, sans-serif;
+}
+.response-wall--cards .response-card-wrapper {
+  flex: 1 1 280px;
+  width: min(320px, 100%);
+  max-width: 320px;
+  aspect-ratio: 5 / 4;
+  margin-inline: -8px;
+  filter: drop-shadow(2px 2px 10px rgba(0, 0, 0, 0.13));
+}
+.response-wall--cards .response-card-wrapper:nth-child(3n + 1) .response-card {
+  --card-ink: indianred;
+  rotate: -4deg;
+}
+.response-wall--cards .response-card-wrapper:nth-child(3n + 2) .response-card {
+  --card-ink: slateblue;
+  rotate: 2deg;
+}
+.response-wall--cards .response-card-wrapper:nth-child(3n) .response-card {
+  --card-ink: seagreen;
+  rotate: -5deg;
+}
+.response-wall--cards .response-card-wrapper:hover .response-card {
+  rotate: 0deg;
+  translate: 0 -10%;
+}
+.response-wall--cards .response-card {
+  --row-size: 36px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  padding: 25% 10% 0 15%;
+  overflow: hidden;
+  margin: 0;
+  border-top: 0;
+  background-color: #f1efeb;
+  color: #222;
+  transition: rotate 0.3s ease, translate 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  mask:
+    linear-gradient(#000, #000) no-repeat center / 100% 100%,
+    radial-gradient(circle, #000 40%, transparent 0) repeat-y 12px 8px / 18px 36px;
+  mask-composite: subtract;
+  -webkit-mask:
+    linear-gradient(#000, #000) no-repeat center / 100% 100%,
+    radial-gradient(circle, #000 40%, transparent 0) repeat-y 12px 8px / 18px 36px;
+  -webkit-mask-composite: xor;
+}
+.response-wall--cards .response-card::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  margin-top: auto;
+  margin-bottom: 10%;
+  height: 70%;
+  content: '';
+  background-image: repeating-linear-gradient(
+    transparent 0 calc(var(--row-size) - 1px),
+    rgba(0, 0, 0, 0.13) 0 var(--row-size)
+  );
+  background-position: 60% 30%;
+  background-repeat: no-repeat;
+  background-size: 100% calc(var(--row-size) * 9);
+  pointer-events: none;
+}
+.response-wall--cards .response-card__account,
+.response-wall--cards .response-card__content,
+.response-wall--cards .response-card__date {
+  position: relative;
+  z-index: 1;
+}
+.response-wall--cards .response-card__account {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: 65%;
+  overflow: hidden;
+  color: var(--card-ink, #222);
+  font-size: 14px;
+  line-height: 1.1;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.response-wall--cards .response-card__stars {
+  letter-spacing: 0.06em;
+}
+.response-wall--cards .response-card__content {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  font-size: clamp(15px, 1.65vw, 20px);
+  font-weight: 500;
+  line-height: var(--row-size);
+  text-wrap: pretty;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+.response-wall--cards .response-card__date {
+  position: absolute;
+  right: 24px;
+  bottom: 12px;
+  color: #222;
+  font-size: 12px;
+  opacity: 0.8;
 }
 .team-results {
   display: grid;
