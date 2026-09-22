@@ -192,6 +192,7 @@ export default function PresentationBuilder({ initialPresentation, onBack, onPre
                 <SlideThumbnail
                   slide={slide}
                   compact
+                  slides={draft.slides}
                   eventKey={draft.eventKey}
                   presentationTitle={draft.title}
                 />
@@ -259,6 +260,7 @@ export default function PresentationBuilder({ initialPresentation, onBack, onPre
               slide={selectedSlide}
               index={selectedIndex}
               total={draft.slides.length}
+              slides={draft.slides}
               mode={previewMode}
               eventKey={draft.eventKey}
               presentationTitle={draft.title}

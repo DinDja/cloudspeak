@@ -1,4 +1,4 @@
-import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, TEAM_SELECTION_TYPE } from './constants'
+import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, SUMMARY_TYPE, TEAM_SELECTION_TYPE } from './constants'
 import { DEFAULT_SLIDE_STYLE, normalizeSlideStyle } from './slideStyles'
 
 const RESPONSE_VALUE_LABELS = {
@@ -121,7 +121,7 @@ export const getDefaultTeamSelectionTeams = () => [
 export const createSlideDraft = (type = 'multiple_choice') => ({
   id: crypto.randomUUID(),
   type,
-  question: '',
+  question: type === SUMMARY_TYPE ? 'Sumário da apresentação' : '',
   options: type === 'multiple_choice' ? ['', ''] : [],
   teams: type === TEAM_SELECTION_TYPE ? getDefaultTeamSelectionTeams() : [],
   style: { ...DEFAULT_SLIDE_STYLE },
@@ -177,7 +177,7 @@ export const sanitizeSlides = (slides = []) => {
       const type = slide?.type
       const question = normalizeText(slide?.question ?? '')
 
-      if (!question || !['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE].includes(type)) {
+      if (!question || !['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE, SUMMARY_TYPE].includes(type)) {
         return null
       }
 

@@ -5,6 +5,7 @@ export const PRESENCE_HEARTBEAT_MS = 15000
 export const REACTION_LIFETIME_MS = 4200
 
 export const TEAM_SELECTION_TYPE = 'team_selection'
+export const SUMMARY_TYPE = 'summary'
 export const EVIDENCE_BOARD_TYPE = 'evidence_board'
 export const MAX_TEAM_CAPACITY = 50
 export const MAX_SLIDES = 20
@@ -59,6 +60,15 @@ export const SLIDE_TYPES = {
     accent: 'from-sunset-500 to-sunset-600',
     icon: 'users',
   },
+  [SUMMARY_TYPE]: {
+    id: SUMMARY_TYPE,
+    label: 'Sumário',
+    tagline: 'Navegação rápida entre os slides',
+    emoji: 'list',
+    tone: 'ocean',
+    accent: 'from-ocean-500 to-ocean-600',
+    icon: 'list',
+  },
 }
 
-export const SLIDE_TYPE_ORDER = ['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE]
+export const SLIDE_TYPE_ORDER = ['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE, SUMMARY_TYPE]

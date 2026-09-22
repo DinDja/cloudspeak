@@ -1,4 +1,4 @@
-import { SLIDE_TYPES } from '../../lib/constants'
+import { SLIDE_TYPES, SUMMARY_TYPE } from '../../lib/constants'
 import { AVANCA_EVENT_KEY } from '../../lib/eventData'
 import { getSlideStyleClass, getSlideThemeVars } from '../../lib/slideStyles'
 import EducationWatermark from './EducationWatermark'
@@ -9,6 +9,7 @@ export default function SlideThumbnail({
   compact = false,
   index = 0,
   total = 1,
+  slides = [],
   eventKey = null,
   presentationTitle = '',
 }) {
@@ -51,6 +52,23 @@ export default function SlideThumbnail({
           )}
           {slide?.type === 'open_text' && (
             <p className="slide-print__empty">As perguntas do público aparecem aqui.</p>
+          )}
+          {slide?.type === SUMMARY_TYPE && (
+            <>
+              <p className="slide-print__empty">Clique em um tópico para navegar durante a apresentação.</p>
+              <div className="slide-print__summary-list">
+                {(slides.length ? slides : [{ question: 'Slide 1' }, { question: 'Slide 2' }, { question: 'Slide 3' }])
+                  .map((entry, index) => ({ entry, index }))
+                  .filter(({ entry }) => entry.id !== slide?.id)
+                  .slice(0, compact ? 3 : 5)
+                  .map(({ entry, index: entryIndex }, i) => (
+                    <div key={entry.id || i} className="slide-print__option">
+                      <span>{String(entryIndex + 1).padStart(2, '0')}</span>
+                      <span>{entry.question || `Slide ${entryIndex + 1}`}</span>
+                    </div>
+                  ))}
+              </div>
+            </>
           )}
         </div>
         <div className="slide-print__footer">

@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QRCodeSVG } from 'qrcode.react'
-import { EDUCATION_EVENT, getEventData } from './eventData'
+import { AVANCA_EVENT_KEY, EDUCATION_EVENT, getEventData } from './eventData'
 import { normalizeText } from './validators'
 import { getAttendanceRecords } from './attendanceReports'
 
@@ -21,6 +21,7 @@ const PDF_RENDER_YIELD_EVERY = 25
 // Keep each literal contribution readable without allowing one oversized value
 // (including legacy or externally-created responses) to dominate the PDF.
 const PDF_RESPONSE_MAX_CHARS = 600
+const AVANCA_LOGO_URL = new URL('../../Avança+/LOGO SEM FUNDO.png', import.meta.url).href
 
 const yieldToBrowser = () =>
   new Promise((resolve) => {
@@ -90,6 +91,7 @@ const contributionLabel = (count) => (count === 1 ? 'contribuição' : 'contribu
 const genericEvent = (session) => ({
   ...EDUCATION_EVENT,
   key: null,
+  letterTitle: text(session?.title) ? `CARTA PARA ${text(session.title)}` : 'CARTA DO EVENTO INTERATIVO',
   title: text(session?.title) || 'Evento interativo',
   shortTitle: text(session?.title) || 'Evento interativo',
   date: toDate(session?.launchedAt) ? new Intl.DateTimeFormat('pt-BR').format(toDate(session.launchedAt)) : '',
@@ -113,15 +115,27 @@ const isEducationEventTitle = (value) => {
   return normalized.includes('educacao integral') && normalized.includes('bahia')
 }
 
+const isAvancaEventTitle = (value) => {
+  const normalized = text(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+  return normalized.includes('avanca')
+}
+
 export const getEventForSession = (session) => {
   const event = getEventData(session?.eventKey)
   if (event) return event
+  if (isAvancaEventTitle(session?.title)) return getEventData(AVANCA_EVENT_KEY)
   const hasEducationQuestion = (session?.slides ?? []).some((slide) =>
     EDUCATION_EVENT.guidedQuestions.includes(text(slide?.question)),
   )
   if (isEducationEventTitle(session?.title) || hasEducationQuestion) return EDUCATION_EVENT
   return genericEvent(session)
 }
+
+const getEventLogoUrl = (event) =>
+  event?.key === AVANCA_EVENT_KEY ? AVANCA_LOGO_URL : '/logo-mapa-educacao-integral.png'
 
 const imageToDataUrl = async (url) => {
   try {
@@ -445,7 +459,7 @@ export const createAttendancePdf = async ({ session, participants = [], authorNa
   const { jsPDF, autoTable } = await loadPdfTools()
   const event = getEventForSession(session)
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
-  const logo = await imageToDataUrl('/logo-mapa-educacao-integral.png')
+  const logo = await imageToDataUrl(getEventLogoUrl(event))
   const writer = makeWriter(pdf, logo, autoTable)
   const participantRows = getAttendanceParticipants(participants)
   const verificationUrl = text(report?.verificationUrl)
@@ -531,14 +545,14 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
   const { jsPDF, autoTable } = await loadPdfTools()
   const event = getEventForSession(session)
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
-  const logo = await imageToDataUrl('/logo-mapa-educacao-integral.png')
+  const logo = await imageToDataUrl(getEventLogoUrl(event))
   const writer = makeWriter(pdf, logo, autoTable)
   const slides = Array.isArray(session?.slides) ? session.slides : []
   const participantRows = getAttendanceParticipants(participants)
   const participantMap = new Map(participantRows.map((entry) => [text(entry.participantId), entry]))
   const eventDate = parseEventDate(event.date) || toDate(session?.launchedAt)
   const openingDate = formatDate(eventDate)
-  writer.centeredTitle('CARTA PARA EDUCAÇÃO INTEGRAL E INTEGRADA PARA O DESENVOLVIMENTO ECONÔMICO E SOCIAL DA BAHIA')
+  writer.centeredTitle(event.letterTitle || 'CARTA PARA EDUCAÇÃO INTEGRAL E INTEGRADA PARA O DESENVOLVIMENTO ECONÔMICO E SOCIAL DA BAHIA')
   writer.paragraph(
     `Aos ${openingDate}, no ${event.location}, realizou-se o evento “${event.title}”, promovido pela ${event.organizer}. Este documento registra, em forma de carta e sem substituição das manifestações por sínteses automáticas, o desenvolvimento do encontro e as contribuições enviadas pela plataforma interativa.`,
   )

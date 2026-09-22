@@ -1,12 +1,12 @@
-import { BarChart3, Cloud, MessageSquareText, Users, Plus, Layers, Box } from 'lucide-react'
+import { BarChart3, Cloud, List, MessageSquareText, Users, Plus, Layers, Box } from 'lucide-react'
 import { SLIDE_TYPES, SLIDE_TYPE_ORDER } from '../../lib/constants'
 
-const ICONS = { multiple_choice: BarChart3, word_cloud: Cloud, open_text: MessageSquareText, team_selection: Users }
+const ICONS = { multiple_choice: BarChart3, word_cloud: Cloud, open_text: MessageSquareText, team_selection: Users, summary: List }
 
 export default function ComponentPalette() {
   return (
     <div className="space-y-6">
-      <SEConHeader icon={Box} title="Componentes" subtitle="Escolha um tipo de interação" />
+      <SEConHeader icon={Box} title="Componentes" subtitle="Escolha um tipo de slide" />
       <div className="grid grid-cols-2 gap-2">
         {SLIDE_TYPE_ORDER.map((typeId) => {
           const type = SLIDE_TYPES[typeId]

@@ -24,7 +24,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { EVIDENCE_BOARD_TYPE, TEAM_SELECTION_TYPE } from '../lib/constants'
+import { EVIDENCE_BOARD_TYPE, SUMMARY_TYPE, TEAM_SELECTION_TYPE } from '../lib/constants'
 import { QR_CODE_COLORS, COLORS } from '../lib/colors'
 import { buildTeamSelectionStats, formatResponseValue, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
 import { getSlideStyleClass, getSlideThemeVars } from '../lib/slideStyles'
@@ -62,6 +62,7 @@ export default function HostView({
   currentSlideIndex,
   onNext,
   onPrevious,
+  onGoToSlide,
   onEndProjection,
   canGoBack,
   canGoForward,
@@ -204,8 +205,10 @@ export default function HostView({
                         ? 'Nuvem'
                         : currentSlide?.type === 'open_text'
                           ? 'Q&A'
-                          : currentSlide?.type === TEAM_SELECTION_TYPE
+                        : currentSlide?.type === TEAM_SELECTION_TYPE
                             ? 'Times'
+                            : currentSlide?.type === SUMMARY_TYPE
+                              ? 'Sumário'
                             : 'Etapa'}
                       </Motion.p>
 
@@ -219,7 +222,13 @@ export default function HostView({
                     transition={{ duration: 0.5, delay: 0.1 }}
                     className="mx-auto w-full px-2"
                   >
-                    {currentSlide?.type === 'multiple_choice' && (
+                    {currentSlide?.type === SUMMARY_TYPE ? (
+                      <SummaryNavigation
+                        slides={session.slides}
+                        currentSlideIndex={currentSlideIndex}
+                        onGoToSlide={onGoToSlide}
+                      />
+                    ) : currentSlide?.type === 'multiple_choice' && (
                       <MultipleChoiceResults
                         slide={currentSlide}
                         responses={responses}
@@ -310,6 +319,8 @@ export default function HostView({
                       ? 'Q&A'
                       : currentSlide?.type === TEAM_SELECTION_TYPE
                         ? 'Times'
+                        : currentSlide?.type === SUMMARY_TYPE
+                          ? 'Sumário'
                         : 'Etapa'}
                   </Motion.p>
 
@@ -327,7 +338,14 @@ export default function HostView({
                 transition={{ duration: 0.5, delay: 0.1 }}
                 className="mx-auto w-full max-w-4xl px-4"
               >
-                {currentSlide?.type === 'multiple_choice' && (
+                {currentSlide?.type === SUMMARY_TYPE ? (
+                  <SummaryNavigation
+                    slides={session.slides}
+                    currentSlideIndex={currentSlideIndex}
+                    onGoToSlide={onGoToSlide}
+                    dark
+                  />
+                ) : currentSlide?.type === 'multiple_choice' && (
                   <MultipleChoiceResults
                     slide={currentSlide}
                     responses={responses}
@@ -519,6 +537,49 @@ function BottomControls({ session, canGoBack, canGoForward, onNext, onPrevious }
           <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5 sm:h-6 sm:w-6" />
         </button>
       </Motion.div>
+    </div>
+  )
+}
+
+function SummaryNavigation({ slides = [], currentSlideIndex, onGoToSlide, dark = false }) {
+  const targetSlides = slides
+    .map((slide, index) => ({ slide, index }))
+    .filter(({ slide }) => slide?.type !== SUMMARY_TYPE)
+
+  return (
+    <div className="mx-auto w-full max-w-4xl text-left">
+      <div className={`mb-4 text-center text-xs font-semibold uppercase tracking-[0.18em] ${dark ? 'text-white/70' : 'text-slate-500'}`}>
+        Selecione um tópico para ir direto ao slide
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {targetSlides.map(({ slide, index }) => {
+          const isCurrent = index === currentSlideIndex
+          const label = slide?.question || `Slide ${index + 1}`
+          return (
+            <button
+              key={slide?.id || index}
+              type="button"
+              disabled={isCurrent}
+              onClick={() => onGoToSlide?.(index)}
+              className={[
+                'flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all',
+                dark
+                  ? isCurrent
+                    ? 'border-white/40 bg-white text-slate-900'
+                    : 'border-white/20 bg-white/10 text-white hover:border-white/50 hover:bg-white/20'
+                  : isCurrent
+                    ? 'border-stone-400 bg-stone-100 text-slate-900'
+                    : 'border-slate-200 bg-white text-slate-800 shadow-sm hover:border-stone-400 hover:bg-stone-50',
+              ].join(' ')}
+            >
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${dark ? 'bg-white/15' : 'bg-slate-100'}`}>
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <span className="line-clamp-2 text-sm font-semibold leading-tight">{label}</span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

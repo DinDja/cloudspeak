@@ -1,7 +1,8 @@
 import SlideThumbnail from './SlideThumbnail'
+import { SUMMARY_TYPE } from '../../lib/constants'
 import { getSlideStyleClass, getSlideThemeVars } from '../../lib/slideStyles'
 
-export default function SlideCanvas({ slide, index, total, mode = 'stage', eventKey = null, presentationTitle = '' }) {
+export default function SlideCanvas({ slide, index, total, slides = [], mode = 'stage', eventKey = null, presentationTitle = '' }) {
   if (!slide)
     return (
       <div className="slide-print">
@@ -25,7 +26,20 @@ export default function SlideCanvas({ slide, index, total, mode = 'stage', event
               {team.name}
               <p>{team.capacity} vagas disponíveis</p>
             </div>
-          ))}
+            ))}
+        {slide.type === SUMMARY_TYPE && (
+          <div className="space-y-2">
+            <p className="text-xs text-slate-500">Clique em um tópico para navegar durante a apresentação.</p>
+            {(slides.length ? slides : [{ question: 'Slide 1' }, { question: 'Slide 2' }, { question: 'Slide 3' }])
+              .filter((entry) => entry.id !== slide.id)
+              .slice(0, 5)
+              .map((entry, i) => (
+                <div className="phone-preview__option" key={entry.id || i}>
+                  {entry.question || `Slide ${i + 1}`}
+                </div>
+              ))}
+          </div>
+        )}
         {(slide.type === 'word_cloud' || slide.type === 'open_text') && (
           <textarea
             aria-label="Campo de resposta demonstrativo"
@@ -40,6 +54,7 @@ export default function SlideCanvas({ slide, index, total, mode = 'stage', event
       slide={slide}
       index={index}
       total={total}
+      slides={slides}
       eventKey={eventKey}
       presentationTitle={presentationTitle}
     />

@@ -1,11 +1,11 @@
-import { BarChart3, Cloud, MessageSquareText, Users } from 'lucide-react'
+import { BarChart3, Cloud, List, MessageSquareText, Users } from 'lucide-react'
 import { SLIDE_TYPES, SLIDE_TYPE_ORDER } from '../../lib/constants'
 
-const ICONS = { multiple_choice: BarChart3, word_cloud: Cloud, open_text: MessageSquareText, team_selection: Users }
+const ICONS = { multiple_choice: BarChart3, word_cloud: Cloud, open_text: MessageSquareText, team_selection: Users, summary: List }
 
 export default function SlideTypePicker({ value, onChange, compact = false }) {
   return (
-    <div className={compact ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 gap-3 sm:grid-cols-4'}>
+    <div className={compact ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5'}>
       {SLIDE_TYPE_ORDER.map((typeId) => {
         const type = SLIDE_TYPES[typeId]
         const Icon = ICONS[typeId]

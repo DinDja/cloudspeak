@@ -13,6 +13,7 @@ const guidedQuestions = [
 
 export const EDUCATION_EVENT = {
   key: EDUCATION_EVENT_KEY,
+  letterTitle: 'CARTA PARA EDUCAÇÃO INTEGRAL E INTEGRADA PARA O DESENVOLVIMENTO ECONÔMICO E SOCIAL DA BAHIA',
   title: 'Educação Integral e integrada para o desenvolvimento econômico e social da Bahia',
   date: '15/09/2026',
   time: '13 às 17 horas',
@@ -237,6 +238,7 @@ const avancaOpenQuestion = (question, style = {}) =>
 
 export const AVANCA_EVENT = {
   key: AVANCA_EVENT_KEY,
+  letterTitle: 'CARTA PARA O PROGRAMA AVANÇA + BAHIA',
   shortTitle: 'Avança + Bahia · Q&A',
   title: 'Programa Avança + Bahia — escuta e próximos passos',
   date: '',

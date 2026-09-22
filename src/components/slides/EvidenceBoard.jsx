@@ -28,7 +28,6 @@ const MetricCard = ({ icon, label, value, accent = '#a01818' }) => {
   return (
     <article
       className="relative overflow-hidden border border-[#2a1b10]/25 bg-[#f8f4e9] px-3 py-3 shadow-[3px_5px_12px_rgba(0,0,0,0.28)] sm:px-4"
-      style={{ transform: 'rotate(-1deg)' }}
     >
       <span className="absolute -right-3 -top-3 h-12 w-12 rounded-full opacity-20" style={{ backgroundColor: accent }} />
       <IconComponent className="relative h-4 w-4" style={{ color: accent }} />
@@ -38,10 +37,9 @@ const MetricCard = ({ icon, label, value, accent = '#a01818' }) => {
   )
 }
 
-const EvidenceCard = ({ children, className = '', rotation = 0 }) => (
+const EvidenceCard = ({ children, className = '' }) => (
   <article
     className={`relative border border-[#2a1b10]/25 bg-[#f8f4e9] p-3 text-left shadow-[4px_6px_14px_rgba(0,0,0,0.34)] sm:p-4 ${className}`}
-    style={{ transform: `rotate(${rotation}deg)` }}
   >
     <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rounded-full bg-[#a01818] shadow-[0_2px_4px_rgba(0,0,0,0.45)]" />
     {children}
@@ -71,8 +69,8 @@ export default function EvidenceBoard({ session, responses = [], participants = 
         <header className="mb-4 border-b-2 border-[#5b3a1a]/40 pb-3 sm:mb-5 sm:pb-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <span className="inline-block rotate-[-3deg] border-2 border-[#a01818] px-2 py-1 font-mono text-[9px] font-bold tracking-[0.16em] text-[#a01818] sm:text-[10px]">
-                CASE FILE · {session?.code || '------'}
+              <span className="inline-block border-2 border-[#a01818] px-2 py-1 font-mono text-[9px] font-bold tracking-[0.16em] text-[#a01818] sm:text-[10px]">
+                Seção · {session?.code || '------'}
               </span>
               <img
                 src={avancaLogo}
@@ -101,20 +99,19 @@ export default function EvidenceBoard({ session, responses = [], participants = 
           </section>
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-            <EvidenceCard rotation={-1.2}>
+            <EvidenceCard>
               <div className="mb-3 flex items-center justify-between border-b border-dashed border-[#7a1010]/40 pb-2">
                 <h3 className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[#7a1010]">Termos recorrentes</h3>
                 <Hash className="h-4 w-4 text-[#7a1010]" />
               </div>
               {snapshot.keywords.length ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  {snapshot.keywords.map((keyword, index) => (
+                  {snapshot.keywords.map((keyword) => (
                     <span
                       key={keyword.key}
                       className="inline-flex items-center gap-1 rounded-sm border border-[#3d2710]/20 bg-[#e8e2d0] px-2 py-1 font-mono font-bold text-[#1a1410]"
                       style={{
                         fontSize: `${Math.max(0.66, Math.min(1.15, 0.68 + (keyword.count / maxKeywordCount) * 0.47))}rem`,
-                        transform: `rotate(${index % 3 === 0 ? -2 : index % 3 === 1 ? 1 : 0}deg)`,
                       }}
                     >
                       {keyword.term}
@@ -130,7 +127,7 @@ export default function EvidenceBoard({ session, responses = [], participants = 
               </p>
             </EvidenceCard>
 
-            <EvidenceCard rotation={1}>
+            <EvidenceCard>
               <div className="mb-3 flex items-center justify-between border-b border-dashed border-[#7a1010]/40 pb-2">
                 <h3 className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[#7a1010]">Atividade por pergunta</h3>
                 <span className="font-mono text-[9px] text-[#555]">{snapshot.topQuestion ? `P${String(snapshot.topQuestion.index + 1).padStart(2, '0')} MAIS ATIVA` : 'SEM REGISTROS'}</span>
@@ -153,7 +150,7 @@ export default function EvidenceBoard({ session, responses = [], participants = 
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-            <EvidenceCard rotation={-0.5}>
+            <EvidenceCard>
               <div className="mb-3 flex items-center justify-between border-b border-dashed border-[#7a1010]/40 pb-2">
                 <h3 className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[#7a1010]">Contribuições literais</h3>
                 <FileText className="h-4 w-4 text-[#7a1010]" />
@@ -174,7 +171,7 @@ export default function EvidenceBoard({ session, responses = [], participants = 
               )}
             </EvidenceCard>
 
-            <EvidenceCard rotation={1.4}>
+            <EvidenceCard>
               <div className="mb-3 flex items-center justify-between border-b border-dashed border-[#7a1010]/40 pb-2">
                 <h3 className="font-mono text-xs font-bold uppercase tracking-[0.12em] text-[#7a1010]">Linha do tempo</h3>
                 <Clock3 className="h-4 w-4 text-[#7a1010]" />

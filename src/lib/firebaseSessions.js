@@ -263,6 +263,24 @@ export const goPreviousSlide = (session) => {
   })
 }
 
+export const goToSlide = (session, slideIndex) => {
+  const targetIndex = Number(slideIndex)
+  if (
+    !session ||
+    !Number.isInteger(targetIndex) ||
+    targetIndex < 0 ||
+    targetIndex >= session.slides.length ||
+    targetIndex === session.currentSlideIndex
+  ) {
+    return Promise.resolve()
+  }
+
+  return updateDoc(sessionRef(session.code), {
+    currentSlideIndex: targetIndex,
+    updatedAt: serverTimestamp(),
+  })
+}
+
 export const deleteSession = async (code) => {
   const subcollections = ['responses', 'participants', 'reactions']
   for (const sub of subcollections) {

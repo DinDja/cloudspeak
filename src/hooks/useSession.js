@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   goNextSlide,
   goPreviousSlide,
+  goToSlide,
   subscribeParticipants,
   subscribeResponses,
   subscribeSession,
@@ -70,6 +71,7 @@ export function useSession(code, {
 
   const next = () => goNextSlide(session)
   const previous = () => goPreviousSlide(session)
+  const jumpTo = (slideIndex) => goToSlide(session, slideIndex)
 
   return {
     session,
@@ -81,6 +83,7 @@ export function useSession(code, {
     loading,
     next,
     previous,
+    jumpTo,
     setSession,
     retry: () => {
       setError('')

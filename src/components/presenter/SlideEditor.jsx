@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { AlignCenter, AlignLeft, AlignRight, Palette, Plus, Trash2, X } from 'lucide-react'
-import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
+import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
 import { createTeamDraft } from '../../lib/validators'
 import {
   normalizeSlideStyle,
@@ -27,6 +27,7 @@ export default function SlideEditor({
   const changeType = (type) =>
     update({
       type,
+      question: type === SUMMARY_TYPE ? slide.question || 'Sumário da apresentação' : slide.question,
       options: type === 'multiple_choice' ? (slide.options?.length ? slide.options : ['', '']) : [],
       teams:
         type === TEAM_SELECTION_TYPE
@@ -50,7 +51,7 @@ export default function SlideEditor({
         </button>
       </header>
       <div className="editor-field">
-        <label htmlFor={fieldId + '-type'}>Tipo de interação</label>
+        <label htmlFor={fieldId + '-type'}>Tipo de slide</label>
         <select
           id={fieldId + '-type'}
           className="fala-input"
@@ -65,13 +66,13 @@ export default function SlideEditor({
         </select>
       </div>
       <div className="editor-field">
-        <label htmlFor={fieldId + '-question'}>Sua pergunta</label>
+        <label htmlFor={fieldId + '-question'}>{slide.type === SUMMARY_TYPE ? 'Título do sumário' : 'Sua pergunta'}</label>
         <textarea
           id={fieldId + '-question'}
           className="fala-input"
           value={slide.question}
           onChange={(event) => update({ question: event.target.value })}
-          placeholder="O que você quer perguntar ao público?"
+          placeholder={slide.type === SUMMARY_TYPE ? 'Ex.: Sumário da apresentação' : 'O que você quer perguntar ao público?'}
           rows={4}
         />
       </div>
@@ -174,7 +175,9 @@ export default function SlideEditor({
         onChange={(style) => update({ style })}
       />
       <p className="editor-hint">
-        {slide.type === 'word_cloud'
+        {slide.type === SUMMARY_TYPE
+          ? 'O sumário lista os slides automaticamente. Durante a apresentação, clique em um item para ir direto até ele.'
+          : slide.type === 'word_cloud'
           ? 'O público pode enviar mais de uma palavra. Termos repetidos ganham destaque.'
           : slide.type === 'open_text'
             ? 'Cada pessoa envia uma resposta. As mensagens aparecem na projeção.'
