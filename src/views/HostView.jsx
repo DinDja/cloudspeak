@@ -204,7 +204,7 @@ export default function HostView({
                       : currentSlide?.type === 'word_cloud'
                         ? 'Nuvem'
                         : currentSlide?.type === 'open_text'
-                          ? 'Q&A'
+                          ? 'Perguntas abertas'
                         : currentSlide?.type === TEAM_SELECTION_TYPE
                             ? 'Times'
                             : currentSlide?.type === SUMMARY_TYPE
@@ -268,6 +268,7 @@ export default function HostView({
         <SidePanel
           session={session}
           currentSlide={currentSlide}
+          currentSlideIndex={currentSlideIndex}
           slides={session.slides}
           responses={responses}
           connectedParticipants={connectedParticipants}
@@ -316,7 +317,7 @@ export default function HostView({
                   : currentSlide?.type === 'word_cloud'
                     ? 'Nuvem'
                     : currentSlide?.type === 'open_text'
-                      ? 'Q&A'
+                      ? 'Perguntas abertas'
                       : currentSlide?.type === TEAM_SELECTION_TYPE
                         ? 'Times'
                         : currentSlide?.type === SUMMARY_TYPE
@@ -587,6 +588,7 @@ function SummaryNavigation({ slides = [], currentSlideIndex, onGoToSlide, dark =
 function SidePanel({
   session,
   currentSlide,
+  currentSlideIndex,
   slides,
   responses,
   connectedParticipants,
@@ -602,6 +604,7 @@ function SidePanel({
   const [feedTab, setFeedTab] = useState('live')
   const [qrFullscreen, setQrFullscreen] = useState(false)
   const [shareMessage, setShareMessage] = useState('')
+  const qrThemeVars = getSlideThemeVars(currentSlide)
   const share = async () => {
     try {
       await navigator.clipboard.writeText(joinUrl)
@@ -660,6 +663,7 @@ function SidePanel({
         <EventQrTools
           code={session.code}
           slides={slides}
+          slide={currentSlide}
           joinUrl={joinUrl}
           presenceUrl={presenceUrl}
           slideJoinUrl={slideJoinUrl}
@@ -707,22 +711,72 @@ function SidePanel({
       </aside>
 
       {qrFullscreen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4">
-          <div className="relative flex max-h-[90vh] w-full max-w-xl flex-col items-center gap-4 sm:gap-6">
-            <button
-              type="button"
-              onClick={() => setQrFullscreen(false)}
-              className="absolute -top-10 right-0 flex items-center gap-2 border-2 border-white bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition-all duration-100 hover:bg-white/20 sm:-top-12 sm:px-4 sm:py-2 sm:text-sm"
-            >
-              <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
-            </button>
-            <div className="flex h-64 w-64 items-center justify-center border-4 border-white bg-white p-4 shadow-2xl sm:h-80 sm:w-80 sm:p-6">
-              <QRCodeSVG value={joinUrl} size={200} bgColor="transparent" fgColor={QR_CODE_COLORS[0]} />
-            </div>
-            <div className="text-center">
-              <p className="text-xl font-black tracking-[0.25em] text-white sm:text-2xl">{session.code}</p>
-              <p className="mt-1 text-xs font-bold text-slate-300 sm:text-sm">{new URL(joinUrl).host}</p>
-            </div>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="QR code em tela cheia"
+          className="fixed inset-0 z-[9999] h-[100dvh] w-[100dvw] overflow-y-auto backdrop-blur-sm"
+          style={{ ...qrThemeVars, backgroundColor: 'var(--slide-bg)', color: 'var(--slide-text)' }}
+        >
+          <button
+            type="button"
+            onClick={() => setQrFullscreen(false)}
+            className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold shadow-lg transition-colors hover:opacity-80 sm:right-6 sm:top-6 sm:px-4 sm:py-2.5 sm:text-sm"
+            style={{ backgroundColor: 'var(--slide-surface)', borderColor: 'var(--slide-rule)', color: 'var(--slide-text)' }}
+          >
+            <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
+          </button>
+
+          <div className="grid min-h-[100dvh] w-full grid-cols-1 md:grid-cols-2">
+            <section className="flex min-h-0 flex-col justify-center px-6 pb-8 pt-24 sm:px-10 md:min-h-[100dvh] md:px-12 md:py-16 lg:px-20" style={{ backgroundColor: 'var(--slide-bg)', color: 'var(--slide-text)' }}>
+              <div className="mx-auto w-full max-w-2xl">
+                <p className="text-xs font-bold uppercase tracking-[0.24em] sm:text-sm" style={{ color: 'var(--slide-accent)' }}>
+                  Participação ao vivo
+                </p>
+                <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">
+                  Aponte a câmera para participar
+                </h2>
+
+                <div className="mt-8 flex flex-wrap items-center gap-3">
+                  <span className="rounded-full border px-4 py-2 text-sm font-bold uppercase tracking-wider" style={{ backgroundColor: 'var(--slide-surface)', borderColor: 'var(--slide-rule)', color: 'var(--slide-accent)' }}>
+                    Pergunta {currentSlideIndex + 1} de {session.slides.length}
+                  </span>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--slide-muted)' }}>Código {session.code}</span>
+                </div>
+
+                <div className="mt-6 border-l-4 pl-5 sm:pl-6" style={{ borderColor: 'var(--slide-accent)' }}>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--slide-muted)' }}>Pergunta atual</p>
+                  <p className="mt-3 text-2xl font-semibold leading-tight sm:text-4xl">
+                    {currentSlide?.question || 'A apresentação está pronta para começar.'}
+                  </p>
+                </div>
+
+                <p className="mt-8 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: 'var(--slide-muted)' }}>
+                  Escaneie o QR code ao lado para abrir a participação. O código também pode ser usado para entrar pelo endereço abaixo.
+                </p>
+                <p className="mt-4 break-all text-sm font-semibold sm:text-base" style={{ color: 'var(--slide-muted)' }}>{new URL(joinUrl).host}</p>
+              </div>
+            </section>
+
+            <section className="flex min-h-0 flex-col items-center justify-center px-6 py-10 sm:px-10 md:min-h-[100dvh] md:py-16" style={{ backgroundColor: 'var(--slide-surface)', color: 'var(--slide-text)' }}>
+              <div className="flex w-full max-w-xl flex-col items-center">
+                <div className="flex aspect-square w-[min(78vw,24rem)] items-center justify-center rounded-3xl border-[12px] bg-white p-4 shadow-2xl sm:w-[min(64vw,30rem)] sm:p-6 md:w-[min(38vw,32rem)]" style={{ borderColor: 'var(--slide-accent)' }}>
+                  <QRCodeSVG
+                    value={joinUrl}
+                    size={640}
+                    bgColor="transparent"
+                    fgColor={QR_CODE_COLORS[0]}
+                    className="h-full w-full"
+                  />
+                </div>
+                <p className="mt-6 text-center text-3xl font-black tracking-[0.25em] sm:text-4xl">
+                  {session.code}
+                </p>
+                <p className="mt-2 text-center text-sm font-semibold sm:text-base" style={{ color: 'var(--slide-muted)' }}>
+                  Código da sessão
+                </p>
+              </div>
+            </section>
           </div>
         </div>
       )}
@@ -733,6 +787,7 @@ function SidePanel({
 function EventQrTools({
   code,
   slides = [],
+  slide,
   joinUrl,
   presenceUrl,
   slideJoinUrl,
@@ -743,6 +798,7 @@ function EventQrTools({
   attendanceReport,
 }) {
   const [selectedQr, setSelectedQr] = useState(null)
+  const qrThemeVars = getSlideThemeVars(slide)
   const entries = [
     {
       label: 'Participar',
@@ -770,10 +826,12 @@ function EventQrTools({
     label: `Pergunta ${index + 1}`,
     hint: 'QR da etapa',
     detail: slide.question,
+    themeVars: getSlideThemeVars(slide),
     value: getSlideJoinUrl(code, slide.id),
     color: QR_CODE_COLORS[(index + 3) % QR_CODE_COLORS.length],
     filename: `qrcode-${code.toLowerCase()}-pergunta-${index + 1}`,
   }))
+  const modalThemeVars = selectedQr?.themeVars ?? qrThemeVars
 
   return (
     <>
@@ -860,36 +918,75 @@ function EventQrTools({
       </section>
 
       {selectedQr && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-3 sm:p-6">
-          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 text-center sm:max-h-[calc(100dvh-3rem)] sm:p-8">
-            <button
-              type="button"
-              onClick={() => setSelectedQr(null)}
-              className="absolute right-3 top-3 rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-              aria-label="Fechar QR code"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-stone-700">{selectedQr.hint}</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">{selectedQr.label}</h2>
-            {selectedQr.detail && <p className="mt-2 max-w-sm text-sm leading-5 text-slate-600">{selectedQr.detail}</p>}
-            <div data-event-qr-modal className="mx-auto mt-6 flex aspect-square w-[min(82vw,32rem)] max-w-full items-center justify-center rounded-2xl border-[10px] border-slate-900 bg-white p-4 sm:p-5">
-              <QRCodeSVG
-                value={selectedQr.value}
-                size={480}
-                className="h-full w-full"
-                fgColor={selectedQr.color ?? QR_CODE_COLORS[0]}
-              />
-            </div>
-            <p className="mt-4 break-all text-[10px] leading-4 text-slate-500">{selectedQr.value}</p>
-            <button
-              type="button"
-              onClick={() => downloadQrCode(selectedQr)}
-              className="fala-button mt-4 w-full justify-center"
-            >
-              <Download size={15} />
-              Baixar QR code (SVG)
-            </button>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${selectedQr.label} em tela cheia`}
+          className="fixed inset-0 z-[9999] h-[100dvh] w-[100dvw] overflow-y-auto backdrop-blur-sm"
+          style={{ ...modalThemeVars, backgroundColor: 'var(--slide-bg)', color: 'var(--slide-text)' }}
+        >
+          <button
+            type="button"
+            onClick={() => setSelectedQr(null)}
+            className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold shadow-lg transition-colors hover:opacity-80 sm:right-6 sm:top-6 sm:px-4 sm:py-2.5 sm:text-sm"
+            style={{ backgroundColor: 'var(--slide-surface)', borderColor: 'var(--slide-rule)', color: 'var(--slide-text)' }}
+            aria-label="Fechar QR code"
+          >
+            <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
+          </button>
+
+          <div className="grid min-h-[100dvh] w-full grid-cols-1 md:grid-cols-2">
+            <section className="flex min-h-0 flex-col justify-center px-6 pb-8 pt-24 sm:px-10 md:min-h-[100dvh] md:px-12 md:py-16 lg:px-20" style={{ backgroundColor: 'var(--slide-bg)', color: 'var(--slide-text)' }}>
+              <div className="mx-auto w-full max-w-2xl">
+                <p className="text-xs font-bold uppercase tracking-[0.24em] sm:text-sm" style={{ color: 'var(--slide-accent)' }}>
+                  {selectedQr.hint}
+                </p>
+                <h2 className="mt-3 text-4xl font-black leading-tight tracking-tight sm:text-6xl">
+                  {selectedQr.label}
+                </h2>
+
+                <div className="mt-8 border-l-4 pl-5 sm:pl-6" style={{ borderColor: 'var(--slide-accent)' }}>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--slide-muted)' }}>
+                    {selectedQr.detail ? 'Pergunta da etapa' : 'Acesso da sessão'}
+                  </p>
+                  <p className="mt-3 max-w-xl text-2xl font-semibold leading-tight sm:text-4xl">
+                    {selectedQr.detail || 'Escaneie o QR code ao lado para acessar esta etapa.'}
+                  </p>
+                </div>
+
+                <p className="mt-8 text-base leading-relaxed sm:text-lg" style={{ color: 'var(--slide-muted)' }}>
+                  Aponte a câmera do celular para o QR code e participe da apresentação.
+                </p>
+                <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] sm:text-base" style={{ color: 'var(--slide-muted)' }}>
+                  Código da sessão: {code}
+                </p>
+              </div>
+            </section>
+
+            <section className="flex min-h-0 flex-col items-center justify-center px-6 py-10 sm:px-10 md:min-h-[100dvh] md:py-16" style={{ backgroundColor: 'var(--slide-surface)', color: 'var(--slide-text)' }}>
+              <div className="flex w-full max-w-xl flex-col items-center">
+                <div data-event-qr-modal className="flex aspect-square w-[min(78vw,24rem)] items-center justify-center rounded-3xl border-[12px] bg-white p-4 shadow-2xl sm:w-[min(64vw,30rem)] sm:p-6 md:w-[min(38vw,32rem)]" style={{ borderColor: 'var(--slide-accent)' }}>
+                  <QRCodeSVG
+                    value={selectedQr.value}
+                    size={640}
+                    className="h-full w-full"
+                    fgColor={selectedQr.color ?? QR_CODE_COLORS[0]}
+                  />
+                </div>
+                <p className="mt-5 max-w-full break-all text-center text-xs leading-5" style={{ color: 'var(--slide-muted)' }}>
+                  {selectedQr.value}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => downloadQrCode(selectedQr)}
+                  className="fala-button mt-5 w-full max-w-md justify-center"
+                  style={{ backgroundColor: 'var(--slide-accent)', color: 'var(--slide-surface)' }}
+                >
+                  <Download size={15} />
+                  Baixar QR code (SVG)
+                </button>
+              </div>
+            </section>
           </div>
         </div>
       )}

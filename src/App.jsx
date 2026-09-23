@@ -225,6 +225,7 @@ export default function App() {
   const leaveHost = () => {
     clearActiveSession()
     setRoute('dashboard')
+    setSessionCode('')
     setRequestedSlideId('')
     setAttendanceMode(false)
     setJoinError('')
@@ -524,7 +525,11 @@ export default function App() {
             <FullPageLoader label="Preparando a sala..." />
           </div>
           {sessionError && (
-            <ConnectionToast messages={[sessionError]} code={sessionCode} onRetry={retrySession} />
+            <ConnectionToast
+              messages={[sessionError]}
+              onBack={leaveHost}
+              onRetry={retrySession}
+            />
           )}
         </>
       )
@@ -554,7 +559,7 @@ export default function App() {
         {(sessionError || presenceError) && (
           <ConnectionToast
             messages={[sessionError, presenceError].filter(Boolean)}
-            code={sessionCode}
+            onBack={leaveHost}
             onRetry={() => {
               retrySession()
               retryPresence()
@@ -572,7 +577,11 @@ export default function App() {
           <div className="flex min-h-[100dvh] items-center justify-center bg-[#f6f4ef]">
             <FullPageLoader label="Conectando..." />
           </div>
-          <ConnectionToast messages={[sessionError]} code={sessionCode} onRetry={retrySession} />
+          <ConnectionToast
+            messages={[sessionError]}
+            onBack={goPublic}
+            onRetry={retrySession}
+          />
         </>
       )
     }
@@ -598,7 +607,7 @@ export default function App() {
         {(sessionError || presenceError) && (
           <ConnectionToast
             messages={[sessionError, presenceError].filter(Boolean)}
-            code={sessionCode}
+            onBack={goPublic}
             onRetry={() => {
               retrySession()
               retryPresence()
@@ -660,25 +669,7 @@ function GlobalToast({ message }) {
   )
 }
 
-function ConnectionToast({ messages, code, onRetry }) {
-  const [copied, setCopied] = useState(false)
-  const diagnostic = [
-    ...messages,
-    `Código da sessão: ${code || 'não informado'}`,
-    `Internet do dispositivo: ${navigator.onLine ? 'conectado' : 'offline'}`,
-    `Horário: ${new Date().toISOString()}`,
-  ].join(' | ')
-
-  const copyDiagnostic = async () => {
-    try {
-      await navigator.clipboard.writeText(diagnostic)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1800)
-    } catch {
-      setCopied(false)
-    }
-  }
-
+function ConnectionToast({ messages, onBack, onRetry }) {
   return (
     <div role="alert" className="fixed bottom-4 left-1/2 z-[10001] w-[calc(100%-24px)] max-w-lg -translate-x-1/2 rounded-xl border border-amber-200 bg-white p-4 text-sm text-amber-950 shadow-xl">
       <p className="font-bold">Problema de conexão</p>
@@ -686,11 +677,11 @@ function ConnectionToast({ messages, code, onRetry }) {
         {messages.map((message) => <p key={message}>{message}</p>)}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" onClick={onBack} className="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50">
+          Voltar ao início
+        </button>
         <button type="button" onClick={onRetry} className="rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white hover:bg-amber-800">
           Tentar novamente
-        </button>
-        <button type="button" onClick={copyDiagnostic} className="rounded-lg border border-amber-300 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50">
-          {copied ? 'Detalhes copiados' : 'Copiar detalhes'}
         </button>
       </div>
     </div>

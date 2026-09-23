@@ -44,7 +44,7 @@ export const SLIDE_TYPES = {
   },
   open_text: {
     id: 'open_text',
-    label: 'Q&A aberto',
+    label: 'Perguntas abertas',
     tagline: 'Perguntas e comentários sem roteiro',
     emoji: 'chat',
     tone: 'ocean',

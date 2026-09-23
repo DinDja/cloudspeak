@@ -559,8 +559,16 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
   if (event.objective) writer.paragraph(`O objetivo do encontro foi ${event.objective.toLocaleLowerCase('pt-BR')}`)
   writer.paragraph(`A metodologia adotada consistiu em ${event.methodology.toLocaleLowerCase('pt-BR')}`)
   if (event.expectedAudience || event.publicProfile.length) {
+    const institutions = joinNatural(event.institutions ?? event.publicProfile)
     writer.paragraph(
-      `O público previsto era de ${event.expectedAudience || 'representantes do ecossistema educacional baiano'}. A apresentação ocorreu com a participação de representantes das instituições: ${joinNatural(event.institutions ?? event.publicProfile)}.`,
+      [
+        event.expectedAudience
+          ? `O público previsto era de ${event.expectedAudience}.`
+          : 'O público previsto era de representantes do ecossistema educacional baiano.',
+        institutions ? `A apresentação ocorreu com a participação de representantes das instituições: ${institutions}.` : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
     )
   }
   if (event.program.length) {

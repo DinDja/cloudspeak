@@ -238,16 +238,16 @@ const avancaOpenQuestion = (question, style = {}) =>
 
 export const AVANCA_EVENT = {
   key: AVANCA_EVENT_KEY,
-  letterTitle: 'CARTA PARA O PROGRAMA AVANÇA + BAHIA',
-  shortTitle: 'Avança + Bahia · Q&A',
+  letterTitle: 'COMPROMISSO PARA O PROGRAMA AVANÇA + BAHIA',
+  shortTitle: 'Avança + Bahia · Perguntas e respostas',
   title: 'Programa Avança + Bahia — escuta e próximos passos',
   date: '',
   time: '',
   location: 'Evento especial sobre o Programa Avança + Bahia',
   organizer: 'Secretaria da Educação do Estado da Bahia',
-  expectedAudience: 'Gestores, professores, estudantes e comunidade escolar',
+  expectedAudience: 'coordenadores pedagógicos',
   methodology:
-    'Apresentação Q&A com perguntas abertas, enquetes rápidas e nuvem de palavras para transformar informação em escuta qualificada.',
+    'Sessão de perguntas e respostas, com enquetes rápidas e nuvem de palavras, para transformar informação em escuta qualificada.',
   objective:
     'Compreender os desafios de implementação do Programa Avança + Bahia e registrar compromissos concretos para a recomposição das aprendizagens.',
   publicProfile: [],

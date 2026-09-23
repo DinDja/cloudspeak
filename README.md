@@ -2,7 +2,7 @@
 
 # CloudSpeak
 
-**Plataforma de apresentações interativas em tempo real da SEC — crie enquetes, nuvens de palavras, Q&A e seleção de times que o público responde ao vivo pelo celular.**
+**Plataforma de apresentações interativas em tempo real da SEC — crie enquetes, nuvens de palavras, perguntas abertas e seleção de times que o público responde ao vivo pelo celular.**
 
 [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev)
@@ -23,7 +23,7 @@ O CloudSpeak transforma qualquer apresentação em uma experiência bidirecional
 | --- | --- | --- |
 | **Enquete** | Votação com barras animadas e percentuais | Gráfico de barras ao vivo |
 | **Nuvem de palavras** | Coleta livre de termos, agrupados por frequência | Word cloud (D3) |
-| **Q&A aberto** | Perguntas e comentários abertos | Mural de cards em colunas |
+| **Perguntas abertas** | Perguntas e comentários abertos | Mural de cards em colunas |
 | **Seleção de times** | Inscrição em clubes com limite de vagas | Cards de ocupação + lista de membros |
 
 ### Recursos

@@ -47,7 +47,7 @@ export const TEMPLATES = [
   {
     id: AVANCA_EVENT_KEY,
     name: AVANCA_EVENT.shortTitle,
-    summary: 'Q&A inspirado na nova arquitetura educacional: diagnóstico, recomposição, MAC e próximos passos.',
+    summary: 'Perguntas e respostas inspiradas na nova arquitetura educacional: diagnóstico, recomposição, MAC e próximos passos.',
     accent: 'from-blue-900 via-slate-700 to-red-500',
     badge: 'Evento especial',
     icon: 'landmark',
