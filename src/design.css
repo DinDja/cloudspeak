@@ -2089,6 +2089,8 @@
 }
 /* All previews use the same honest, unpopulated slide surface. */
 .slide-print {
+  position: relative;
+  isolation: isolate;
   background: var(--slide-bg, #fafaf7);
   border: 1px solid var(--slide-rule, #dedfd9);
   color: var(--slide-text, var(--fala-ink));
@@ -2098,9 +2100,10 @@
 }
 .slide-watermark {
   position: absolute;
-  z-index: 1;
+  z-index: 0;
   display: flex;
   pointer-events: none;
+  overflow: hidden;
 }
 .slide-watermark > span {
   display: flex;
@@ -2111,8 +2114,8 @@
 }
 .slide-watermark img {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
@@ -2150,6 +2153,8 @@
   border-radius: 0.35rem;
 }
 .slide-print__inner {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -2335,6 +2340,8 @@
   text-align: left;
 }
 .watermark-upload {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2354,10 +2361,11 @@
 }
 .watermark-upload input {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  opacity: 0;
 }
 .watermark-upload-preview {
   display: flex;
@@ -2805,6 +2813,9 @@ body.cloudspeak-builder-active {
   margin-top: 14px;
 }
 .phone-preview {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   max-width: 290px;
   min-height: 420px;
   margin: 0 auto;

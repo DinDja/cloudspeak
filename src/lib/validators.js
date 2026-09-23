@@ -41,7 +41,7 @@ export const describeFirebaseError = (error, fallback) => {
   const code = getFirebaseErrorCode(error)
   const messages = {
     'permission-denied': 'Acesso negado. Confirme se a apresentação ainda está ativa e use o código atual.',
-    unavailable: 'Não foi possível conectar ao Firestore. Verifique a internet do celular.',
+    unavailable: 'Não foi possível conectar ao serviço. Verifique a internet do celular.',
     'deadline-exceeded': 'A conexão demorou mais que o esperado. Tente novamente.',
     'failed-precondition': 'O serviço ainda não está pronto para esta operação. Tente novamente.',
     aborted: 'A operação foi interrompida pela conexão. Tente novamente.',

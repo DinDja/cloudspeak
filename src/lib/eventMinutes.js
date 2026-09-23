@@ -473,7 +473,7 @@ export const createAttendancePdf = async ({ session, participants = [], authorNa
   writer.paragraph(`Data do evento: ${eventDateLabel}. Horário: ${eventTimeLabel}. Local: ${event.location}.`)
   writer.paragraph(`Código da sessão: ${text(session?.code) || 'sem código'}.`)
   writer.paragraph(
-    'Para fins de comprovação, este documento reúne os registros de presença confirmados pelo QR Code específico de presença. Cada linha corresponde a um participante registrado no Firestore.',
+    'Para fins de comprovação, este documento reúne os registros de presença confirmados pelo QR Code específico de presença. Cada linha corresponde a uma presença registrada no sistema.',
   )
   writer.paragraph(`Total de presenças confirmadas: ${participantRows.length}.`, { bold: true })
 

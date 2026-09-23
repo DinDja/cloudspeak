@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { AlignCenter, AlignLeft, AlignRight, ImagePlus, Palette, Plus, Trash2, X } from 'lucide-react'
-import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_WATERMARK_DATA_URL_LENGTH, MAX_WATERMARK_FILE_SIZE, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
+import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_WATERMARK_DATA_URL_LENGTH, MAX_WATERMARK_DIMENSION, MAX_WATERMARK_FILE_SIZE, MIN_WATERMARK_DIMENSION, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
 import { createTeamDraft } from '../../lib/validators'
 import {
   normalizeSlideStyle,
@@ -222,7 +222,7 @@ function SlideWatermarkControls({ watermark, onChange }) {
         Marca d’água
       </p>
       <p className="editor-hint mt-0">
-        A logo é gravada em base64 junto com o slide e aparece na prévia e na projeção.
+        A imagem é reduzida automaticamente e aparece na prévia e na apresentação.
       </p>
       <label className="watermark-upload">
         <ImagePlus size={16} />
@@ -291,17 +291,61 @@ const readWatermarkFile = (file) => {
   }
 
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const image = String(reader.result || '')
-      if (!image || image.length > MAX_WATERMARK_DATA_URL_LENGTH) {
-        reject(new Error('A imagem ficou grande demais para ser salva no Firestore. Use uma versão menor.'))
-        return
-      }
-      resolve(image)
+    const objectUrl = URL.createObjectURL(file)
+    const image = new Image()
+
+    const finish = (callback, value) => {
+      URL.revokeObjectURL(objectUrl)
+      callback(value)
     }
-    reader.onerror = () => reject(new Error('Não foi possível ler a imagem.'))
-    reader.readAsDataURL(file)
+
+    image.onload = () => {
+      try {
+        const sourceWidth = image.naturalWidth || image.width
+        const sourceHeight = image.naturalHeight || image.height
+        if (!sourceWidth || !sourceHeight) {
+          finish(reject, new Error('Não foi possível carregar essa imagem.'))
+          return
+        }
+
+        const canvas = document.createElement('canvas')
+        const longestSide = Math.max(sourceWidth, sourceHeight)
+        const initialLongestSide = Math.min(longestSide, MAX_WATERMARK_DIMENSION)
+        const minimumLongestSide = Math.min(initialLongestSide, MIN_WATERMARK_DIMENSION)
+        const qualitySteps = [0.78, 0.62, 0.48, 0.36, 0.28]
+
+        for (let currentLongestSide = initialLongestSide; currentLongestSide >= minimumLongestSide; currentLongestSide = Math.floor(currentLongestSide * 0.78)) {
+          const scale = currentLongestSide / longestSide
+          const width = Math.max(1, Math.round(sourceWidth * scale))
+          const height = Math.max(1, Math.round(sourceHeight * scale))
+          canvas.width = width
+          canvas.height = height
+
+          const context = canvas.getContext('2d')
+          if (!context) break
+          context.clearRect(0, 0, width, height)
+          context.drawImage(image, 0, 0, width, height)
+
+          for (const quality of qualitySteps) {
+            const encoded = canvas.toDataURL('image/webp', quality)
+            const output = encoded.startsWith('data:image/webp')
+              ? encoded
+              : canvas.toDataURL('image/png')
+
+            if (output.length <= MAX_WATERMARK_DATA_URL_LENGTH) {
+              finish(resolve, output)
+              return
+            }
+          }
+        }
+
+        finish(reject, new Error('Não foi possível reduzir essa imagem. Escolha uma imagem menor ou com menos detalhes.'))
+      } catch {
+        finish(reject, new Error('Não foi possível preparar essa imagem.'))
+      }
+    }
+    image.onerror = () => finish(reject, new Error('Não foi possível carregar essa imagem.'))
+    image.src = objectUrl
   })
 }
 
