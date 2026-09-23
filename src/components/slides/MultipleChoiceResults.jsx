@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-export default function MultipleChoiceResults({ slide, responses, responseCount }) {
+export default function MultipleChoiceResults({ slide, responses, responseCount, cardStyle = false }) {
   const stats = useMemo(() => {
     if (!slide || slide.type !== 'multiple_choice') return []
     const counts = new Map(slide.options.map((option) => [option, 0]))
@@ -11,7 +11,7 @@ export default function MultipleChoiceResults({ slide, responses, responseCount 
   }, [slide, responses])
 
   return (
-    <div className="result-chart">
+    <div className={`result-chart${cardStyle ? ' result-chart--cards' : ''}`}>
       {stats.map((entry, index) => {
         const percent = responseCount ? Math.round((entry.count / responseCount) * 100) : 0
         return (

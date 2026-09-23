@@ -3,7 +3,7 @@ import WordCloudCanvas from './WordCloudCanvas'
 import { CHART_PALETTE } from '../../lib/constants'
 import { normalizeText } from '../../lib/validators'
 
-export default function WordCloudResults({ responses }) {
+export default function WordCloudResults({ responses, cardStyle = false }) {
   const words = useMemo(() => {
     const counts = {}
     responses.forEach((entry) => {
@@ -33,5 +33,9 @@ export default function WordCloudResults({ responses }) {
     })
   }, [responses])
 
-  return <WordCloudCanvas words={words} />
+  return (
+    <div className={cardStyle ? 'result-card-panel' : undefined}>
+      <WordCloudCanvas words={words} />
+    </div>
+  )
 }

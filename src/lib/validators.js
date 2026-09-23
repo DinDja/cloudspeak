@@ -1,5 +1,5 @@
-import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, SUMMARY_TYPE, TEAM_SELECTION_TYPE } from './constants'
-import { DEFAULT_SLIDE_STYLE, normalizeSlideStyle } from './slideStyles'
+import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, MAX_SERIALIZED_SLIDES_LENGTH, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, SUMMARY_TYPE, TEAM_SELECTION_TYPE } from './constants'
+import { DEFAULT_SLIDE_STYLE, DEFAULT_SLIDE_WATERMARK, isValidSlideWatermarkImage, normalizeSlideStyle, normalizeSlideWatermark } from './slideStyles'
 
 const RESPONSE_VALUE_LABELS = {
   name: 'Nome',
@@ -125,6 +125,7 @@ export const createSlideDraft = (type = 'multiple_choice') => ({
   options: type === 'multiple_choice' ? ['', ''] : [],
   teams: type === TEAM_SELECTION_TYPE ? getDefaultTeamSelectionTeams() : [],
   style: { ...DEFAULT_SLIDE_STYLE },
+  watermark: { ...DEFAULT_SLIDE_WATERMARK },
 })
 
 export const buildTeamSelectionStats = (slide, responses = []) => {
@@ -171,11 +172,18 @@ export const buildTeamSelectionStats = (slide, responses = []) => {
 
 export const sanitizeSlides = (slides = []) => {
   let hasTeamSelectionError = false
+  let hasWatermarkError = false
 
   const normalizedSlides = slides
     .map((slide) => {
       const type = slide?.type
       const question = normalizeText(slide?.question ?? '')
+      const watermark = normalizeSlideWatermark(slide?.watermark)
+
+      if (slide?.watermark?.image && !isValidSlideWatermarkImage(slide.watermark.image)) {
+        hasWatermarkError = true
+        return null
+      }
 
       if (!question || !['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE, SUMMARY_TYPE].includes(type)) {
         return null
@@ -188,7 +196,7 @@ export const sanitizeSlides = (slides = []) => {
 
         if (options.length < 2) return null
 
-        return { id: slide.id || crypto.randomUUID(), type, question, options, style: normalizeSlideStyle(slide.style) }
+        return { id: slide.id || crypto.randomUUID(), type, question, options, style: normalizeSlideStyle(slide.style), watermark }
       }
 
       if (type === TEAM_SELECTION_TYPE) {
@@ -219,10 +227,10 @@ export const sanitizeSlides = (slides = []) => {
           return null
         }
 
-        return { id: slide.id || crypto.randomUUID(), type, question, teams, style: normalizeSlideStyle(slide.style) }
+        return { id: slide.id || crypto.randomUUID(), type, question, teams, style: normalizeSlideStyle(slide.style), watermark }
       }
 
-      return { id: slide.id || crypto.randomUUID(), type, question, style: normalizeSlideStyle(slide.style) }
+      return { id: slide.id || crypto.randomUUID(), type, question, style: normalizeSlideStyle(slide.style), watermark }
     })
     .filter(Boolean)
 
@@ -230,6 +238,13 @@ export const sanitizeSlides = (slides = []) => {
     return {
       slides: [],
       error: `Na seleção de times, informe pergunta, pelo menos 2 clubes com nomes distintos e um limite entre 1 e ${MAX_TEAM_CAPACITY} vagas por clube.`,
+    }
+  }
+
+  if (hasWatermarkError) {
+    return {
+      slides: [],
+      error: 'A imagem da marca d’água é inválida ou excede o limite permitido. Escolha um PNG, JPG ou WebP menor.',
     }
   }
 
@@ -242,6 +257,10 @@ export const sanitizeSlides = (slides = []) => {
 
   if (normalizedSlides.length > MAX_SLIDES) {
     return { slides: [], error: `Uma apresentação possui no máximo ${MAX_SLIDES} slides.` }
+  }
+
+  if (JSON.stringify(normalizedSlides).length > MAX_SERIALIZED_SLIDES_LENGTH) {
+    return { slides: [], error: 'As imagens das marcas d’água ocupam espaço demais. Reduza o tamanho ou use menos logos.' }
   }
 
   return { slides: normalizedSlides, error: '' }

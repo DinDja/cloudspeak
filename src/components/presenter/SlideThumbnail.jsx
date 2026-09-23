@@ -2,6 +2,7 @@ import { SLIDE_TYPES, SUMMARY_TYPE } from '../../lib/constants'
 import { AVANCA_EVENT_KEY } from '../../lib/eventData'
 import { getSlideStyleClass, getSlideThemeVars } from '../../lib/slideStyles'
 import EducationWatermark from './EducationWatermark'
+import SlideWatermark from './SlideWatermark'
 
 export default function SlideThumbnail({
   slide,
@@ -21,6 +22,7 @@ export default function SlideThumbnail({
       style={getSlideThemeVars(slide)}
     >
       <EducationWatermark eventKey={eventKey} presentationTitle={presentationTitle} />
+      <SlideWatermark slide={slide} />
       <div className="slide-print__inner relative z-10">
         <div className="slide-print__top">
           <span>{isAvancaPresentation ? 'Avança + Bahia' : 'Fala SEC'}</span>

@@ -553,10 +553,16 @@ export const createMinutesPdf = async ({ session, responses = [], participants =
   const eventDate = parseEventDate(event.date) || toDate(session?.launchedAt)
   const openingDate = formatDate(eventDate)
   writer.centeredTitle(event.letterTitle || 'CARTA PARA EDUCAÇÃO INTEGRAL E INTEGRADA PARA O DESENVOLVIMENTO ECONÔMICO E SOCIAL DA BAHIA')
-  writer.paragraph(
-    `Aos ${openingDate}, no ${event.location}, realizou-se o evento “${event.title}”, promovido pela ${event.organizer}. Este documento registra, em forma de carta e sem substituição das manifestações por sínteses automáticas, o desenvolvimento do encontro e as contribuições enviadas pela plataforma interativa.`,
-  )
-  if (event.objective) writer.paragraph(`O objetivo do encontro foi ${event.objective.toLocaleLowerCase('pt-BR')}`)
+  if (event.key === AVANCA_EVENT_KEY) {
+    writer.paragraph(
+      `Em ${openingDate}, foi realizado o encontro “${event.title}”, promovido pela ${event.organizer}. Este documento registra, em forma de carta, o desenvolvimento do encontro e as contribuições enviadas pela plataforma interativa, sem substituir as manifestações por sínteses automáticas. O objetivo foi ${event.objective.toLocaleLowerCase('pt-BR')}`,
+    )
+  } else {
+    writer.paragraph(
+      `Aos ${openingDate}, no ${event.location}, realizou-se o evento “${event.title}”, promovido pela ${event.organizer}. Este documento registra, em forma de carta e sem substituição das manifestações por sínteses automáticas, o desenvolvimento do encontro e as contribuições enviadas pela plataforma interativa.`,
+    )
+    if (event.objective) writer.paragraph(`O objetivo do encontro foi ${event.objective.toLocaleLowerCase('pt-BR')}`)
+  }
   writer.paragraph(`A metodologia adotada consistiu em ${event.methodology.toLocaleLowerCase('pt-BR')}`)
   if (event.expectedAudience || event.publicProfile.length) {
     const institutions = joinNatural(event.institutions ?? event.publicProfile)

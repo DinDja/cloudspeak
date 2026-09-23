@@ -3,7 +3,7 @@ import { TEAM_SELECTION_TYPE } from '../../lib/constants'
 import { buildTeamSelectionStats } from '../../lib/validators'
 import TeamReportModal from './TeamReportModal'
 
-export default function TeamSelectionResults({ slide, responses }) {
+export default function TeamSelectionResults({ slide, responses, cardStyle = false }) {
   const [activeTeamId, setActiveTeamId] = useState(null)
   const teams = useMemo(
     () => (slide?.type === TEAM_SELECTION_TYPE ? buildTeamSelectionStats(slide, responses) : []),
@@ -12,7 +12,7 @@ export default function TeamSelectionResults({ slide, responses }) {
   const activeTeam = teams.find((team) => (team.id || team.name) === activeTeamId)
   return (
     <>
-      <div className="team-results">
+      <div className={`team-results${cardStyle ? ' team-results--cards' : ''}`}>
         {teams.map((team) => (
           <article key={team.id || team.name}>
             <div className="team-results__heading">

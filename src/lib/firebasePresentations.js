@@ -14,7 +14,7 @@ import {
 import { db } from '../../firebase'
 import { MAX_SLIDES } from './constants'
 import { sanitizeSlides, sanitizeTitle } from './validators'
-import { normalizeSlideStyle } from './slideStyles'
+import { normalizeSlideStyle, normalizeSlideWatermark } from './slideStyles'
 
 const presentationsCol = () => collection(db, 'presentations')
 const presentationRef = (id) => doc(db, 'presentations', id)
@@ -99,6 +99,7 @@ export const buildEditableDraft = (presentation) => {
     options: Array.isArray(slide.options) ? [...slide.options] : [],
     teams: Array.isArray(slide.teams) ? slide.teams.map((t) => ({ ...t })) : [],
     style: normalizeSlideStyle(slide.style),
+    watermark: normalizeSlideWatermark(slide.watermark),
   }))
   return {
     id: presentation?.id ?? null,

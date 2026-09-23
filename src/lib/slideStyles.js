@@ -1,3 +1,5 @@
+import { MAX_WATERMARK_DATA_URL_LENGTH } from './constants'
+
 export const DEFAULT_SLIDE_STYLE = Object.freeze({
   theme: 'claro',
   layout: 'editorial',
@@ -7,6 +9,19 @@ export const DEFAULT_SLIDE_STYLE = Object.freeze({
   titleAlign: 'center',
   titleCase: 'uppercase',
 })
+
+export const DEFAULT_SLIDE_WATERMARK = Object.freeze({
+  image: '',
+  position: 'background',
+  opacity: 0.14,
+  hasBackground: false,
+})
+
+export const SLIDE_WATERMARK_POSITION_OPTIONS = [
+  { id: 'background', label: 'Fundo', description: 'Marca d’água central' },
+  { id: 'top-left', label: 'Superior esquerdo', description: 'Canto superior esquerdo' },
+  { id: 'top-right', label: 'Superior direito', description: 'Canto superior direito' },
+]
 
 export const SLIDE_STYLE_OPTIONS = [
   {
@@ -182,6 +197,7 @@ const titleSizesById = new Map(SLIDE_TITLE_SIZE_OPTIONS.map((size) => [size.id, 
 const titleWidthsById = new Map(SLIDE_TITLE_WIDTH_OPTIONS.map((width) => [width.id, width]))
 const titleAlignsById = new Map(SLIDE_TITLE_ALIGN_OPTIONS.map((align) => [align.id, align]))
 const titleCasesById = new Map(SLIDE_TITLE_CASE_OPTIONS.map((titleCase) => [titleCase.id, titleCase]))
+const watermarkPositionsById = new Map(SLIDE_WATERMARK_POSITION_OPTIONS.map((position) => [position.id, position]))
 
 export const normalizeSlideStyle = (style) => ({
   theme: themesById.has(style?.theme) ? style.theme : DEFAULT_SLIDE_STYLE.theme,
@@ -192,6 +208,29 @@ export const normalizeSlideStyle = (style) => ({
   titleAlign: titleAlignsById.has(style?.titleAlign) ? style.titleAlign : DEFAULT_SLIDE_STYLE.titleAlign,
   titleCase: titleCasesById.has(style?.titleCase) ? style.titleCase : DEFAULT_SLIDE_STYLE.titleCase,
 })
+
+const WATERMARK_DATA_URL_PATTERN = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/
+
+export const isValidSlideWatermarkImage = (value) =>
+  typeof value === 'string'
+  && value.length <= MAX_WATERMARK_DATA_URL_LENGTH
+  && WATERMARK_DATA_URL_PATTERN.test(value)
+
+export const normalizeSlideWatermark = (watermark) => {
+  const image = isValidSlideWatermarkImage(watermark?.image) ? watermark.image : ''
+  const numericOpacity = Number(watermark?.opacity)
+
+  return {
+    image,
+    position: watermarkPositionsById.has(watermark?.position)
+      ? watermark.position
+      : DEFAULT_SLIDE_WATERMARK.position,
+    opacity: Number.isFinite(numericOpacity)
+      ? Math.min(1, Math.max(0, numericOpacity))
+      : DEFAULT_SLIDE_WATERMARK.opacity,
+    hasBackground: watermark?.hasBackground === true,
+  }
+}
 
 export const getSlideTheme = (slide) =>
   themesById.get(normalizeSlideStyle(slide?.style).theme) ?? themesById.get(DEFAULT_SLIDE_STYLE.theme)

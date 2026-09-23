@@ -241,13 +241,13 @@ export const AVANCA_EVENT = {
   letterTitle: 'COMPROMISSO PARA O PROGRAMA AVANÇA + BAHIA',
   shortTitle: 'Avança + Bahia · Perguntas e respostas',
   title: 'Programa Avança + Bahia — escuta e próximos passos',
-  date: '',
+  date: '22/09/2026',
   time: '',
   location: 'Evento especial sobre o Programa Avança + Bahia',
   organizer: 'Secretaria da Educação do Estado da Bahia',
   expectedAudience: 'coordenadores pedagógicos',
   methodology:
-    'Sessão de perguntas e respostas, com enquetes rápidas e nuvem de palavras, para transformar informação em escuta qualificada.',
+    'Uma sessão de perguntas e respostas, voltada à escuta qualificada e ao registro das contribuições das participantes e dos participantes.',
   objective:
     'Compreender os desafios de implementação do Programa Avança + Bahia e registrar compromissos concretos para a recomposição das aprendizagens.',
   publicProfile: [],

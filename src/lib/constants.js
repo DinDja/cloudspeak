@@ -10,6 +10,9 @@ export const EVIDENCE_BOARD_TYPE = 'evidence_board'
 export const MAX_TEAM_CAPACITY = 50
 export const MAX_SLIDES = 20
 export const MAX_TEAM_PER_SLIDE = 12
+export const MAX_WATERMARK_DATA_URL_LENGTH = 100000
+export const MAX_WATERMARK_FILE_SIZE = 2000000
+export const MAX_SERIALIZED_SLIDES_LENGTH = 850000
 
 export const ALLOWED_AUTH_DOMAIN = 'secti.ba.gov.br'
 export const ALLOWED_AUTH_DOMAINS = [

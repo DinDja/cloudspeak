@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowUp, ArrowDown, Save, Play, Plus, Monitor, Smartphone } from 'lucide-react'
 import Logo from '../components/ui/Logo'
 import Modal from '../components/ui/Modal'
@@ -15,6 +15,21 @@ const fingerprint = (draft) => JSON.stringify({ title: draft.title, slides: draf
 
 export default function PresentationBuilder({ initialPresentation, onBack, onPresented }) {
   const { uid, email } = useAuth()
+  useEffect(() => {
+    const previousScrollY = Math.max(
+      window.scrollY,
+      document.documentElement.scrollTop,
+      document.body.scrollTop,
+    )
+    document.body.classList.add('cloudspeak-builder-active')
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+    return () => {
+      document.body.classList.remove('cloudspeak-builder-active')
+      window.scrollTo(0, previousScrollY)
+    }
+  }, [])
   const [draft, setDraft] = useState(() => {
     const next = buildEditableDraft(initialPresentation)
     return next.slides.length ? next : { ...next, slides: [createSlideDraft()] }

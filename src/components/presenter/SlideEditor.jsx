@@ -1,12 +1,14 @@
-import { useId } from 'react'
-import { AlignCenter, AlignLeft, AlignRight, Palette, Plus, Trash2, X } from 'lucide-react'
-import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
+import { useId, useState } from 'react'
+import { AlignCenter, AlignLeft, AlignRight, ImagePlus, Palette, Plus, Trash2, X } from 'lucide-react'
+import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_WATERMARK_DATA_URL_LENGTH, MAX_WATERMARK_FILE_SIZE, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
 import { createTeamDraft } from '../../lib/validators'
 import {
   normalizeSlideStyle,
+  normalizeSlideWatermark,
   SLIDE_FONT_OPTIONS,
   SLIDE_LAYOUT_OPTIONS,
   SLIDE_STYLE_OPTIONS,
+  SLIDE_WATERMARK_POSITION_OPTIONS,
   SLIDE_TITLE_CASE_OPTIONS,
   SLIDE_TITLE_ALIGN_OPTIONS,
   SLIDE_TITLE_SIZE_OPTIONS,
@@ -174,6 +176,10 @@ export default function SlideEditor({
         style={normalizeSlideStyle(slide.style)}
         onChange={(style) => update({ style })}
       />
+      <SlideWatermarkControls
+        watermark={normalizeSlideWatermark(slide.watermark)}
+        onChange={(watermark) => update({ watermark })}
+      />
       <p className="editor-hint">
         {slide.type === SUMMARY_TYPE
           ? 'O sumário lista os slides automaticamente. Durante a apresentação, clique em um item para ir direto até ele.'
@@ -190,6 +196,113 @@ export default function SlideEditor({
       </p>
     </fieldset>
   )
+}
+
+function SlideWatermarkControls({ watermark, onChange }) {
+  const [uploadError, setUploadError] = useState('')
+
+  const handleUpload = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    try {
+      setUploadError('')
+      const image = await readWatermarkFile(file)
+      onChange({ ...watermark, image })
+    } catch (error) {
+      setUploadError(error.message || 'Não foi possível carregar essa imagem.')
+    }
+  }
+
+  return (
+    <div className="editor-field slide-watermark-controls">
+      <p className="flex items-center gap-1.5">
+        <ImagePlus size={14} />
+        Marca d’água
+      </p>
+      <p className="editor-hint mt-0">
+        A logo é gravada em base64 junto com o slide e aparece na prévia e na projeção.
+      </p>
+      <label className="watermark-upload">
+        <ImagePlus size={16} />
+        <span>{watermark.image ? 'Trocar logo' : 'Escolher logo'}</span>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={handleUpload}
+        />
+      </label>
+      {watermark.image && (
+        <div className="watermark-upload-preview">
+          <img src={watermark.image} alt="Prévia da marca d’água" />
+          <button type="button" className="fala-link" onClick={() => onChange({ ...watermark, image: '' })}>
+            Remover logo
+          </button>
+        </div>
+      )}
+      {uploadError && <p className="fala-error" role="alert">{uploadError}</p>}
+      <div className="watermark-control-grid">
+        <label>
+          Posição
+          <select
+            className="fala-input"
+            value={watermark.position}
+            onChange={(event) => onChange({ ...watermark, position: event.target.value })}
+          >
+            {SLIDE_WATERMARK_POSITION_OPTIONS.map((position) => (
+              <option key={position.id} value={position.id}>{position.label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Opacidade <span className="watermark-range-value">{Math.round(watermark.opacity * 100)}%</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value={Math.round(watermark.opacity * 100)}
+            onChange={(event) => onChange({ ...watermark, opacity: Number(event.target.value) / 100 })}
+          />
+        </label>
+      </div>
+      <label className="watermark-background-toggle">
+        <input
+          type="checkbox"
+          checked={watermark.hasBackground}
+          onChange={(event) => onChange({ ...watermark, hasBackground: event.target.checked })}
+        />
+        <span>
+          <strong>Adicionar fundo</strong>
+          <small>Usa a superfície do tema atrás da logo.</small>
+        </span>
+      </label>
+    </div>
+  )
+}
+
+const readWatermarkFile = (file) => {
+  if (!file.type.match(/^image\/(png|jpeg|webp)$/)) {
+    return Promise.reject(new Error('Escolha uma imagem PNG, JPG ou WebP.'))
+  }
+  if (file.size > MAX_WATERMARK_FILE_SIZE) {
+    return Promise.reject(new Error('A imagem deve ter no máximo 2 MB.'))
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const image = String(reader.result || '')
+      if (!image || image.length > MAX_WATERMARK_DATA_URL_LENGTH) {
+        reject(new Error('A imagem ficou grande demais para ser salva no Firestore. Use uma versão menor.'))
+        return
+      }
+      resolve(image)
+    }
+    reader.onerror = () => reject(new Error('Não foi possível ler a imagem.'))
+    reader.readAsDataURL(file)
+  })
 }
 
 function SlideStyleControls({ style, onChange }) {

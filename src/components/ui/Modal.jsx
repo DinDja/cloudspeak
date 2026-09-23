@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { IconX } from '../icons/Icons'
 
-export default function Modal({ open, onClose, children, maxWidth = 'max-w-md' }) {
+export default function Modal({ open, onClose, children, maxWidth = 'max-w-md', ariaLabel = 'Confirmação' }) {
   const dialogRef = useRef(null)
   const closeRef = useRef(onClose)
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function Modal({ open, onClose, children, maxWidth = 'max-w-md' }
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="Confirmação"
+        aria-label={ariaLabel}
         className={`fala-app relative !min-h-0 w-full max-h-[90dvh] overflow-y-auto border border-stone-300 bg-white p-7 outline-none ${maxWidth}`}
         onClick={(event) => event.stopPropagation()}
       >

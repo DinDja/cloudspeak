@@ -16,6 +16,8 @@ import {
   ArrowLeft,
   Share2,
   Maximize2,
+  PanelRightClose,
+  PanelRightOpen,
   FileText,
   QrCode,
   Download,
@@ -28,7 +30,6 @@ import { EVIDENCE_BOARD_TYPE, SUMMARY_TYPE, TEAM_SELECTION_TYPE } from '../lib/c
 import { QR_CODE_COLORS, COLORS } from '../lib/colors'
 import { buildTeamSelectionStats, formatResponseValue, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
 import { getSlideStyleClass, getSlideThemeVars } from '../lib/slideStyles'
-import { AVANCA_EVENT_KEY } from '../lib/eventData'
 import MultipleChoiceResults from '../components/slides/MultipleChoiceResults'
 import WordCloudResults from '../components/slides/WordCloudResults'
 import OpenTextResults from '../components/slides/OpenTextResults'
@@ -38,6 +39,7 @@ import MinutesReportModal from '../components/host/MinutesReportModal'
 import { downloadIssuedAttendanceReport } from '../lib/attendanceReportService'
 import { getParticipantsWithRetry } from '../lib/firebaseSessions'
 import EducationWatermark from '../components/presenter/EducationWatermark'
+import SlideWatermark from '../components/presenter/SlideWatermark'
 
 const REACTION_ICON = {
   heart: Heart,
@@ -78,17 +80,9 @@ export default function HostView({
   const [attendanceDownloading, setAttendanceDownloading] = useState(false)
   const [attendanceError, setAttendanceError] = useState('')
   const [attendanceReport, setAttendanceReport] = useState(null)
+  const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false)
   const slideStyleClass = getSlideStyleClass(currentSlide)
   const slideThemeVars = getSlideThemeVars(currentSlide)
-  const normalizedSessionTitle = String(session.title ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('pt-BR')
-  const isAvancaEvent =
-    session.eventKey === AVANCA_EVENT_KEY ||
-    normalizedSessionTitle.includes('avanca') ||
-    currentSlide?.style?.theme === 'avanca'
-
   useEffect(() => {
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) setFullscreenSlide(false)
@@ -97,6 +91,32 @@ export default function HostView({
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const target = event.target
+      const isEditableTarget =
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+
+      if (isEditableTarget || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+
+      if (event.key === 'ArrowRight') {
+        if (!canGoForward) return
+        event.preventDefault()
+        onNext()
+      }
+
+      if (event.key === 'ArrowLeft') {
+        if (!canGoBack) return
+        event.preventDefault()
+        onPrevious()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [canGoBack, canGoForward, onNext, onPrevious])
 
   const openFullscreenSlide = async () => {
     setFullscreenSlide(true)
@@ -148,7 +168,9 @@ export default function HostView({
 
   return (
     <>
-      <div className="host-layout relative grid h-[100dvh] grid-cols-1 overflow-hidden bg-[#f6f4ef] font-sans text-[#17181d] lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div
+        className={`host-layout relative grid h-[100dvh] grid-cols-1 overflow-hidden bg-[#f6f4ef] font-sans text-[#17181d] ${sidePanelCollapsed ? 'lg:grid-cols-[minmax(0,1fr)_56px]' : 'lg:grid-cols-[minmax(0,1fr)_360px]'}`}
+      >
         <BackgroundAurora />
 
         <main className="relative z-10 flex h-full min-w-0 flex-col overflow-hidden">
@@ -163,23 +185,24 @@ export default function HostView({
           />
 
           <section
-            className={`host-stage ${slideStyleClass} relative flex min-h-0 flex-1 items-center justify-start overflow-x-hidden overflow-y-auto px-4 py-6 sm:px-6 sm:py-8`}
+            className={`host-stage ${slideStyleClass} relative flex min-h-0 flex-1 items-center justify-start overflow-x-hidden overflow-y-auto px-4 pb-24 pt-6 sm:px-6 sm:pb-28 sm:pt-8`}
             style={slideThemeVars}
           >
+            <button
+              type="button"
+              onClick={openFullscreenSlide}
+              className="absolute right-4 top-4 z-20 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition-colors hover:border-stone-400 hover:bg-stone-50 hover:text-stone-800 sm:right-5 sm:top-5 sm:px-3 sm:py-2 sm:text-xs"
+              title="Slide em tela cheia"
+            >
+              <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />{' '}
+              <span className="hidden sm:inline">Tela cheia</span>
+            </button>
             <EducationWatermark
               eventKey={session.eventKey}
               presentationTitle={session.title}
             />
-            <div className="mx-auto my-auto w-full max-w-5xl text-center">
-              <button
-                type="button"
-                onClick={openFullscreenSlide}
-                className="absolute right-2 top-2 z-20 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition-colors hover:border-stone-400 hover:bg-stone-50 hover:text-stone-800 sm:right-4 sm:top-4 sm:px-3 sm:py-2 sm:text-xs"
-                title="Slide em tela cheia"
-              >
-                <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />{' '}
-                <span className="hidden sm:inline">Tela cheia</span>
-              </button>
+            <SlideWatermark slide={currentSlide} />
+            <div className="relative z-10 mx-auto my-auto w-full max-w-5xl text-center">
               <AnimatePresence mode="wait">
                 <Motion.div
                   key={currentSlide?.id ?? 'empty'}
@@ -233,17 +256,21 @@ export default function HostView({
                         slide={currentSlide}
                         responses={responses}
                         responseCount={responseCount}
+                        cardStyle
                       />
                     )}
-                    {currentSlide?.type === 'word_cloud' && <WordCloudResults responses={responses} />}
+                    {currentSlide?.type === 'word_cloud' && (
+                      <WordCloudResults responses={responses} cardStyle />
+                    )}
                     {currentSlide?.type === 'open_text' && (
-                      <OpenTextResults responses={responses} cardStyle={isAvancaEvent} />
+                      <OpenTextResults responses={responses} cardStyle />
                     )}
                     {currentSlide?.type === TEAM_SELECTION_TYPE && (
                       <TeamSelectionResults
                         slide={currentSlide}
                         responses={responses}
                         responseCount={responseCount}
+                        cardStyle
                       />
                     )}
                       </Motion.div>
@@ -281,6 +308,8 @@ export default function HostView({
           attendanceDownloading={attendanceDownloading}
           attendanceError={attendanceError}
           attendanceReport={attendanceReport}
+          collapsed={sidePanelCollapsed}
+          onToggleCollapse={() => setSidePanelCollapsed((collapsed) => !collapsed)}
         />
       </div>
 
@@ -294,6 +323,7 @@ export default function HostView({
               eventKey={session.eventKey}
               presentationTitle={session.title}
             />
+            <SlideWatermark slide={currentSlide} />
             <button
               type="button"
               onClick={closeFullscreenSlide}
@@ -301,7 +331,7 @@ export default function HostView({
             >
               <X className="h-4 w-4 sm:h-5 sm:w-5" /> Fechar
             </button>
-            <div className="flex w-full flex-col items-center gap-4 sm:gap-6 md:gap-8">
+            <div className="relative z-10 flex w-full flex-col items-center gap-4 sm:gap-6 md:gap-8">
               {currentSlide?.type === EVIDENCE_BOARD_TYPE ? (
                 <EvidenceBoard session={session} responses={allResponses} participants={participants} />
               ) : (
@@ -351,17 +381,21 @@ export default function HostView({
                     slide={currentSlide}
                     responses={responses}
                     responseCount={responseCount}
+                    cardStyle
                   />
                 )}
-                {currentSlide?.type === 'word_cloud' && <WordCloudResults responses={responses} />}
+                {currentSlide?.type === 'word_cloud' && (
+                  <WordCloudResults responses={responses} cardStyle />
+                )}
                 {currentSlide?.type === 'open_text' && (
-                  <OpenTextResults responses={responses} cardStyle={isAvancaEvent} />
+                  <OpenTextResults responses={responses} cardStyle />
                 )}
                 {currentSlide?.type === TEAM_SELECTION_TYPE && (
                   <TeamSelectionResults
                     slide={currentSlide}
                     responses={responses}
                     responseCount={responseCount}
+                    cardStyle
                   />
                 )}
                   </Motion.div>
@@ -511,12 +545,12 @@ function StatChip({ icon, value, label, tone = 'brand', size = 'md' }) {
 
 function BottomControls({ session, canGoBack, canGoForward, onNext, onPrevious }) {
   return (
-    <div className="relative z-20 flex items-center justify-center gap-2 px-2 sm:px-4 lg:bottom-6">
+    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex items-center justify-center gap-2 px-2 sm:bottom-6 sm:px-4">
       <Motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:gap-1.5 sm:p-1.5"
+        className="pointer-events-auto flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:gap-1.5 sm:p-1.5"
       >
         <button
           type="button"
@@ -600,6 +634,8 @@ function SidePanel({
   attendanceDownloading,
   attendanceError,
   attendanceReport,
+  collapsed,
+  onToggleCollapse,
 }) {
   const [feedTab, setFeedTab] = useState('live')
   const [qrFullscreen, setQrFullscreen] = useState(false)
@@ -616,22 +652,49 @@ function SidePanel({
 
   return (
     <>
-      <aside className="host-side-panel relative z-20 hidden h-full min-h-0 w-full max-w-[360px] flex-col gap-3 overflow-y-auto border-l border-slate-200 bg-white p-3 sm:gap-4 sm:p-5 cs-scroll-thin lg:flex">
-        <section className="relative shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 sm:text-[10px]">
-              Como entrar
-            </p>
+      <aside
+        className={`host-side-panel relative z-20 hidden h-full min-h-0 w-full flex-col border-l border-slate-200 bg-white lg:flex ${collapsed ? 'items-center overflow-hidden p-2' : 'max-w-[360px] gap-3 overflow-y-auto p-3 sm:gap-4 sm:p-5 cs-scroll-thin'}`}
+      >
+        {collapsed ? (
+          <div className="flex h-full w-full items-start justify-center pt-1">
             <button
               type="button"
-              onClick={() => setQrFullscreen(true)}
-              className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-600 transition-colors hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800 sm:px-2 sm:py-1 sm:text-[10px]"
-              title="QR code em tela cheia"
+              onClick={onToggleCollapse}
+              aria-label="Expandir painel lateral"
+              title="Expandir painel lateral"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800"
             >
-              <Maximize2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />{' '}
-              <span className="hidden sm:inline">Tela cheia</span>
+              <PanelRightOpen className="h-4 w-4" />
             </button>
           </div>
+        ) : (
+          <>
+            <section className="relative shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 sm:text-[10px]">
+                  Como entrar
+                </p>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setQrFullscreen(true)}
+                    aria-label="Abrir QR code em tela cheia"
+                    title="Abrir QR code em tela cheia"
+                    className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onToggleCollapse}
+                    aria-label="Minimizar painel lateral"
+                    title="Minimizar painel lateral"
+                    className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800"
+                  >
+                    <PanelRightClose className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
           <p className="mt-1.5 text-sm font-semibold tracking-tight text-slate-900 sm:text-lg">
             Aponte a câmera
           </p>
@@ -660,54 +723,56 @@ function SidePanel({
           </button>
         </section>
 
-        <EventQrTools
-          code={session.code}
-          slides={slides}
-          slide={currentSlide}
-          joinUrl={joinUrl}
-          presenceUrl={presenceUrl}
-          slideJoinUrl={slideJoinUrl}
-          onOpenReport={onOpenReport}
-          onDownloadAttendance={onDownloadAttendance}
-          attendanceDownloading={attendanceDownloading}
-          attendanceError={attendanceError}
-          attendanceReport={attendanceReport}
-        />
+            <EventQrTools
+              code={session.code}
+              slides={slides}
+              slide={currentSlide}
+              joinUrl={joinUrl}
+              presenceUrl={presenceUrl}
+              slideJoinUrl={slideJoinUrl}
+              onOpenReport={onOpenReport}
+              onDownloadAttendance={onDownloadAttendance}
+              attendanceDownloading={attendanceDownloading}
+              attendanceError={attendanceError}
+              attendanceReport={attendanceReport}
+            />
 
-        <section className="shrink-0">
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-            {['live', 'ranking', 'público'].map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setFeedTab(tab)}
-                className={[
-                  'flex-1 rounded-lg border border-transparent px-2 py-1 text-[9px] font-semibold uppercase tracking-wider transition-colors sm:px-3 sm:py-1.5 sm:text-xs',
-                  feedTab === tab ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100',
-                ].join(' ')}
-              >
-                {tab === 'live' ? 'Ao vivo' : tab === 'ranking' ? 'Ranking' : 'Público'}
-              </button>
-            ))}
-          </div>
+            <section className="shrink-0">
+              <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                {['live', 'ranking', 'público'].map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setFeedTab(tab)}
+                    className={[
+                      'flex-1 rounded-lg border border-transparent px-2 py-1 text-[9px] font-semibold uppercase tracking-wider transition-colors sm:px-3 sm:py-1.5 sm:text-xs',
+                      feedTab === tab ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100',
+                    ].join(' ')}
+                  >
+                    {tab === 'live' ? 'Ao vivo' : tab === 'ranking' ? 'Ranking' : 'Público'}
+                  </button>
+                ))}
+              </div>
 
-          <div className="mt-2 space-y-2 sm:mt-3 sm:space-y-2.5">
-            {feedTab === 'live' && <LiveFeed responses={responses} currentSlide={currentSlide} />}
-            {feedTab === 'ranking' && <RankingFeed currentSlide={currentSlide} responses={responses} />}
-            {feedTab === 'público' && <AudienceFeed connectedParticipants={connectedParticipants} />}
-          </div>
-        </section>
+              <div className="mt-2 space-y-2 sm:mt-3 sm:space-y-2.5">
+                {feedTab === 'live' && <LiveFeed responses={responses} currentSlide={currentSlide} />}
+                {feedTab === 'ranking' && <RankingFeed currentSlide={currentSlide} responses={responses} />}
+                {feedTab === 'público' && <AudienceFeed connectedParticipants={connectedParticipants} />}
+              </div>
+            </section>
 
-        <section className="mt-auto shrink-0 rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm sm:p-5">
-          <Badge2>Modo apresentador</Badge2>
-          <p className="mt-1.5 text-xs font-bold leading-relaxed text-slate-700 sm:text-sm">
-            A plateia está respondendo em tempo real. Você controla o avanço.
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-2">
-            <MiniStat label="Conexões" value={connectedParticipants} />
-            <MiniStat label="Etapa" value={`${session.currentSlideIndex + 1}/${session.slides.length}`} />
-          </div>
-        </section>
+            <section className="mt-auto shrink-0 rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm sm:p-5">
+              <Badge2>Modo apresentador</Badge2>
+              <p className="mt-1.5 text-xs font-bold leading-relaxed text-slate-700 sm:text-sm">
+                A plateia está respondendo em tempo real. Você controla o avanço.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-2">
+                <MiniStat label="Conexões" value={connectedParticipants} />
+                <MiniStat label="Etapa" value={`${session.currentSlideIndex + 1}/${session.slides.length}`} />
+              </div>
+            </section>
+          </>
+        )}
       </aside>
 
       {qrFullscreen && (

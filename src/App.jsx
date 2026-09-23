@@ -133,6 +133,14 @@ export default function App() {
 
   useEffect(() => {
     if (route !== 'public') return
+
+    // An explicit URL is the source of truth for QR-code joins. Without this
+    // guard, an old participant session from localStorage can be restored in
+    // the same render and overwrite both the session code and the requested
+    // slide from the QR code.
+    const hasExplicitJoinUrl = new URLSearchParams(window.location.search).has('code')
+    if (hasExplicitJoinUrl) return
+
     const saved = readActiveSession()
     if (!saved) return
 
