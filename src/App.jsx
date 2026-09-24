@@ -3,7 +3,7 @@ import { useAuth } from './hooks/useAuth'
 import { useSession } from './hooks/useSession'
 import { useReactions } from './hooks/useReactions'
 import { usePresence } from './hooks/usePresence'
-import { EVIDENCE_BOARD_TYPE, PRESENCE_TTL_MS, SUMMARY_TYPE, TEAM_SELECTION_TYPE, AUTH_DOMAIN_LABEL } from './lib/constants'
+import { EVIDENCE_BOARD_TYPE, isStaticSlideType, PRESENCE_TTL_MS, SUMMARY_TYPE, TEAM_SELECTION_TYPE, AUTH_DOMAIN_LABEL } from './lib/constants'
 import {
   createSlideDraft,
   getParticipantId,
@@ -403,7 +403,7 @@ export default function App() {
 
   const handleSubmitResponse = async (value) => {
     if (!session || !currentSlide) return false
-    if (currentSlide.type === EVIDENCE_BOARD_TYPE || currentSlide.type === SUMMARY_TYPE) return false
+    if (currentSlide.type === EVIDENCE_BOARD_TYPE || currentSlide.type === SUMMARY_TYPE || isStaticSlideType(currentSlide.type)) return false
     if (session.status !== 'live') {
       setGlobalError('A sessão foi encerrada e não aceita novas respostas.')
       return false

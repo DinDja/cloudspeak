@@ -1,3 +1,4 @@
+import { COVER_TYPE, INTRODUCTION_TYPE } from './constants'
 import { createSlideDraft } from './validators'
 
 export const AVANCA_EVENT_KEY = 'avanca-mais-bahia'
@@ -236,6 +237,51 @@ const withAvancaStyle = (slide, style = {}) => ({
 const avancaOpenQuestion = (question, style = {}) =>
   withAvancaStyle({ ...createSlideDraft('open_text'), question }, style)
 
+const avancaCover = () =>
+  withAvancaStyle({
+    ...createSlideDraft(COVER_TYPE),
+    eyebrow: 'Caderno de diálogo',
+    question: 'Aprendizagem em movimento',
+    subtitle: 'Escuta, reflexão e próximos passos',
+    footer: 'Educação pública · Bahia',
+  }, {
+    layout: 'editorial',
+    titleSize: 'display',
+    titleWidth: 'full',
+  })
+
+const avancaIntroduction = () =>
+  withAvancaStyle({
+    ...createSlideDraft(INTRODUCTION_TYPE),
+    eyebrow: 'Introdução',
+    question: 'Um espaço para pensar juntos',
+    subtitle: 'A conversa parte do cotidiano da escola e dos desafios de garantir aprendizagens para todas e todos.',
+    body: 'Vamos compartilhar experiências, reconhecer obstáculos e reunir ideias que possam orientar decisões e próximos passos.',
+    points: [
+      'olhar para os desafios de aprendizagem',
+      'valorizar o que já acontece nos territórios',
+      'construir possibilidades de ação',
+    ],
+    footer: 'Escuta · reflexão · construção coletiva',
+  }, {
+    layout: 'editorial',
+    titleSize: 'large',
+    titleWidth: 'wide',
+  })
+
+export const buildAvancaOpeningSlides = () => [avancaCover(), avancaIntroduction()]
+
+export const ensureAvancaOpeningSlides = (slides = []) => {
+  const cover = slides.find((slide) => slide?.type === COVER_TYPE)
+  const introduction = slides.find((slide) => slide?.type === INTRODUCTION_TYPE)
+  const contentSlides = slides.filter(
+    (slide) => ![COVER_TYPE, INTRODUCTION_TYPE].includes(slide?.type),
+  )
+  const [defaultCover, defaultIntroduction] = buildAvancaOpeningSlides()
+
+  return [cover ?? defaultCover, introduction ?? defaultIntroduction, ...contentSlides]
+}
+
 export const AVANCA_EVENT = {
   key: AVANCA_EVENT_KEY,
   letterTitle: 'COMPROMISSO PARA O PROGRAMA AVANÇA + BAHIA',
@@ -259,6 +305,7 @@ export const AVANCA_EVENT = {
 }
 
 export const buildAvancaEventSlides = () => [
+  ...buildAvancaOpeningSlides(),
   avancaOpenQuestion('Quais as maiores dificuldades para transformar a leitura de dados em plano de recomposição?', {
     titleWidth: 'wider',
   }),

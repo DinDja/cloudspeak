@@ -18,7 +18,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '../../firebase'
-import { AVANCA_EVENT_KEY } from './eventData'
+import { AVANCA_EVENT_KEY, ensureAvancaOpeningSlides } from './eventData'
 import { EVIDENCE_BOARD_TYPE, MAX_SLIDES, REACTION_LIFETIME_MS, TEAM_SELECTION_TYPE } from './constants'
 import { createEvidenceBoardSlide } from './evidenceBoard'
 import {
@@ -44,7 +44,7 @@ const reactionsRef = (code) => collection(db, 'sessions', code, 'reactions')
 const attendanceReportsCol = () => collection(db, 'attendanceReports')
 const attendanceReportRef = (reportId) => doc(db, 'attendanceReports', reportId)
 
-const isAvancaPresentation = (presentation, slides) => {
+export const isAvancaPresentation = (presentation, slides) => {
   const normalizedTitle = String(presentation?.title ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -206,11 +206,12 @@ export const createSession = async ({ code, title, slides, ownerUid, ownerEmail,
 
 export const launchPresentationAsSession = async ({ presentation, ownerUid, ownerEmail }) => {
   const code = generateCode()
-  const presentationSlides = presentation.slides ?? []
-  const isAvanca = isAvancaPresentation(presentation, presentationSlides)
+  const originalSlides = presentation.slides ?? []
+  const isAvanca = isAvancaPresentation(presentation, originalSlides)
+  const presentationSlides = isAvanca ? ensureAvancaOpeningSlides(originalSlides) : originalSlides
   const needsEvidenceBoard = isAvanca
     && !presentationSlides.some((slide) => slide.type === EVIDENCE_BOARD_TYPE)
-  if (needsEvidenceBoard && presentationSlides.length >= MAX_SLIDES) {
+  if (presentationSlides.length > MAX_SLIDES || (needsEvidenceBoard && presentationSlides.length >= MAX_SLIDES)) {
     throw new Error('AVANCA_EVIDENCE_BOARD_LIMIT')
   }
   const slides = isAvanca

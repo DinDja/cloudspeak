@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import avancaLogo from '../../../Avança+/LOGO SEM FUNDO.png'
 import {
   AlertTriangle,
   BarChart3,
@@ -53,7 +52,6 @@ export default function EvidenceBoard({ session, responses = [], participants = 
   )
   const maxQuestionCount = Math.max(snapshot.topQuestion?.count ?? 0, 1)
   const maxKeywordCount = Math.max(snapshot.keywords[0]?.count ?? 0, 1)
-  const eventTitle = session?.sessionLabel || session?.title || 'Evento Avança + Bahia'
 
   return (
     <div className="relative flex min-h-[620px] w-full flex-col overflow-hidden border-[10px] border-[#5b3a1a] bg-[#b58a4e] p-3 text-[#1a1410] shadow-[0_20px_60px_rgba(0,0,0,0.42)] sm:min-h-[680px] sm:p-5">
@@ -72,18 +70,13 @@ export default function EvidenceBoard({ session, responses = [], participants = 
               <span className="inline-block border-2 border-[#a01818] px-2 py-1 font-mono text-[9px] font-bold tracking-[0.16em] text-[#a01818] sm:text-[10px]">
                 Seção · {session?.code || '------'}
               </span>
-              <img
-                src={avancaLogo}
-                alt="Avança + Bahia"
-                className="mt-2 block h-auto w-[190px] object-contain object-left sm:w-[260px]"
-              />
               <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#3d2710] sm:text-xs">
                 Quadro de evidências
               </p>
             </div>
             <div className="max-w-[280px] text-right font-mono text-[9px] uppercase leading-4 tracking-[0.08em] text-[#3d2710] sm:text-[10px]">
               <p className="font-bold">Registro final da escuta</p>
-              <p className="mt-1">{eventTitle}</p>
+              <p className="mt-1">Contribuições reunidas durante a conversa</p>
             </div>
           </div>
         </header>

@@ -26,7 +26,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { EVIDENCE_BOARD_TYPE, SUMMARY_TYPE, TEAM_SELECTION_TYPE } from '../lib/constants'
+import { EVIDENCE_BOARD_TYPE, isStaticSlideType, SUMMARY_TYPE, TEAM_SELECTION_TYPE } from '../lib/constants'
 import { QR_CODE_COLORS, COLORS } from '../lib/colors'
 import { buildTeamSelectionStats, formatResponseValue, getJoinUrl, getPresenceUrl, getSlideJoinUrl } from '../lib/validators'
 import { getSlideStyleClass, getSlideThemeVars } from '../lib/slideStyles'
@@ -37,9 +37,10 @@ import TeamSelectionResults from '../components/slides/TeamSelectionResults'
 import EvidenceBoard from '../components/slides/EvidenceBoard'
 import MinutesReportModal from '../components/host/MinutesReportModal'
 import { downloadIssuedAttendanceReport } from '../lib/attendanceReportService'
-import { getParticipantsWithRetry } from '../lib/firebaseSessions'
+import { getParticipantsWithRetry, isAvancaPresentation } from '../lib/firebaseSessions'
 import EducationWatermark from '../components/presenter/EducationWatermark'
 import SlideWatermark from '../components/presenter/SlideWatermark'
+import StaticSlide from '../components/presenter/StaticSlide'
 
 const REACTION_ICON = {
   heart: Heart,
@@ -83,6 +84,7 @@ export default function HostView({
   const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false)
   const slideStyleClass = getSlideStyleClass(currentSlide)
   const slideThemeVars = getSlideThemeVars(currentSlide)
+  const suppressAvancaBranding = isAvancaPresentation(session, session.slides ?? [])
   useEffect(() => {
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) setFullscreenSlide(false)
@@ -200,8 +202,9 @@ export default function HostView({
             <EducationWatermark
               eventKey={session.eventKey}
               presentationTitle={session.title}
+              hideAvancaBranding={suppressAvancaBranding}
             />
-            <SlideWatermark slide={currentSlide} />
+            <SlideWatermark slide={currentSlide} hidden={suppressAvancaBranding} />
             <div className="relative z-10 mx-auto my-auto w-full max-w-5xl text-center">
               <AnimatePresence mode="wait">
                 <Motion.div
@@ -214,6 +217,8 @@ export default function HostView({
                 >
                   {currentSlide?.type === EVIDENCE_BOARD_TYPE ? (
                     <EvidenceBoard session={session} responses={allResponses} participants={participants} />
+                  ) : isStaticSlideType(currentSlide?.type) ? (
+                    <StaticSlide slide={currentSlide} mode="stage" />
                   ) : (
                     <>
                       <Motion.p
@@ -322,8 +327,9 @@ export default function HostView({
             <EducationWatermark
               eventKey={session.eventKey}
               presentationTitle={session.title}
+              hideAvancaBranding={suppressAvancaBranding}
             />
-            <SlideWatermark slide={currentSlide} />
+            <SlideWatermark slide={currentSlide} hidden={suppressAvancaBranding} />
             <button
               type="button"
               onClick={closeFullscreenSlide}
@@ -334,6 +340,8 @@ export default function HostView({
             <div className="relative z-10 flex w-full flex-col items-center gap-4 sm:gap-6 md:gap-8">
               {currentSlide?.type === EVIDENCE_BOARD_TYPE ? (
                 <EvidenceBoard session={session} responses={allResponses} participants={participants} />
+              ) : isStaticSlideType(currentSlide?.type) ? (
+                <StaticSlide slide={currentSlide} mode="fullscreen" />
               ) : (
                 <>
                   <Motion.p

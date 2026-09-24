@@ -2,7 +2,7 @@ import { AVANCA_EVENT_KEY, EDUCATION_EVENT_KEY } from '../../lib/eventData'
 
 const AVANCA_LOGO_URL = new URL('../../../Avança+/LOGO SEM FUNDO.png', import.meta.url).href
 
-export default function EducationWatermark({ eventKey, presentationTitle = '', className = '' }) {
+export default function EducationWatermark({ eventKey, presentationTitle = '', className = '', hideAvancaBranding = false }) {
   const normalizedTitle = String(presentationTitle)
     .toLocaleLowerCase('pt-BR')
     .normalize('NFD')
@@ -17,6 +17,7 @@ export default function EducationWatermark({ eventKey, presentationTitle = '', c
     normalizedTitle.includes('avanca')
 
   if (!isEducationPresentation && !isAvancaPresentation) return null
+  if (isAvancaPresentation && hideAvancaBranding) return null
 
   if (isAvancaPresentation) {
     return (

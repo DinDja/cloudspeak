@@ -1,6 +1,7 @@
 import SlideThumbnail from './SlideThumbnail'
-import { SUMMARY_TYPE } from '../../lib/constants'
+import { isStaticSlideType, SUMMARY_TYPE } from '../../lib/constants'
 import { getSlideStyleClass, getSlideThemeVars } from '../../lib/slideStyles'
+import StaticSlide from './StaticSlide'
 import SlideWatermark from './SlideWatermark'
 
 export default function SlideCanvas({ slide, index, total, slides = [], mode = 'stage', eventKey = null, presentationTitle = '' }) {
@@ -10,10 +11,11 @@ export default function SlideCanvas({ slide, index, total, slides = [], mode = '
         <p className="p-8 text-sm">Adicione um slide para começar.</p>
       </div>
     )
+  if (isStaticSlideType(slide.type)) return <StaticSlide slide={slide} mode={mode === 'audience' ? 'audience' : 'stage'} />
   if (mode === 'audience')
     return (
       <div className={`phone-preview relative ${getSlideStyleClass(slide)}`} style={getSlideThemeVars(slide)}>
-        <SlideWatermark slide={slide} />
+        <SlideWatermark slide={slide} hidden />
         <p>Fala SEC / Prévia do público</p>
         <h2>{slide.question || 'Sua pergunta'}</h2>
         {slide.type === 'multiple_choice' &&

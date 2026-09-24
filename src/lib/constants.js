@@ -7,6 +7,11 @@ export const REACTION_LIFETIME_MS = 4200
 export const TEAM_SELECTION_TYPE = 'team_selection'
 export const SUMMARY_TYPE = 'summary'
 export const EVIDENCE_BOARD_TYPE = 'evidence_board'
+export const COVER_TYPE = 'cover'
+export const INTRODUCTION_TYPE = 'introduction'
+export const STATIC_SLIDE_TYPES = [COVER_TYPE, INTRODUCTION_TYPE]
+
+export const isStaticSlideType = (type) => STATIC_SLIDE_TYPES.includes(type)
 export const MAX_TEAM_CAPACITY = 50
 export const MAX_SLIDES = 20
 export const MAX_TEAM_PER_SLIDE = 12
@@ -73,6 +78,24 @@ export const SLIDE_TYPES = {
     tone: 'ocean',
     accent: 'from-ocean-500 to-ocean-600',
     icon: 'list',
+  },
+  [COVER_TYPE]: {
+    id: COVER_TYPE,
+    label: 'Capa',
+    tagline: 'Abertura visual da apresentação',
+    emoji: 'book',
+    tone: 'sunset',
+    accent: 'from-sunset-500 to-sunset-600',
+    icon: 'book',
+  },
+  [INTRODUCTION_TYPE]: {
+    id: INTRODUCTION_TYPE,
+    label: 'Introdução',
+    tagline: 'Contexto antes da conversa',
+    emoji: 'text',
+    tone: 'ocean',
+    accent: 'from-ocean-500 to-ocean-600',
+    icon: 'text',
   },
 }
 

@@ -13,11 +13,23 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../firebase'
 import { MAX_SLIDES } from './constants'
+import { AVANCA_EVENT_KEY, ensureAvancaOpeningSlides } from './eventData'
 import { sanitizeSlides, sanitizeTitle } from './validators'
 import { normalizeSlideStyle, normalizeSlideWatermark } from './slideStyles'
 
 const presentationsCol = () => collection(db, 'presentations')
 const presentationRef = (id) => doc(db, 'presentations', id)
+
+const isAvancaDraft = (presentation) => {
+  const normalizedTitle = String(presentation?.title ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+
+  return presentation?.eventKey === AVANCA_EVENT_KEY
+    || normalizedTitle.includes('avanca')
+    || (presentation?.slides ?? []).some((slide) => slide?.style?.theme === 'avanca')
+}
 
 export const createPresentation = async ({ ownerUid, ownerEmail, title, slides, eventKey = null }) => {
   const titleResult = sanitizeTitle(title)
@@ -93,11 +105,15 @@ export const subscribeUserPresentations = (ownerUid, onNext, onError) => {
 }
 
 export const buildEditableDraft = (presentation) => {
-  const slides = (presentation?.slides ?? []).slice(0, MAX_SLIDES).map((slide) => ({
+  const sourceSlides = isAvancaDraft(presentation)
+    ? ensureAvancaOpeningSlides(presentation?.slides ?? [])
+    : presentation?.slides ?? []
+  const slides = sourceSlides.slice(0, MAX_SLIDES).map((slide) => ({
     ...slide,
     id: slide.id || crypto.randomUUID(),
     options: Array.isArray(slide.options) ? [...slide.options] : [],
     teams: Array.isArray(slide.teams) ? slide.teams.map((t) => ({ ...t })) : [],
+    points: Array.isArray(slide.points) ? [...slide.points] : [],
     style: normalizeSlideStyle(slide.style),
     watermark: normalizeSlideWatermark(slide.watermark),
   }))

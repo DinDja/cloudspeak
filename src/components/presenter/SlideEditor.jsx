@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { AlignCenter, AlignLeft, AlignRight, ImagePlus, Palette, Plus, Trash2, X } from 'lucide-react'
-import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_WATERMARK_DATA_URL_LENGTH, MAX_WATERMARK_DIMENSION, MAX_WATERMARK_FILE_SIZE, MIN_WATERMARK_DIMENSION, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
+import { isStaticSlideType, MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_WATERMARK_DATA_URL_LENGTH, MAX_WATERMARK_DIMENSION, MAX_WATERMARK_FILE_SIZE, MIN_WATERMARK_DIMENSION, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
 import { createTeamDraft } from '../../lib/validators'
 import {
   normalizeSlideStyle,
@@ -68,13 +68,13 @@ export default function SlideEditor({
         </select>
       </div>
       <div className="editor-field">
-        <label htmlFor={fieldId + '-question'}>{slide.type === SUMMARY_TYPE ? 'Título do sumário' : 'Sua pergunta'}</label>
+        <label htmlFor={fieldId + '-question'}>{slide.type === SUMMARY_TYPE ? 'Título do sumário' : isStaticSlideType(slide.type) ? 'Título da página' : 'Sua pergunta'}</label>
         <textarea
           id={fieldId + '-question'}
           className="fala-input"
           value={slide.question}
           onChange={(event) => update({ question: event.target.value })}
-          placeholder={slide.type === SUMMARY_TYPE ? 'Ex.: Sumário da apresentação' : 'O que você quer perguntar ao público?'}
+          placeholder={slide.type === SUMMARY_TYPE ? 'Ex.: Sumário da apresentação' : isStaticSlideType(slide.type) ? 'Ex.: Aprendizagem em movimento' : 'O que você quer perguntar ao público?'}
           rows={4}
         />
       </div>
@@ -183,6 +183,8 @@ export default function SlideEditor({
       <p className="editor-hint">
         {slide.type === SUMMARY_TYPE
           ? 'O sumário lista os slides automaticamente. Durante a apresentação, clique em um item para ir direto até ele.'
+          : isStaticSlideType(slide.type)
+          ? 'Página informativa: não recebe respostas e avança junto com a apresentação.'
           : slide.type === 'word_cloud'
           ? 'O público pode enviar mais de uma palavra. Termos repetidos ganham destaque.'
           : slide.type === 'open_text'

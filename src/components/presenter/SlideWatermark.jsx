@@ -1,8 +1,8 @@
 import { normalizeSlideWatermark } from '../../lib/slideStyles'
 
-export default function SlideWatermark({ slide, className = '' }) {
+export default function SlideWatermark({ slide, className = '', hidden = false }) {
   const watermark = normalizeSlideWatermark(slide?.watermark)
-  if (!watermark.image) return null
+  if (hidden || !watermark.image) return null
 
   return (
     <div

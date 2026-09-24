@@ -1,4 +1,4 @@
-import { MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, MAX_SERIALIZED_SLIDES_LENGTH, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, SUMMARY_TYPE, TEAM_SELECTION_TYPE } from './constants'
+import { COVER_TYPE, INTRODUCTION_TYPE, MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, MAX_SERIALIZED_SLIDES_LENGTH, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, SUMMARY_TYPE, TEAM_SELECTION_TYPE } from './constants'
 import { DEFAULT_SLIDE_STYLE, DEFAULT_SLIDE_WATERMARK, isValidSlideWatermarkImage, normalizeSlideStyle, normalizeSlideWatermark } from './slideStyles'
 
 const RESPONSE_VALUE_LABELS = {
@@ -185,7 +185,7 @@ export const sanitizeSlides = (slides = []) => {
         return null
       }
 
-      if (!question || !['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE, SUMMARY_TYPE].includes(type)) {
+      if (!question || !['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE, SUMMARY_TYPE, COVER_TYPE, INTRODUCTION_TYPE].includes(type)) {
         return null
       }
 
@@ -228,6 +228,25 @@ export const sanitizeSlides = (slides = []) => {
         }
 
         return { id: slide.id || crypto.randomUUID(), type, question, teams, style: normalizeSlideStyle(slide.style), watermark }
+      }
+
+      if (type === COVER_TYPE || type === INTRODUCTION_TYPE) {
+        const points = Array.isArray(slide?.points)
+          ? slide.points.map((point) => normalizeText(point ?? '')).filter(Boolean).slice(0, 5)
+          : []
+
+        return {
+          id: slide.id || crypto.randomUUID(),
+          type,
+          question,
+          eyebrow: normalizeText(slide?.eyebrow ?? '').slice(0, 80),
+          subtitle: normalizeText(slide?.subtitle ?? '').slice(0, 180),
+          body: normalizeText(slide?.body ?? '').slice(0, 700),
+          points,
+          footer: normalizeText(slide?.footer ?? '').slice(0, 120),
+          style: normalizeSlideStyle(slide.style),
+          watermark,
+        }
       }
 
       return { id: slide.id || crypto.randomUUID(), type, question, style: normalizeSlideStyle(slide.style), watermark }

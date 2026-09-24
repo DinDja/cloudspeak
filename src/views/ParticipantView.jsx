@@ -14,8 +14,9 @@ import {
 } from 'lucide-react'
 import Logo from '../components/ui/Logo'
 import Badge from '../components/ui/Badge'
-import { CHART_PALETTE, EVIDENCE_BOARD_TYPE, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../lib/constants'
+import { CHART_PALETTE, EVIDENCE_BOARD_TYPE, isStaticSlideType, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../lib/constants'
 import { buildTeamSelectionStats } from '../lib/validators'
+import StaticSlide from '../components/presenter/StaticSlide'
 
 export default function ParticipantView({
   session,
@@ -103,16 +104,20 @@ export default function ParticipantView({
           transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
           className="mx-auto w-full max-w-lg cs-slide-up"
         >
-          {slideType && (
-            <Badge tone={slideType.tone ?? 'brand'} className="mb-4">
-              {slideType.label}
-            </Badge>
-          )}
-          <h1 className="mb-8 font-display text-4xl font-semibold uppercase leading-[1.05] tracking-tight text-slate-900 md:text-5xl">
-            {currentSlide?.question}
-          </h1>
+          {isStaticSlideType(currentSlide?.type) ? (
+            <StaticSlide slide={currentSlide} mode="participant" />
+          ) : (
+            <>
+              {slideType && (
+                <Badge tone={slideType.tone ?? 'brand'} className="mb-4">
+                  {slideType.label}
+                </Badge>
+              )}
+              <h1 className="mb-8 font-display text-4xl font-semibold uppercase leading-[1.05] tracking-tight text-slate-900 md:text-5xl">
+                {currentSlide?.question}
+              </h1>
 
-          <AnimatePresence mode="wait">
+              <AnimatePresence mode="wait">
              {currentSlide?.type === EVIDENCE_BOARD_TYPE ? (
                <ParticipantEvidenceState />
              ) : currentSlide?.type === SUMMARY_TYPE ? (
@@ -252,7 +257,9 @@ export default function ParticipantView({
                 )}
               </Motion.div>
             )}
-          </AnimatePresence>
+              </AnimatePresence>
+            </>
+          )}
         </Motion.div>
       </main>
 

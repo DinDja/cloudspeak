@@ -1,4 +1,4 @@
-import { EVIDENCE_BOARD_TYPE } from './constants'
+import { COVER_TYPE, EVIDENCE_BOARD_TYPE, INTRODUCTION_TYPE } from './constants'
 import { formatResponseValue, normalizeText } from './validators'
 
 const WORD_STOP_LIST = new Set([
@@ -96,7 +96,9 @@ export const createEvidenceBoardSlide = () => ({
 })
 
 export const buildEvidenceSnapshot = ({ slides = [], responses = [], participants = [] } = {}) => {
-  const contentSlides = slides.filter((slide) => slide?.type !== EVIDENCE_BOARD_TYPE)
+  const contentSlides = slides.filter(
+    (slide) => ![EVIDENCE_BOARD_TYPE, COVER_TYPE, INTRODUCTION_TYPE].includes(slide?.type),
+  )
   const validSlideIds = new Set(contentSlides.map((slide) => slide.id))
   const ordered = orderedResponses(responses).filter((entry) => validSlideIds.has(entry.slideId))
   const responsesBySlide = new Map()

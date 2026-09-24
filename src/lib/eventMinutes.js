@@ -544,18 +544,25 @@ const responseEntries = (slide, responses, participantMap) =>
 export const createMinutesPdf = async ({ session, responses = [], participants = [], authorName = '' }) => {
   const { jsPDF, autoTable } = await loadPdfTools()
   const event = getEventForSession(session)
+  const isAvancaLetter = event.key === AVANCA_EVENT_KEY
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
-  const logo = await imageToDataUrl(getEventLogoUrl(event))
+  // A Carta de compromisso não deve carregar a marca nem o nome específico do Avança + Bahia.
+  const logo = isAvancaLetter ? null : await imageToDataUrl(getEventLogoUrl(event))
   const writer = makeWriter(pdf, logo, autoTable)
   const slides = Array.isArray(session?.slides) ? session.slides : []
   const participantRows = getAttendanceParticipants(participants)
   const participantMap = new Map(participantRows.map((entry) => [text(entry.participantId), entry]))
   const eventDate = parseEventDate(event.date) || toDate(session?.launchedAt)
   const openingDate = formatDate(eventDate)
-  writer.centeredTitle(event.letterTitle || 'CARTA PARA EDUCAÇÃO INTEGRAL E INTEGRADA PARA O DESENVOLVIMENTO ECONÔMICO E SOCIAL DA BAHIA')
-  if (event.key === AVANCA_EVENT_KEY) {
+  const letterTitle = isAvancaLetter
+    ? 'CARTA DE COMPROMISSO — ESCUTA E PRÓXIMOS PASSOS'
+    : event.letterTitle || 'CARTA PARA EDUCAÇÃO INTEGRAL E INTEGRADA PARA O DESENVOLVIMENTO ECONÔMICO E SOCIAL DA BAHIA'
+  writer.centeredTitle(letterTitle)
+  if (isAvancaLetter) {
+    const eventDescription = 'encontro de escuta e próximos passos'
+    const objective = 'compreender os desafios de implementação e registrar compromissos concretos para a recomposição das aprendizagens.'
     writer.paragraph(
-      `Em ${openingDate}, foi realizado o encontro “${event.title}”, promovido pela ${event.organizer}. Este documento registra, em forma de carta, o desenvolvimento do encontro e as contribuições enviadas pela plataforma interativa, sem substituir as manifestações por sínteses automáticas. O objetivo foi ${event.objective.toLocaleLowerCase('pt-BR')}`,
+      `Em ${openingDate}, foi realizado o ${eventDescription}, promovido pela ${event.organizer}. Este documento registra, em forma de carta, o desenvolvimento do encontro e as contribuições enviadas pela plataforma interativa, sem substituir as manifestações por sínteses automáticas. O objetivo foi ${objective}`,
     )
   } else {
     writer.paragraph(
