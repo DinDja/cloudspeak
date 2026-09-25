@@ -77,6 +77,7 @@ export default function HostView({
   const presenceUrl = useMemo(() => getPresenceUrl(session.code), [session.code])
   const slideJoinUrl = useMemo(() => getSlideJoinUrl(session.code, currentSlide?.id), [session.code, currentSlide?.id])
   const [fullscreenSlide, setFullscreenSlide] = useState(false)
+  const [qrFullscreenRequest, setQrFullscreenRequest] = useState(null)
   const [reportOpen, setReportOpen] = useState(false)
   const [attendanceDownloading, setAttendanceDownloading] = useState(false)
   const [attendanceError, setAttendanceError] = useState('')
@@ -121,6 +122,11 @@ export default function HostView({
   }, [canGoBack, canGoForward, onNext, onPrevious])
 
   const openFullscreenSlide = async () => {
+    await openFullscreenSlideAt(currentSlideIndex, false)
+  }
+
+  const openFullscreenSlideAt = async (index, syncSlide = true) => {
+    if (syncSlide) onGoToSlide(index)
     setFullscreenSlide(true)
     try {
       if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -138,6 +144,11 @@ export default function HostView({
     } catch {
       // The overlay can still close even when native fullscreen cannot be exited programmatically.
     }
+  }
+
+  const openQuestionQrFromFullscreenSlide = async (index) => {
+    await closeFullscreenSlide()
+    setQrFullscreenRequest({ index, token: Date.now() })
   }
 
   const responseCount = useMemo(() => {
@@ -298,6 +309,7 @@ export default function HostView({
         </main>
 
         <SidePanel
+          key={qrFullscreenRequest?.token ?? 'qr-panel'}
           session={session}
           currentSlide={currentSlide}
           currentSlideIndex={currentSlideIndex}
@@ -313,6 +325,8 @@ export default function HostView({
           attendanceDownloading={attendanceDownloading}
           attendanceError={attendanceError}
           attendanceReport={attendanceReport}
+          qrFullscreenRequest={qrFullscreenRequest}
+          onOpenSlideFullscreen={openFullscreenSlideAt}
           collapsed={sidePanelCollapsed}
           onToggleCollapse={() => setSidePanelCollapsed((collapsed) => !collapsed)}
         />
@@ -410,6 +424,18 @@ export default function HostView({
                 </>
               )}
             </div>
+            <FullscreenQuestionPicker
+              slides={session.slides}
+              selectedIndex={currentSlideIndex}
+              directToQr
+              onSelect={(index, destination) => {
+                if (destination === 'qr') {
+                  openQuestionQrFromFullscreenSlide(index)
+                  return
+                }
+                onGoToSlide(index)
+              }}
+            />
           </div>
         </div>
       )}
@@ -627,6 +653,131 @@ function SummaryNavigation({ slides = [], currentSlideIndex, onGoToSlide, dark =
   )
 }
 
+function FullscreenQuestionPicker({ slides = [], selectedIndex = 0, onSelect, backToSlide = false, directToQr = false }) {
+  const [open, setOpen] = useState(false)
+  const [destination, setDestination] = useState(null)
+  const directAction = backToSlide || directToQr
+
+  const toggle = () => {
+    setOpen((isOpen) => !isOpen)
+    setDestination(null)
+  }
+
+  return (
+    <div className="absolute bottom-5 right-5 z-30 flex flex-col items-end gap-3 sm:bottom-7 sm:right-7">
+      {!directAction && (
+        <div
+          role="menu"
+          aria-label="Selecionar pergunta para o QR code"
+          aria-hidden={!open}
+          className={`w-[min(88vw,22rem)] origin-bottom-right rounded-2xl border p-2 shadow-2xl transition-all duration-200 ${open ? 'pointer-events-auto scale-100 opacity-100' : 'pointer-events-none scale-95 opacity-0'}`}
+          style={{ backgroundColor: 'var(--slide-surface)', borderColor: 'var(--slide-rule)', color: 'var(--slide-text)' }}
+        >
+        {!destination ? (
+          <div className="p-1">
+            <p className="px-2.5 py-2 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--slide-muted)' }}>
+              Escolha o que deseja abrir
+            </p>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => setDestination('slide')}
+              className="flex w-full items-center gap-3 rounded-xl px-2.5 py-3 text-left transition-colors hover:bg-black/5"
+              style={{ color: 'var(--slide-text)' }}
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-black" style={{ backgroundColor: 'var(--slide-rule)' }}>
+                S
+              </span>
+              <span>
+                <span className="block text-sm font-bold">Slide</span>
+                <span className="mt-0.5 block text-xs" style={{ color: 'var(--slide-muted)' }}>Abrir a pergunta na apresentação</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false)
+                onSelect(selectedIndex, 'qr')
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-2.5 py-3 text-left transition-colors hover:bg-black/5"
+              style={{ color: 'var(--slide-text)' }}
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-black" style={{ backgroundColor: 'var(--slide-accent)', color: 'var(--slide-surface)' }}>
+                QR
+              </span>
+              <span>
+                <span className="block text-sm font-bold">QR Code</span>
+                <span className="mt-0.5 block text-xs" style={{ color: 'var(--slide-muted)' }}>Abrir o QR desta pergunta</span>
+              </span>
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 border-b px-2 py-2" style={{ borderColor: 'var(--slide-rule)' }}>
+              <button
+                type="button"
+                onClick={() => setDestination(null)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-black/5"
+                aria-label="Voltar para seleção de destino"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--slide-muted)' }}>
+                {destination === 'slide' ? 'Selecionar slide' : 'Selecionar QR Code'}
+              </p>
+            </div>
+            <div className="cs-scroll-thin max-h-[min(60vh,28rem)] overflow-y-auto p-1">
+              {slides.map((questionSlide, index) => {
+                const isSelected = index === selectedIndex
+                return (
+                  <button
+                    key={questionSlide?.id ?? index}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setOpen(false)
+                      setDestination(null)
+                      onSelect(index, destination)
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-black/5"
+                    style={{
+                      backgroundColor: isSelected ? 'var(--slide-accent-soft)' : 'transparent',
+                      color: 'var(--slide-text)',
+                    }}
+                  >
+                    <span
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-black"
+                      style={{ backgroundColor: isSelected ? 'var(--slide-accent)' : 'var(--slide-rule)', color: isSelected ? 'var(--slide-surface)' : 'var(--slide-text)' }}
+                    >
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="line-clamp-2 text-sm font-semibold leading-tight">
+                      {questionSlide?.question || `Pergunta ${index + 1}`}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={directToQr ? () => onSelect(selectedIndex, 'qr') : backToSlide ? () => onSelect(selectedIndex, 'slide') : toggle}
+        aria-expanded={directAction ? undefined : open}
+        aria-label={directToQr ? 'Abrir QR Code da pergunta' : backToSlide ? 'Voltar para o slide' : 'Escolher slide ou QR Code'}
+        title={directToQr ? 'Abrir QR Code da pergunta' : backToSlide ? 'Voltar para o slide' : 'Escolher slide ou QR Code'}
+        className="flex h-12 w-12 items-center justify-center rounded-full border shadow-xl transition-transform hover:scale-105"
+        style={{ backgroundColor: 'var(--slide-surface)', borderColor: 'var(--slide-rule)', color: 'var(--slide-text)' }}
+      >
+        <i className="bi bi-chevron-bar-up" aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
+
 function SidePanel({
   session,
   currentSlide,
@@ -642,13 +793,60 @@ function SidePanel({
   attendanceDownloading,
   attendanceError,
   attendanceReport,
+  qrFullscreenRequest,
+  onOpenSlideFullscreen,
   collapsed,
   onToggleCollapse,
 }) {
   const [feedTab, setFeedTab] = useState('live')
-  const [qrFullscreen, setQrFullscreen] = useState(false)
+  const [qrFullscreen, setQrFullscreen] = useState(Boolean(qrFullscreenRequest))
+  const [qrFullscreenSlideIndex, setQrFullscreenSlideIndex] = useState(qrFullscreenRequest?.index ?? currentSlideIndex)
   const [shareMessage, setShareMessage] = useState('')
-  const qrThemeVars = getSlideThemeVars(currentSlide)
+  const qrFullscreenSlide = slides[qrFullscreenSlideIndex] ?? currentSlide
+  const qrFullscreenSlideJoinUrl = qrFullscreenSlide?.id
+    ? getSlideJoinUrl(session.code, qrFullscreenSlide.id)
+    : slideJoinUrl
+  const qrFullscreenThemeVars = getSlideThemeVars(qrFullscreenSlide)
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) setQrFullscreen(false)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  const openQrFullscreen = async () => {
+    setQrFullscreenSlideIndex(currentSlideIndex)
+    setQrFullscreen(true)
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen()
+      }
+    } catch {
+      // The application-level fullscreen overlay remains available if native fullscreen is blocked.
+    }
+  }
+
+  const closeQrFullscreen = async () => {
+    setQrFullscreen(false)
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen()
+    } catch {
+      // The overlay can still close even when native fullscreen cannot be exited programmatically.
+    }
+  }
+
+  const selectQrDestination = async (index, destination) => {
+    if (destination === 'slide') {
+      await closeQrFullscreen()
+      onOpenSlideFullscreen?.(index)
+      return
+    }
+    setQrFullscreenSlideIndex(index)
+  }
+
   const share = async () => {
     try {
       await navigator.clipboard.writeText(joinUrl)
@@ -685,7 +883,7 @@ function SidePanel({
                 <div className="flex shrink-0 items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setQrFullscreen(true)}
+                    onClick={openQrFullscreen}
                     aria-label="Abrir QR code em tela cheia"
                     title="Abrir QR code em tela cheia"
                     className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800"
@@ -789,11 +987,11 @@ function SidePanel({
           aria-modal="true"
           aria-label="QR code em tela cheia"
           className="fixed inset-0 z-[9999] h-[100dvh] w-[100dvw] overflow-y-auto backdrop-blur-sm"
-          style={{ ...qrThemeVars, backgroundColor: 'var(--slide-bg)', color: 'var(--slide-text)' }}
+          style={{ ...qrFullscreenThemeVars, backgroundColor: 'var(--slide-bg)', color: 'var(--slide-text)' }}
         >
           <button
             type="button"
-            onClick={() => setQrFullscreen(false)}
+            onClick={closeQrFullscreen}
             className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold shadow-lg transition-colors hover:opacity-80 sm:right-6 sm:top-6 sm:px-4 sm:py-2.5 sm:text-sm"
             style={{ backgroundColor: 'var(--slide-surface)', borderColor: 'var(--slide-rule)', color: 'var(--slide-text)' }}
           >
@@ -812,7 +1010,7 @@ function SidePanel({
 
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <span className="rounded-full border px-4 py-2 text-sm font-bold uppercase tracking-wider" style={{ backgroundColor: 'var(--slide-surface)', borderColor: 'var(--slide-rule)', color: 'var(--slide-accent)' }}>
-                    Pergunta {currentSlideIndex + 1} de {session.slides.length}
+                    Pergunta {qrFullscreenSlideIndex + 1} de {session.slides.length}
                   </span>
                   <span className="text-sm font-semibold" style={{ color: 'var(--slide-muted)' }}>Código {session.code}</span>
                 </div>
@@ -820,7 +1018,7 @@ function SidePanel({
                 <div className="mt-6 border-l-4 pl-5 sm:pl-6" style={{ borderColor: 'var(--slide-accent)' }}>
                   <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--slide-muted)' }}>Pergunta atual</p>
                   <p className="mt-3 text-2xl font-semibold leading-tight sm:text-4xl">
-                    {currentSlide?.question || 'A apresentação está pronta para começar.'}
+                    {qrFullscreenSlide?.question || 'A apresentação está pronta para começar.'}
                   </p>
                 </div>
 
@@ -835,7 +1033,7 @@ function SidePanel({
               <div className="flex w-full max-w-xl flex-col items-center">
                 <div className="flex aspect-square w-[min(78vw,24rem)] items-center justify-center rounded-3xl border-[12px] bg-white p-4 shadow-2xl sm:w-[min(64vw,30rem)] sm:p-6 md:w-[min(38vw,32rem)]" style={{ borderColor: 'var(--slide-accent)' }}>
                   <QRCodeSVG
-                    value={joinUrl}
+                    value={qrFullscreenSlideJoinUrl}
                     size={640}
                     bgColor="transparent"
                     fgColor={QR_CODE_COLORS[0]}
@@ -851,6 +1049,13 @@ function SidePanel({
               </div>
             </section>
           </div>
+
+          <FullscreenQuestionPicker
+            slides={slides}
+            selectedIndex={qrFullscreenSlideIndex}
+            backToSlide
+            onSelect={selectQrDestination}
+          />
         </div>
       )}
     </>

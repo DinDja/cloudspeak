@@ -23,6 +23,42 @@
 
 * { box-sizing: border-box; }
 
+/* Bootstrap Icons is not bundled; keep the requested control icon available
+   without adding a runtime dependency just for this button. */
+.bi-chevron-bar-up {
+  position: relative;
+  display: block;
+  width: 1.1rem;
+  height: 1.1rem;
+  font-style: normal;
+}
+
+.bi-chevron-bar-up::before,
+.bi-chevron-bar-up::after {
+  position: absolute;
+  display: block;
+  content: '';
+}
+
+.bi-chevron-bar-up::before {
+  top: 0.28rem;
+  left: 0.24rem;
+  width: 0.58rem;
+  height: 0.58rem;
+  border-top: 0.13rem solid currentColor;
+  border-right: 0.13rem solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.bi-chevron-bar-up::after {
+  right: 0.08rem;
+  bottom: 0.12rem;
+  left: 0.08rem;
+  height: 0.13rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
 html, body, #root { margin: 0; min-height: 100%; }
 
 body {
