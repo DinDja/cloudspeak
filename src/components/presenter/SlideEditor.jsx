@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { AlignCenter, AlignLeft, AlignRight, ImagePlus, Palette, Plus, Trash2, X } from 'lucide-react'
-import { isStaticSlideType, MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_WATERMARK_DATA_URL_LENGTH, MAX_WATERMARK_DIMENSION, MAX_WATERMARK_FILE_SIZE, MIN_WATERMARK_DIMENSION, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES } from '../../lib/constants'
-import { createTeamDraft } from '../../lib/validators'
+import { getDefaultStaticSlideVariant, isStaticSlideType, normalizeStaticSlideVariant, MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_WATERMARK_DATA_URL_LENGTH, MAX_WATERMARK_DIMENSION, MAX_WATERMARK_FILE_SIZE, MIN_WATERMARK_DIMENSION, SUMMARY_TYPE, TEAM_SELECTION_TYPE, SLIDE_TYPES, STATIC_SLIDE_VARIANTS, COVER_TYPE, INTRODUCTION_TYPE, CLOSING_TYPE } from '../../lib/constants'
+import { createSlideDraft, createTeamDraft } from '../../lib/validators'
 import {
   normalizeSlideStyle,
   normalizeSlideWatermark,
@@ -26,10 +26,19 @@ export default function SlideEditor({
 }) {
   const fieldId = useId()
   const update = (patch) => onChange({ ...slide, ...patch })
-  const changeType = (type) =>
+  const changeType = (type) => {
+    const defaults = createSlideDraft(type)
     update({
       type,
-      question: type === SUMMARY_TYPE ? slide.question || 'Sumário da apresentação' : slide.question,
+      question: defaults.question ? slide.question || defaults.question : slide.question,
+      variant: isStaticSlideType(type)
+        ? normalizeStaticSlideVariant(type, slide.variant)
+        : undefined,
+      eyebrow: isStaticSlideType(type) ? slide.eyebrow || defaults.eyebrow : undefined,
+      subtitle: isStaticSlideType(type) ? slide.subtitle || '' : undefined,
+      body: isStaticSlideType(type) ? slide.body || '' : undefined,
+      points: isStaticSlideType(type) ? slide.points || [] : undefined,
+      footer: isStaticSlideType(type) ? slide.footer || '' : undefined,
       options: type === 'multiple_choice' ? (slide.options?.length ? slide.options : ['', '']) : [],
       teams:
         type === TEAM_SELECTION_TYPE
@@ -38,6 +47,7 @@ export default function SlideEditor({
             : [createTeamDraft('Time 1', 8), createTeamDraft('Time 2', 8)]
           : [],
     })
+  }
   return (
     <fieldset className="fala-slide-editor" disabled={disabled}>
       <header>
@@ -68,16 +78,114 @@ export default function SlideEditor({
         </select>
       </div>
       <div className="editor-field">
-        <label htmlFor={fieldId + '-question'}>{slide.type === SUMMARY_TYPE ? 'Título do sumário' : isStaticSlideType(slide.type) ? 'Título da página' : 'Sua pergunta'}</label>
+        <label htmlFor={fieldId + '-question'}>{slide.type === SUMMARY_TYPE ? 'Título do sumário' : isStaticSlideType(slide.type) ? slide.type === CLOSING_TYPE ? 'Mensagem de encerramento' : 'Título da página' : 'Sua pergunta'}</label>
         <textarea
           id={fieldId + '-question'}
           className="fala-input"
           value={slide.question}
           onChange={(event) => update({ question: event.target.value })}
-          placeholder={slide.type === SUMMARY_TYPE ? 'Ex.: Sumário da apresentação' : isStaticSlideType(slide.type) ? 'Ex.: Aprendizagem em movimento' : 'O que você quer perguntar ao público?'}
+          placeholder={slide.type === SUMMARY_TYPE ? 'Ex.: Sumário da apresentação' : slide.type === COVER_TYPE ? 'Ex.: Aprendizagem em movimento' : slide.type === INTRODUCTION_TYPE ? 'Ex.: Vamos construir juntos?' : slide.type === CLOSING_TYPE ? 'Ex.: Obrigado por fazer parte' : 'O que você quer perguntar ao público?'}
           rows={4}
         />
       </div>
+      {isStaticSlideType(slide.type) && (
+        <>
+          <div className="editor-field">
+            <label htmlFor={fieldId + '-variant'}>Modelo visual</label>
+            <select
+              id={fieldId + '-variant'}
+              className="fala-input"
+              value={slide.variant || getDefaultStaticSlideVariant(slide.type)}
+              onChange={(event) => update({ variant: event.target.value })}
+            >
+              {(STATIC_SLIDE_VARIANTS[slide.type] || []).map((variant) => (
+                <option value={variant.id} key={variant.id}>{variant.label}</option>
+              ))}
+            </select>
+            <p className="editor-hint">Escolha um modelo e edite seus elementos diretamente no canvas.</p>
+          </div>
+          <div className="editor-field">
+            <label htmlFor={fieldId + '-eyebrow'}>Linha de abertura</label>
+            <input
+              id={fieldId + '-eyebrow'}
+              className="fala-input"
+              value={slide.eyebrow || ''}
+              onChange={(event) => update({ eyebrow: event.target.value })}
+              placeholder="Ex.: Encontro de ideias"
+              maxLength={80}
+            />
+          </div>
+          <div className="editor-field">
+            <label htmlFor={fieldId + '-subtitle'}>Subtítulo</label>
+            <input
+              id={fieldId + '-subtitle'}
+              className="fala-input"
+              value={slide.subtitle || ''}
+              onChange={(event) => update({ subtitle: event.target.value })}
+              placeholder="Uma frase para acompanhar o título"
+              maxLength={180}
+            />
+          </div>
+          {slide.type !== COVER_TYPE && (
+            <>
+              <div className="editor-field">
+                <label htmlFor={fieldId + '-body'}>{slide.type === CLOSING_TYPE ? 'Mensagem final' : 'Contexto'}</label>
+                <textarea
+                  id={fieldId + '-body'}
+                  className="fala-input"
+                  value={slide.body || ''}
+                  onChange={(event) => update({ body: event.target.value })}
+                  placeholder={slide.type === CLOSING_TYPE ? 'Registre um agradecimento ou próximo passo.' : 'Explique brevemente o contexto da conversa.'}
+                  rows={3}
+                  maxLength={700}
+                />
+              </div>
+              <div className="editor-field">
+                <p>{slide.type === CLOSING_TYPE ? 'Próximos passos' : 'Pontos de contexto'}</p>
+                {(slide.points || []).map((point, i) => (
+                  <div key={i} className="editor-option">
+                    <span>{i + 1}</span>
+                    <input
+                      aria-label={`${slide.type === CLOSING_TYPE ? 'Próximo passo' : 'Ponto'} ${i + 1}`}
+                      className="fala-input"
+                      value={point}
+                      placeholder={`${slide.type === CLOSING_TYPE ? 'Próximo passo' : 'Ponto'} ${i + 1}`}
+                      onChange={(event) => update({ points: slide.points.map((value, j) => j === i ? event.target.value : value) })}
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Remover ponto ${i + 1}`}
+                      onClick={() => update({ points: slide.points.filter((_, j) => j !== i) })}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="fala-link"
+                  disabled={(slide.points || []).length >= 5}
+                  onClick={() => update({ points: [...(slide.points || []), ''] })}
+                >
+                  <Plus size={14} />
+                  {slide.type === CLOSING_TYPE ? 'Adicionar próximo passo' : 'Adicionar ponto'}
+                </button>
+              </div>
+            </>
+          )}
+          <div className="editor-field">
+            <label htmlFor={fieldId + '-footer'}>Rodapé</label>
+            <input
+              id={fieldId + '-footer'}
+              className="fala-input"
+              value={slide.footer || ''}
+              onChange={(event) => update({ footer: event.target.value })}
+              placeholder={slide.type === CLOSING_TYPE ? 'Ex.: Nos vemos em breve' : 'Texto curto no rodapé'}
+              maxLength={120}
+            />
+          </div>
+        </>
+      )}
       {slide.type === 'multiple_choice' && (
         <div className="editor-field">
           <p>Alternativas</p>

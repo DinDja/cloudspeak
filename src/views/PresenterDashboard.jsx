@@ -38,9 +38,16 @@ export default function PresenterDashboard(props) {
     <DashboardContent
       {...props}
       {...saved}
+      refreshPresentations={saved.refresh}
       sessions={savedSessions.sessions}
       sessionsLoading={savedSessions.loading}
       sessionsError={savedSessions.error}
+      sessionsLoadingMore={savedSessions.loadingMore}
+      sessionsHasMore={savedSessions.hasMore}
+      sessionsPaginationError={savedSessions.paginationError}
+      loadMoreSessions={savedSessions.loadMore}
+      removeSessions={savedSessions.removeSessions}
+      updateSession={savedSessions.updateSession}
       name={displayName || email?.split('@')[0]}
       email={email}
       onLogout={async () => {
@@ -169,10 +176,22 @@ function SessionList({
 export function DashboardContent({
   presentations,
   loading,
+  loadingMore,
+  hasMore,
   error,
+  paginationError,
+  loadMore,
+  refreshPresentations,
+  removePresentation,
   sessions,
   sessionsLoading,
   sessionsError,
+  sessionsLoadingMore,
+  sessionsHasMore,
+  sessionsPaginationError,
+  loadMoreSessions,
+  removeSessions,
+  updateSession,
   name,
   email,
   onNew,
@@ -223,6 +242,7 @@ export function DashboardContent({
     setActionError('')
     try {
       await onDelete(deleteTarget)
+      removePresentation(deleteTarget.id)
       setDeleteTarget(null)
     } catch (err) {
       setActionError(err.message || 'Não foi possível apagar a apresentação.')
@@ -235,6 +255,7 @@ export function DashboardContent({
     setActionError('')
     try {
       await Promise.all(deleteSessionTargets.map((session) => onDeleteSession(session)))
+      removeSessions(deleteSessionTargets.map((session) => session.code))
       setSelectedSessionCodes([])
       setSelectingSessions(false)
       setDeleteSessionTargets([])
@@ -256,6 +277,7 @@ export function DashboardContent({
     setActionError('')
     try {
       await onRenameSession(sessionNameTarget.code, sessionNameDraft)
+      updateSession(sessionNameTarget.code, { sessionLabel: sessionNameDraft.trim().slice(0, 80) })
       setSessionNameTarget(null)
       setSessionNameDraft('')
     } catch (err) {
@@ -281,6 +303,7 @@ export function DashboardContent({
     setSessionActionCode(session.code)
     try {
       await onSetSessionStatus(session.code, 'ended')
+      updateSession(session.code, { status: 'ended' })
     } catch (err) {
       setActionError(err.message || 'Não foi possível encerrar a projeção.')
     } finally {
@@ -288,6 +311,11 @@ export function DashboardContent({
     }
   }
   const createNewSession = (presentation) => runAction(onPresent, presentation)
+  const duplicatePresentation = async (presentation) => {
+    const duplicated = await onDuplicate(presentation)
+    await refreshPresentations()
+    return duplicated
+  }
   const requestPresentation = (presentation) => {
     const presentationSessions = sessions.filter((session) => session.presentationId === presentation.id)
     if (presentationSessions.length) {
@@ -320,7 +348,7 @@ export function DashboardContent({
       <div className="library-tools">
         <div className="library-tools__heading">
           <h2>Sua biblioteca</h2>
-          <p>{presentations.length} apresentações · {sessions.length} seções</p>
+          <p>{presentations.length} apresentações carregadas · {sessions.length} seções carregadas</p>
         </div>
         <div className="library-tools__controls">
           <label className="library-search">
@@ -328,8 +356,8 @@ export function DashboardContent({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar pelo título"
-              aria-label="Buscar apresentações"
+              placeholder="Buscar nas apresentações carregadas"
+              aria-label="Buscar apresentações carregadas"
             />
           </label>
           {sessions.length > 0 && (
@@ -364,9 +392,9 @@ export function DashboardContent({
             <AnimatedCheckbox
               checked={allSessionsSelected}
               onChange={() => setSelectedSessionCodes(allSessionsSelected ? [] : sessions.map((session) => session.code))}
-              label="Selecionar todas as seções"
+              label="Selecionar todas as seções carregadas"
             />
-            Selecionar todas as seções
+            Selecionar todas as seções carregadas
           </label>
           <span className="session-management__count">
             {selectedSessionCodes.length} selecionadas
@@ -407,7 +435,7 @@ export function DashboardContent({
                   onEdit={onEdit}
                   onPresent={requestPresentation}
                   onNewSession={createNewSession}
-                  onDuplicate={(item) => runAction(onDuplicate, item)}
+                  onDuplicate={(item) => runAction(duplicatePresentation, item)}
                   onDelete={(item) => {
                     setActionError('')
                     setDeleteTarget(item)
@@ -444,7 +472,9 @@ export function DashboardContent({
           <h3>{query ? 'Nenhum título corresponde à busca.' : 'Você ainda não tem apresentações.'}</h3>
           <p>
             {query
-              ? 'Tente outro nome ou limpe o campo de busca.'
+              ? hasMore
+                ? 'A busca considera as apresentações carregadas. Carregue mais para ampliar os resultados.'
+                : 'Tente outro nome ou limpe o campo de busca.'
               : 'Comece com uma apresentação em branco ou use um dos modelos abaixo. Tudo pode ser editado.'}
           </p>
           <button type="button" className="fala-link" onClick={() => (query ? setQuery('') : onNew('blank'))}>
@@ -453,7 +483,20 @@ export function DashboardContent({
           </button>
         </div>
       )}
-      {orphanSessions.length > 0 && (
+      {hasMore && (
+        <div className="mt-6 flex flex-col items-center gap-3">
+          {paginationError && <p className="fala-error" role="alert">{paginationError}</p>}
+          <button
+            type="button"
+            className="fala-button fala-button--secondary"
+            onClick={loadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? 'Carregando…' : 'Carregar mais apresentações'}
+          </button>
+        </div>
+      )}
+      {!hasMore && orphanSessions.length > 0 && (
         <section className="mt-10" aria-labelledby="orphan-sessions-title">
           <div className="section-heading">
             <h2 id="orphan-sessions-title">Seções sem apresentação vinculada</h2>
@@ -477,6 +520,19 @@ export function DashboardContent({
             selectingSessions={selectingSessions}
           />
         </section>
+      )}
+      {sessionsHasMore && (
+        <div className="mt-6 flex flex-col items-center gap-3">
+          {sessionsPaginationError && <p className="fala-error" role="alert">{sessionsPaginationError}</p>}
+          <button
+            type="button"
+            className="fala-button fala-button--secondary"
+            onClick={loadMoreSessions}
+            disabled={sessionsLoadingMore}
+          >
+            {sessionsLoadingMore ? 'Carregando…' : 'Carregar mais seções'}
+          </button>
+        </div>
       )}
       {!loading && presentations.length === 0 && (
         <section className="inspiration" aria-labelledby="inspiration-title">

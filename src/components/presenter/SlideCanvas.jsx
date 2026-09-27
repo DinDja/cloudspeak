@@ -2,16 +2,20 @@ import SlideThumbnail from './SlideThumbnail'
 import { isStaticSlideType, SUMMARY_TYPE } from '../../lib/constants'
 import { getSlideStyleClass, getSlideThemeVars } from '../../lib/slideStyles'
 import StaticSlide from './StaticSlide'
+import EditableStaticSlide from './EditableStaticSlide'
 import SlideWatermark from './SlideWatermark'
 
-export default function SlideCanvas({ slide, index, total, slides = [], mode = 'stage', eventKey = null, presentationTitle = '' }) {
+export default function SlideCanvas({ slide, index, total, slides = [], mode = 'stage', eventKey = null, presentationTitle = '', onChange, selectedLayerId, onSelectLayer, disabled = false }) {
   if (!slide)
     return (
       <div className="slide-print">
         <p className="p-8 text-sm">Adicione um slide para começar.</p>
       </div>
     )
-  if (isStaticSlideType(slide.type)) return <StaticSlide slide={slide} mode={mode === 'audience' ? 'audience' : 'stage'} />
+  if (isStaticSlideType(slide.type)) {
+    if (mode === 'stage' && onChange) return <EditableStaticSlide slide={slide} onChange={onChange} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} disabled={disabled} />
+    return <StaticSlide slide={slide} mode={mode === 'audience' ? 'audience' : 'stage'} />
+  }
   if (mode === 'audience')
     return (
       <div className={`phone-preview relative ${getSlideStyleClass(slide)}`} style={getSlideThemeVars(slide)}>

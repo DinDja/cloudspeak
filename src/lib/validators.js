@@ -1,5 +1,6 @@
-import { COVER_TYPE, INTRODUCTION_TYPE, MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, MAX_SERIALIZED_SLIDES_LENGTH, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, SUMMARY_TYPE, TEAM_SELECTION_TYPE } from './constants'
+import { COVER_TYPE, INTRODUCTION_TYPE, CLOSING_TYPE, MAX_TEAM_CAPACITY, MAX_TEAM_PER_SLIDE, MAX_SLIDES, MAX_SERIALIZED_SLIDES_LENGTH, SESSION_CODE_REGEX, ALLOWED_AUTH_DOMAINS, SUMMARY_TYPE, TEAM_SELECTION_TYPE, getDefaultStaticSlideVariant, isStaticSlideType, normalizeStaticSlideVariant } from './constants'
 import { DEFAULT_SLIDE_STYLE, DEFAULT_SLIDE_WATERMARK, isValidSlideWatermarkImage, normalizeSlideStyle, normalizeSlideWatermark } from './slideStyles'
+import { isHexColor, normalizeCustomStaticLayers, normalizeStaticLayerOverrides } from './staticSlideLayers'
 
 const RESPONSE_VALUE_LABELS = {
   name: 'Nome',
@@ -118,10 +119,31 @@ export const getDefaultTeamSelectionTeams = () => [
   createTeamDraft('Clube Y', 7),
 ]
 
+const DEFAULT_SLIDE_QUESTIONS = {
+  [SUMMARY_TYPE]: 'Sumário da apresentação',
+  [COVER_TYPE]: 'Título da apresentação',
+  [INTRODUCTION_TYPE]: 'Vamos começar?',
+  [CLOSING_TYPE]: 'Obrigado por participar',
+}
+
+const DEFAULT_STATIC_SLIDE_EYEBROWS = {
+  [COVER_TYPE]: 'Caderno de diálogo',
+  [INTRODUCTION_TYPE]: 'Introdução',
+  [CLOSING_TYPE]: 'Até a próxima',
+}
+
 export const createSlideDraft = (type = 'multiple_choice') => ({
   id: crypto.randomUUID(),
   type,
-  question: type === SUMMARY_TYPE ? 'Sumário da apresentação' : '',
+  question: DEFAULT_SLIDE_QUESTIONS[type] ?? '',
+  variant: isStaticSlideType(type) ? getDefaultStaticSlideVariant(type) : undefined,
+  eyebrow: DEFAULT_STATIC_SLIDE_EYEBROWS[type],
+  subtitle: '',
+  body: '',
+  points: [],
+  footer: '',
+  layerOverrides: {},
+  customLayers: [],
   options: type === 'multiple_choice' ? ['', ''] : [],
   teams: type === TEAM_SELECTION_TYPE ? getDefaultTeamSelectionTeams() : [],
   style: { ...DEFAULT_SLIDE_STYLE },
@@ -185,7 +207,7 @@ export const sanitizeSlides = (slides = []) => {
         return null
       }
 
-      if (!question || !['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE, SUMMARY_TYPE, COVER_TYPE, INTRODUCTION_TYPE].includes(type)) {
+      if (!question || !['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE, SUMMARY_TYPE, COVER_TYPE, INTRODUCTION_TYPE, CLOSING_TYPE].includes(type)) {
         return null
       }
 
@@ -230,7 +252,7 @@ export const sanitizeSlides = (slides = []) => {
         return { id: slide.id || crypto.randomUUID(), type, question, teams, style: normalizeSlideStyle(slide.style), watermark }
       }
 
-      if (type === COVER_TYPE || type === INTRODUCTION_TYPE) {
+      if (isStaticSlideType(type)) {
         const points = Array.isArray(slide?.points)
           ? slide.points.map((point) => normalizeText(point ?? '')).filter(Boolean).slice(0, 5)
           : []
@@ -239,11 +261,15 @@ export const sanitizeSlides = (slides = []) => {
           id: slide.id || crypto.randomUUID(),
           type,
           question,
+          variant: normalizeStaticSlideVariant(type, slide?.variant),
           eyebrow: normalizeText(slide?.eyebrow ?? '').slice(0, 80),
           subtitle: normalizeText(slide?.subtitle ?? '').slice(0, 180),
           body: normalizeText(slide?.body ?? '').slice(0, 700),
           points,
           footer: normalizeText(slide?.footer ?? '').slice(0, 120),
+          layerOverrides: normalizeStaticLayerOverrides(slide?.layerOverrides),
+          customLayers: normalizeCustomStaticLayers(slide?.customLayers),
+          ...(isHexColor(slide?.canvasBackground) ? { canvasBackground: slide.canvasBackground } : {}),
           style: normalizeSlideStyle(slide.style),
           watermark,
         }

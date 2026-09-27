@@ -1,7 +1,16 @@
-import { BarChart3, Cloud, List, MessageSquareText, Users } from 'lucide-react'
+import { BarChart3, BookOpen, Cloud, FileText, List, MessageSquareText, Sparkles, Users } from 'lucide-react'
 import { SLIDE_TYPES, SLIDE_TYPE_ORDER } from '../../lib/constants'
 
-const ICONS = { multiple_choice: BarChart3, word_cloud: Cloud, open_text: MessageSquareText, team_selection: Users, summary: List }
+const ICONS = {
+  multiple_choice: BarChart3,
+  word_cloud: Cloud,
+  open_text: MessageSquareText,
+  team_selection: Users,
+  summary: List,
+  cover: BookOpen,
+  introduction: FileText,
+  closing: Sparkles,
+}
 
 export default function SlideTypePicker({ value, onChange, compact = false }) {
   return (

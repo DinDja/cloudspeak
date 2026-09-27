@@ -8,11 +8,13 @@ import {
   getDocFromServer,
   getDocs,
   getDocsFromServer,
+  limit,
   onSnapshot,
   orderBy,
   query,
   runTransaction,
   serverTimestamp,
+  startAfter,
   setDoc,
   updateDoc,
   where,
@@ -38,6 +40,7 @@ import {
 
 const sessionRef = (code) => doc(db, 'sessions', code)
 const sessionsCol = () => collection(db, 'sessions')
+const SAVED_SESSIONS_PAGE_SIZE = 12
 const responsesRef = (code) => collection(db, 'sessions', code, 'responses')
 const participantsRef = (code) => collection(db, 'sessions', code, 'participants')
 const reactionsRef = (code) => collection(db, 'sessions', code, 'reactions')
@@ -93,6 +96,27 @@ export const subscribeUserSessions = (ownerUid, onNext, onError) => {
     },
     onError,
   )
+}
+
+export const getUserSessionsPage = async (ownerUid, cursor = null) => {
+  const constraints = [
+    where('ownerUid', '==', ownerUid),
+    orderBy('createdAt', 'desc'),
+  ]
+  if (cursor) constraints.push(startAfter(cursor))
+  constraints.push(limit(SAVED_SESSIONS_PAGE_SIZE + 1))
+
+  const snapshot = await getDocs(query(sessionsCol(), ...constraints))
+  const pageDocs = snapshot.docs.slice(0, SAVED_SESSIONS_PAGE_SIZE)
+
+  return {
+    sessions: pageDocs.map((entry) => ({
+      id: entry.id,
+      ...entry.data(),
+    })),
+    cursor: pageDocs.length ? pageDocs[pageDocs.length - 1] : null,
+    hasMore: snapshot.docs.length > SAVED_SESSIONS_PAGE_SIZE,
+  }
 }
 
 export const getParticipants = async (code) => {

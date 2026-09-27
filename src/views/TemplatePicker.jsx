@@ -12,6 +12,11 @@ const FILTERS = [
     label: 'Evento especial',
     templates: ['educacao-integral-integrada-bahia', 'avanca-mais-bahia'],
   },
+  {
+    id: 'static-slides',
+    label: 'Capas e páginas',
+    kind: 'static',
+  },
   { id: 'meetings', label: 'Reuniões', templates: ['blank', 'kickoff', 'retro', 'townhall'] },
   { id: 'learning', label: 'Aulas e oficinas', templates: ['lecture', 'workshop'] },
   { id: 'projects', label: 'Projetos', templates: ['pitch', 'demo'] },
@@ -30,10 +35,11 @@ export default function TemplatePicker({
   const detailRef = useRef(null)
   const selected = TEMPLATES.find((item) => item.id === selectedId) || TEMPLATES[0]
   const slides = useMemo(() => selected.build(), [selected])
-  const visible = TEMPLATES.filter(
-    (item) =>
-      !FILTERS.find((entry) => entry.id === filter)?.templates ||
-      FILTERS.find((entry) => entry.id === filter).templates.includes(item.id),
+  const activeFilter = FILTERS.find((entry) => entry.id === filter) || FILTERS[0]
+  const visible = TEMPLATES.filter((item) =>
+    activeFilter.kind
+      ? item.kind === activeFilter.kind
+      : !activeFilter.templates || activeFilter.templates.includes(item.id),
   )
   const select = (id) => {
     setSelectedId(id)
@@ -63,9 +69,9 @@ export default function TemplatePicker({
             <ArrowLeft size={15} />
             Apresentações
           </button>
-          <h1 className="workspace-title">Comece com uma pergunta.</h1>
+          <h1 className="workspace-title">Comece pela ideia.</h1>
           <p className="workspace-subtitle">
-            Escolha um roteiro para o seu encontro. Depois, deixe com a sua cara.
+            Escolha um roteiro ou uma página visual para o seu encontro. Depois, deixe com a sua cara.
           </p>
         </div>
       </div>

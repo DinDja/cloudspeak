@@ -9,7 +9,45 @@ export const SUMMARY_TYPE = 'summary'
 export const EVIDENCE_BOARD_TYPE = 'evidence_board'
 export const COVER_TYPE = 'cover'
 export const INTRODUCTION_TYPE = 'introduction'
-export const STATIC_SLIDE_TYPES = [COVER_TYPE, INTRODUCTION_TYPE]
+export const CLOSING_TYPE = 'closing'
+export const STATIC_SLIDE_TYPES = [COVER_TYPE, INTRODUCTION_TYPE, CLOSING_TYPE]
+
+export const STATIC_SLIDE_VARIANTS = {
+  [COVER_TYPE]: [
+    { id: 'notebook', label: 'Caderno criativo' },
+    { id: 'computer', label: 'Computador 3D' },
+    { id: 'editorial', label: 'Cartaz tipográfico' },
+    { id: 'blueprint', label: 'Prancha técnica' },
+    { id: 'zine', label: 'Fanzine de recortes' },
+    { id: 'newspaper', label: 'Primeira página de jornal' },
+    { id: 'contact_sheet', label: 'Folha de contatos' },
+  ],
+  [INTRODUCTION_TYPE]: [
+    { id: 'notebook', label: 'Caderno de ideias' },
+    { id: 'computer', label: 'Tela de computador' },
+    { id: 'editorial', label: 'Página tipográfica' },
+    { id: 'folder', label: 'Pasta de projeto' },
+    { id: 'timeline', label: 'Roteiro em etapas' },
+    { id: 'metro', label: 'Mapa de rotas' },
+    { id: 'catalog', label: 'Ficha de catálogo' },
+  ],
+  [CLOSING_TYPE]: [
+    { id: 'spotlight', label: 'Palco de encerramento' },
+    { id: 'computer', label: 'Tela de próximos passos' },
+    { id: 'notebook', label: 'Última página do caderno' },
+    { id: 'credits', label: 'Cartela de créditos' },
+    { id: 'receipt', label: 'Recibo de ideias' },
+    { id: 'postcard', label: 'Cartão-postal' },
+  ],
+}
+
+export const getDefaultStaticSlideVariant = (type) =>
+  STATIC_SLIDE_VARIANTS[type]?.[0]?.id ?? 'editorial'
+
+export const normalizeStaticSlideVariant = (type, variant) =>
+  STATIC_SLIDE_VARIANTS[type]?.some((option) => option.id === variant)
+    ? variant
+    : getDefaultStaticSlideVariant(type)
 
 export const isStaticSlideType = (type) => STATIC_SLIDE_TYPES.includes(type)
 export const MAX_TEAM_CAPACITY = 50
@@ -97,6 +135,24 @@ export const SLIDE_TYPES = {
     accent: 'from-ocean-500 to-ocean-600',
     icon: 'text',
   },
+  [CLOSING_TYPE]: {
+    id: CLOSING_TYPE,
+    label: 'Capa de fechamento',
+    tagline: 'Feche o encontro com uma mensagem',
+    emoji: 'sparkles',
+    tone: 'violet',
+    accent: 'from-violet-500 to-violet-600',
+    icon: 'sparkles',
+  },
 }
 
-export const SLIDE_TYPE_ORDER = ['multiple_choice', 'word_cloud', 'open_text', TEAM_SELECTION_TYPE, SUMMARY_TYPE]
+export const SLIDE_TYPE_ORDER = [
+  'multiple_choice',
+  'word_cloud',
+  'open_text',
+  TEAM_SELECTION_TYPE,
+  SUMMARY_TYPE,
+  COVER_TYPE,
+  INTRODUCTION_TYPE,
+  CLOSING_TYPE,
+]
