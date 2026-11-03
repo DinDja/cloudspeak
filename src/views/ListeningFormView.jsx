@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Feather, Sprout } from 'lucide-react'
 import Logo from '../components/ui/Logo'
 import SCHOOL_UNITS from '../data/schoolUnits.json'
@@ -17,6 +17,7 @@ export default function ListeningFormView({ formId, onBack }) {
   const [schoolSearch, setSchoolSearch] = useState('')
   const [schoolPickerOpen, setSchoolPickerOpen] = useState(false)
   const [activeSchoolIndex, setActiveSchoolIndex] = useState(0)
+  const schoolPickerRef = useRef(null)
   const [sending, setSending] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [submitted, setSubmitted] = useState(() => Boolean(getSubmittedVoterName(formId)))
@@ -41,6 +42,17 @@ export default function ListeningFormView({ formId, onBack }) {
       })
   }, [schoolSearch])
   const visibleSchools = matchingSchools.slice(0, 20)
+
+  useEffect(() => {
+    if (!schoolPickerOpen) return undefined
+
+    const closeOnOutsidePointer = (event) => {
+      if (!schoolPickerRef.current?.contains(event.target)) setSchoolPickerOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsidePointer)
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer)
+  }, [schoolPickerOpen])
 
   useEffect(() => {
     let active = true
@@ -188,9 +200,12 @@ export default function ListeningFormView({ formId, onBack }) {
                     <span>Sua unidade escolar <b>obrigatória</b></span>
                   </label>
                   <div
+                    ref={schoolPickerRef}
                     className="voice-school-picker"
                     onBlur={(event) => {
-                      if (!event.currentTarget.contains(event.relatedTarget)) setSchoolPickerOpen(false)
+                      if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) {
+                        setSchoolPickerOpen(false)
+                      }
                     }}
                   >
                     <input
