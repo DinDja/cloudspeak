@@ -3827,6 +3827,27 @@ body.cloudspeak-builder-active {
   flex: 0 0 auto;
   color: #6a8050;
 }
+.voice-deadline {
+  display: grid;
+  gap: 5px;
+  max-width: 530px;
+  padding: 13px 15px;
+  margin-top: 12px;
+  border: 1px solid #d9e0cd;
+  border-radius: 6px;
+  background: #f1f4ec;
+}
+.voice-deadline span {
+  color: #6c795b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+.voice-deadline strong {
+  color: #414b38;
+  font-size: 13px;
+  line-height: 1.5;
+}
 .voice-form {
   padding: clamp(24px, 5vw, 48px);
   border: 1px solid #dedbd2;
@@ -3853,6 +3874,9 @@ body.cloudspeak-builder-active {
   display: grid;
   grid-template-columns: 1fr 1.3fr;
   gap: 18px;
+}
+.voice-field--full {
+  grid-column: 1 / -1;
 }
 .voice-field {
   display: grid;
@@ -4535,6 +4559,9 @@ body.cloudspeak-builder-active {
   .voice-fields,
   .voice-admin-layout {
     grid-template-columns: 1fr;
+  }
+  .voice-field--full {
+    grid-column: auto;
   }
   .voice-admin-results {
     min-width: 0;

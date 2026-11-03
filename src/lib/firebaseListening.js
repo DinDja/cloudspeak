@@ -135,6 +135,8 @@ export const submitListeningEntry = async ({
   formId,
   mode = 'open',
   name,
+  occupation,
+  otherOccupation,
   schoolId,
   theme,
   importance,
@@ -143,9 +145,22 @@ export const submitListeningEntry = async ({
 }) => {
   const cleanName = cleanText(name)
   const cleanSchoolId = cleanText(schoolId)
+  const cleanOccupation = cleanText(occupation)
+  const cleanOtherOccupation = cleanText(otherOccupation)
 
   if (cleanName.length < 2 || cleanName.length > 80) throw new Error('Informe seu nome (de 2 a 80 caracteres).')
-  if (!SCHOOL_IDS.includes(cleanSchoolId)) throw new Error('Selecione sua unidade escolar na lista.')
+  if (!['Estudante', 'Professor da educação básica', 'Professor universitário', 'Gestor', 'Coordenação Pedagógica', 'Outro'].includes(cleanOccupation)) {
+    throw new Error('Selecione sua ocupação.')
+  }
+  if (cleanOccupation === 'Outro' && (cleanOtherOccupation.length < 2 || cleanOtherOccupation.length > 80)) {
+    throw new Error('Descreva sua ocupação (de 2 a 80 caracteres).')
+  }
+  if (cleanOccupation !== 'Outro' && cleanOtherOccupation) {
+    throw new Error('Remova a descrição adicional da ocupação selecionada.')
+  }
+  if (cleanSchoolId && !SCHOOL_IDS.includes(cleanSchoolId)) {
+    throw new Error('Selecione sua unidade escolar na lista ou deixe o campo em branco.')
+  }
 
   if (mode === 'vote') {
     if (!Number.isInteger(choiceIndex) || choiceIndex < 0 || choiceIndex > 9) {
@@ -154,6 +169,8 @@ export const submitListeningEntry = async ({
     const voterId = getVoterId(formId)
     await setDoc(doc(entriesCol(formId), voterId), {
       name: cleanName,
+      occupation: cleanOccupation,
+      otherOccupation: cleanOtherOccupation,
       schoolId: cleanSchoolId,
       choiceIndex,
       createdAt: serverTimestamp(),
@@ -177,6 +194,8 @@ export const submitListeningEntry = async ({
 
   await addDoc(entriesCol(formId), {
     name: cleanName,
+    occupation: cleanOccupation,
+    otherOccupation: cleanOtherOccupation,
     schoolId: cleanSchoolId,
     theme: cleanTheme,
     importance: cleanImportance,

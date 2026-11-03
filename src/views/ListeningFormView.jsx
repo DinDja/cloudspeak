@@ -13,7 +13,16 @@ export default function ListeningFormView({ formId, onBack }) {
   const [form, setForm] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [values, setValues] = useState({ name: '', schoolId: '', choiceIndex: '', theme: '', importance: '', question: '' })
+  const [values, setValues] = useState({
+    name: '',
+    occupation: '',
+    otherOccupation: '',
+    schoolId: '',
+    choiceIndex: '',
+    theme: '',
+    importance: '',
+    question: '',
+  })
   const [schoolSearch, setSchoolSearch] = useState('')
   const [schoolPickerOpen, setSchoolPickerOpen] = useState(false)
   const [activeSchoolIndex, setActiveSchoolIndex] = useState(0)
@@ -100,8 +109,12 @@ export default function ListeningFormView({ formId, onBack }) {
   const submit = async (event) => {
     event.preventDefault()
     if (sending || !form) return
-    if (!values.schoolId) {
-      setSubmitError('Selecione sua unidade escolar pelo nome ou por um dos códigos.')
+    if (!values.occupation) {
+      setSubmitError('Informe sua ocupação para continuar.')
+      return
+    }
+    if (values.occupation === 'Outro' && !values.otherOccupation.trim()) {
+      setSubmitError('Informe sua ocupação no campo “Outro”.')
       return
     }
 
@@ -174,6 +187,10 @@ export default function ListeningFormView({ formId, onBack }) {
                   ? 'Escolha um único tema. Este navegador registra apenas um voto por escuta nesta aba.'
                   : 'Não é uma votação. É um convite para dizer o que merece espaço na conversa.'}</span>
               </div>
+              <div className="voice-deadline" role="note">
+                <span>PERÍODO DA CONSULTA</span>
+                <strong>A consulta está disponível de 3 a 8 de novembro.</strong>
+              </div>
             </div>
 
             <form className="voice-form cs-slide-up" onSubmit={submit}>
@@ -195,9 +212,42 @@ export default function ListeningFormView({ formId, onBack }) {
                   />
                 </label>
 
-                <div className="voice-field">
+                <label className="voice-field">
+                  <span>Sua ocupação <b>obrigatório</b></span>
+                  <select
+                    value={values.occupation}
+                    onChange={(event) => {
+                      updateValue('occupation', event.target.value)
+                      if (event.target.value !== 'Outro') updateValue('otherOccupation', '')
+                    }}
+                    required
+                  >
+                    <option value="" disabled>Selecione sua ocupação</option>
+                    <option value="Estudante">Estudante</option>
+                    <option value="Professor da educação básica">Professor da educação básica</option>
+                    <option value="Professor universitário">Professor universitário</option>
+                    <option value="Gestor">Gestor</option>
+                    <option value="Coordenação Pedagógica">Coordenação Pedagógica</option>
+                    <option value="Outro">Outro</option>
+                  </select>
+                </label>
+
+                {values.occupation === 'Outro' && (
+                  <label className="voice-field">
+                    <span>Qual é sua ocupação? <b>obrigatório</b></span>
+                    <input
+                      value={values.otherOccupation}
+                      onChange={(event) => updateValue('otherOccupation', event.target.value)}
+                      required
+                      maxLength={80}
+                      placeholder="Descreva sua ocupação"
+                    />
+                  </label>
+                )}
+
+                <div className="voice-field voice-field--full">
                   <label htmlFor="voice-school-search">
-                    <span>Sua unidade escolar <b>obrigatória</b></span>
+                    <span>Sua unidade escolar <b>opcional</b></span>
                   </label>
                   <div
                     ref={schoolPickerRef}
@@ -211,8 +261,7 @@ export default function ListeningFormView({ formId, onBack }) {
                     <input
                       id="voice-school-search"
                       role="combobox"
-                      aria-required="true"
-                      aria-invalid={Boolean(submitError && !values.schoolId)}
+                      aria-required="false"
                       aria-autocomplete="list"
                       aria-expanded={schoolPickerOpen}
                       aria-controls="voice-school-options"
@@ -366,7 +415,7 @@ export default function ListeningFormView({ formId, onBack }) {
               )}
 
               <p className="voice-privacy">
-                Seu nome e sua unidade serão compartilhados apenas com a equipe que organiza esta escuta.
+                Seu nome, ocupação e, se informada, sua unidade serão compartilhados apenas com a equipe que organiza esta escuta.
                 {form.mode === 'vote' && ' O voto fica vinculado a esses dados para contextualizar a consulta.'}
               </p>
               {submitError && <p className="fala-error" role="alert">{submitError}</p>}

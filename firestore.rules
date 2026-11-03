@@ -123,20 +123,34 @@ service cloud.firestore {
 
         function isValidEntryContext() {
           return isString(request.resource.data.name, 2, 80)
-            && isString(request.resource.data.schoolId, 1, 16)
-            && request.resource.data.schoolId.matches('^[0-9]{1,16}$')
-            && request.resource.data.schoolId in get(
-              /databases/$(database)/documents/listeningForms/$(formId)
-            ).data.schoolIds
+            && isString(request.resource.data.occupation, 1, 80)
+            && request.resource.data.occupation in [
+              'Estudante',
+              'Professor da educação básica',
+              'Professor universitário',
+              'Gestor',
+              'Coordenação Pedagógica',
+              'Outro'
+            ]
+            && isString(request.resource.data.otherOccupation, 0, 80)
+            && (request.resource.data.occupation == 'Outro'
+                ? isString(request.resource.data.otherOccupation, 2, 80)
+                : request.resource.data.otherOccupation == '')
+            && isString(request.resource.data.schoolId, 0, 16)
+            && (request.resource.data.schoolId == ''
+                || (request.resource.data.schoolId.matches('^[0-9]{1,16}$')
+                    && request.resource.data.schoolId in get(
+                      /databases/$(database)/documents/listeningForms/$(formId)
+                    ).data.schoolIds))
             && request.resource.data.createdAt == request.time;
         }
 
         function isValidOpenEntry() {
           return request.resource.data.keys().hasOnly([
-              'name', 'schoolId', 'theme', 'importance', 'question', 'createdAt'
+              'name', 'occupation', 'otherOccupation', 'schoolId', 'theme', 'importance', 'question', 'createdAt'
             ])
             && request.resource.data.keys().hasAll([
-              'name', 'schoolId', 'theme', 'importance', 'question', 'createdAt'
+              'name', 'occupation', 'otherOccupation', 'schoolId', 'theme', 'importance', 'question', 'createdAt'
             ])
             && isValidEntryContext()
             && isString(request.resource.data.theme, 5, 180)
@@ -147,8 +161,12 @@ service cloud.firestore {
         }
 
         function isValidVoteEntry() {
-          return request.resource.data.keys().hasOnly(['name', 'schoolId', 'choiceIndex', 'createdAt'])
-            && request.resource.data.keys().hasAll(['name', 'schoolId', 'choiceIndex', 'createdAt'])
+          return request.resource.data.keys().hasOnly([
+              'name', 'occupation', 'otherOccupation', 'schoolId', 'choiceIndex', 'createdAt'
+            ])
+            && request.resource.data.keys().hasAll([
+              'name', 'occupation', 'otherOccupation', 'schoolId', 'choiceIndex', 'createdAt'
+            ])
             && isValidEntryContext()
             && request.resource.data.choiceIndex is int
             && request.resource.data.choiceIndex >= 0

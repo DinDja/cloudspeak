@@ -26,6 +26,11 @@ const JOURNEY_THEMES = [
   'Escola que forma, juventude que transformam',
 ]
 const SCHOOL_BY_CODE = new Map(SCHOOL_UNITS.map((unit) => [unit.codSec, unit]))
+const getOccupationLabel = (entry) => (
+  entry.occupation === 'Outro' && entry.otherOccupation
+    ? `Outro: ${entry.otherOccupation}`
+    : entry.occupation
+)
 
 const makePublicUrl = (formId) => {
   const url = new URL(window.location.href)
@@ -301,10 +306,10 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                                 <li className="vote-voter" key={entry.id}>
                                   <div className="vote-voter__identity">
                                     <strong>{entry.name}</strong>
-                                    <span>
-                                      {school?.name || `Unidade ${entry.schoolId}`}
-                                      {school && ` · ${school.municipality}`}
-                                    </span>
+                                    {getOccupationLabel(entry) && <span>{getOccupationLabel(entry)}</span>}
+                                    {school && (
+                                      <span>{school.name} · {school.municipality}</span>
+                                    )}
                                   </div>
                                   <div className="vote-voter__choice">
                                     <span>VOTOU EM</span>
@@ -334,13 +339,21 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                           )}
                           <footer>
                             <strong>{entry.name}</strong>
-                            <span>·</span>
-                            {school?.name || `Unidade ${entry.schoolId}`}
+                            {getOccupationLabel(entry) && (
+                              <>
+                                <span>·</span>
+                                {getOccupationLabel(entry)}
+                              </>
+                            )}
                             {school && (
-                              <small>
-                                {school.municipality} · SEC {school.codSec}
-                                {school.codInep ? ` · MEC/INEP ${school.codInep}` : ' · INEP não informado'}
-                              </small>
+                              <>
+                                <span>·</span>
+                                {school.name}
+                                <small>
+                                  {school.municipality} · SEC {school.codSec}
+                                  {school.codInep ? ` · MEC/INEP ${school.codInep}` : ' · INEP não informado'}
+                                </small>
+                              </>
                             )}
                           </footer>
                         </article>
