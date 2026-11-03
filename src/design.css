@@ -4451,6 +4451,74 @@ body.cloudspeak-builder-active {
   background: linear-gradient(90deg, #8062a8, #a690c2);
   transition: width 0.35s ease;
 }
+.vote-voters {
+  margin-top: 34px;
+  border-top: 1px solid var(--fala-rule);
+}
+.vote-voters__heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 0 14px;
+}
+.vote-voters__heading h3 {
+  margin-top: 5px;
+  color: var(--fala-ink);
+  font-size: 19px;
+  line-height: 1.3;
+}
+.vote-voters__heading > span {
+  flex: 0 0 auto;
+  color: var(--fala-muted);
+  font-size: 11px;
+}
+.vote-voters__list {
+  display: grid;
+  gap: 9px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.vote-voter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.9fr);
+  gap: 16px;
+  padding: 15px 16px;
+  border: 1px solid #e4e0d7;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+}
+.vote-voter__identity,
+.vote-voter__choice {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+.vote-voter__identity strong,
+.vote-voter__choice strong {
+  color: var(--fala-ink);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.vote-voter__identity span {
+  color: var(--fala-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.vote-voter__choice {
+  padding-left: 14px;
+  border-left: 2px solid #a690c2;
+}
+.vote-voter__choice > span {
+  color: #8062a8;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
 
 @media (max-width: 760px) {
   .voice-header {
@@ -4480,6 +4548,10 @@ body.cloudspeak-builder-active {
   }
   .voice-submit-row .fala-button {
     width: 100%;
+  }
+  .vote-voter {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 0.9fr);
+    gap: 12px;
   }
   .voice-mode-picker {
     grid-template-columns: 1fr;
@@ -4549,6 +4621,26 @@ body.cloudspeak-builder-active {
   }
   .vote-option strong {
     font-size: 14px;
+  }
+  .vote-voters__heading {
+    align-items: flex-start;
+  }
+  .vote-voters__heading h3 {
+    font-size: 17px;
+  }
+  .vote-voters__heading > span {
+    padding-top: 3px;
+    text-align: right;
+  }
+  .vote-voter {
+    grid-template-columns: 1fr;
+    gap: 11px;
+    padding: 13px;
+  }
+  .vote-voter__choice {
+    padding: 9px 0 0;
+    border-top: 1px solid #e8e4da;
+    border-left: 0;
   }
   .voice-submit-row {
     gap: 14px;

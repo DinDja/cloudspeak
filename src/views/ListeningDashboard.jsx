@@ -261,26 +261,62 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                 ) : entriesLoading ? (
                   <p className="voice-results-empty" role="status">Reunindo as ideias…</p>
                 ) : selectedForm.mode === 'vote' ? (
-                  <div className="vote-results">
-                    {!entriesLoading && !totalVotes && (
-                      <p className="voice-results-empty">A votação ainda não recebeu votos. Compartilhe o link para iniciar.</p>
+                  <>
+                    <div className="vote-results">
+                      {!entriesLoading && !totalVotes && (
+                        <p className="voice-results-empty">A votação ainda não recebeu votos. Compartilhe o link para iniciar.</p>
+                      )}
+                      {optionCounts.map((option, index) => {
+                        const percentage = totalVotes ? Math.round((option.count / totalVotes) * 100) : 0
+                        return (
+                          <article className="vote-result" key={`${index}-${option.label}`}>
+                            <div className="vote-result__heading">
+                              <span className="vote-result__rank">{String(index + 1).padStart(2, '0')}</span>
+                              <strong>{option.label}</strong>
+                              <span className="vote-result__count">{option.count} · {percentage}%</span>
+                            </div>
+                            <div className="vote-result__track" aria-label={`${option.label}: ${option.count} votos, ${percentage}%`}>
+                              <span style={{ width: `${percentage}%` }} />
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                    {totalVotes > 0 && (
+                      <section className="vote-voters" aria-labelledby="vote-voters-title">
+                        <div className="vote-voters__heading">
+                          <div>
+                            <p className="fala-eyebrow">TRANSPARÊNCIA DA ESCUTA</p>
+                            <h3 id="vote-voters-title">Quem votou e em quê</h3>
+                          </div>
+                          <span>{totalVotes} {totalVotes === 1 ? 'participante' : 'participantes'}</span>
+                        </div>
+                        <ol className="vote-voters__list">
+                          {entries
+                            .filter((entry) => Number.isInteger(entry.choiceIndex))
+                            .map((entry) => {
+                              const school = SCHOOL_BY_CODE.get(entry.schoolId)
+                              const choice = selectedForm.options[entry.choiceIndex] ?? 'Opção não identificada'
+                              return (
+                                <li className="vote-voter" key={entry.id}>
+                                  <div className="vote-voter__identity">
+                                    <strong>{entry.name}</strong>
+                                    <span>
+                                      {school?.name || `Unidade ${entry.schoolId}`}
+                                      {school && ` · ${school.municipality}`}
+                                    </span>
+                                  </div>
+                                  <div className="vote-voter__choice">
+                                    <span>VOTOU EM</span>
+                                    <strong>{choice}</strong>
+                                  </div>
+                                </li>
+                              )
+                            })}
+                        </ol>
+                      </section>
                     )}
-                    {optionCounts.map((option, index) => {
-                      const percentage = totalVotes ? Math.round((option.count / totalVotes) * 100) : 0
-                      return (
-                        <article className="vote-result" key={`${index}-${option.label}`}>
-                          <div className="vote-result__heading">
-                            <span className="vote-result__rank">{String(index + 1).padStart(2, '0')}</span>
-                            <strong>{option.label}</strong>
-                            <span className="vote-result__count">{option.count} · {percentage}%</span>
-                          </div>
-                          <div className="vote-result__track" aria-label={`${option.label}: ${option.count} votos, ${percentage}%`}>
-                            <span style={{ width: `${percentage}%` }} />
-                          </div>
-                        </article>
-                      )
-                    })}
-                  </div>
+                  </>
                 ) : entries.length ? (
                   <div className="voice-entry-grid">
                     {entries.map((entry, index) => {
