@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Feather, Sprout } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowRight, Feather, Sprout } from 'lucide-react'
 import Logo from '../components/ui/Logo'
 import SCHOOL_UNITS from '../data/schoolUnits.json'
 import { getListeningForm, getSubmittedVoterName, submitListeningEntry } from '../lib/firebaseListening'
@@ -19,6 +19,7 @@ export default function ListeningFormView({ formId, onBack }) {
     otherOccupation: '',
     schoolId: '',
     choiceIndex: '',
+    subChoiceIndex: '',
     theme: '',
     importance: '',
     question: '',
@@ -124,8 +125,10 @@ export default function ListeningFormView({ formId, onBack }) {
       await submitListeningEntry({
         formId,
         mode: form.mode ?? 'open',
+        options: form.options,
         ...values,
         choiceIndex: values.choiceIndex === '' ? -1 : Number(values.choiceIndex),
+        subChoiceIndex: values.subChoiceIndex === '' ? -1 : Number(values.subChoiceIndex),
       })
       setSubmitted(true)
     } catch (error) {
@@ -180,11 +183,13 @@ export default function ListeningFormView({ formId, onBack }) {
             <div className="voice-intro cs-slide-up">
               <div className="voice-kicker"><span /> UMA CONSTRUÇÃO COLETIVA</div>
               <h1>{form.title}</h1>
-              <p>{form.introduction || 'Toda jornada começa com uma pergunta que vale a pena compartilhar.'}</p>
+              <p className="voice-intro__description">
+                {form.introduction || 'Toda jornada começa com uma pergunta que vale a pena compartilhar.'}
+              </p>
               <div className="voice-note">
                 {form.mode === 'vote' ? <Sprout size={17} /> : <Feather size={17} />}
                 <span>{form.mode === 'vote'
-                  ? 'Escolha um único tema. Este navegador registra apenas um voto por escuta nesta aba.'
+                  ? 'Escolha um tema e, em seguida, um título. Este navegador registra apenas um voto por escuta nesta aba.'
                   : 'Não é uma votação. É um convite para dizer o que merece espaço na conversa.'}</span>
               </div>
               <div className="voice-deadline" role="note">
@@ -346,27 +351,71 @@ export default function ListeningFormView({ formId, onBack }) {
               {form.mode === 'vote' ? (
                 <>
                   <div className="voice-form__heading">
-                    <span>02 — SUA ESCOLHA</span>
-                    <span>UM VOTO</span>
+                    <span>02 — TEMA E TÍTULO</span>
+                    <span>DUAS ESCOLHAS</span>
                   </div>
-                  <fieldset className="vote-options">
-                    <legend>{form.topicPrompt}</legend>
-                    {form.options.map((option, index) => (
-                      <label className={`vote-option${Number(values.choiceIndex) === index ? ' is-selected' : ''}`} key={`${index}-${option}`}>
-                        <input
-                          type="radio"
-                          name="listening-vote"
-                          value={index}
-                          checked={Number(values.choiceIndex) === index}
-                          onChange={(event) => updateValue('choiceIndex', event.target.value)}
-                          required
-                        />
-                        <span className="vote-option__marker" aria-hidden="true" />
-                        <span className="vote-option__number">{String(index + 1).padStart(2, '0')}</span>
-                        <strong>{option}</strong>
-                      </label>
-                    ))}
-                  </fieldset>
+                  <div className="vote-theme-list" role="radiogroup" aria-label={form.topicPrompt}>
+                    {form.options.map((option, index) => {
+                      const label = typeof option === 'string' ? option : option.label
+                      const titles = Array.isArray(option?.titles) ? option.titles : []
+                      const isSelected = values.choiceIndex !== '' && Number(values.choiceIndex) === index
+                      const suboptionsId = `vote-suboptions-${formId}-${index}`
+                      return (
+                        <section className={`vote-theme-card${isSelected ? ' is-expanded' : ''}`} key={`${index}-${label}`}>
+                          <label className={`vote-option vote-theme-option${isSelected ? ' is-selected' : ''}`}>
+                            <input
+                              type="radio"
+                              name="listening-vote"
+                              value={index}
+                              checked={isSelected}
+                              aria-expanded={isSelected && titles.length > 0}
+                              aria-controls={titles.length > 0 ? suboptionsId : undefined}
+                              onChange={(event) => {
+                                updateValue('choiceIndex', event.target.value)
+                                updateValue('subChoiceIndex', '')
+                              }}
+                              required
+                            />
+                            <span className="vote-option__marker" aria-hidden="true" />
+                            <span className="vote-option__number">{String(index + 1).padStart(2, '0')}</span>
+                            <span className="vote-theme-option__content">
+                              <strong>{label}</strong>
+                              <span className="vote-theme-option__hint">
+                                {titles.length
+                                  ? (isSelected ? 'Tema selecionado · escolha um título abaixo' : 'Toque para ver os títulos')
+                                  : (isSelected ? 'Tema selecionado' : 'Selecionar tema')}
+                                {titles.length > 0 && (
+                                  <ArrowDown className={isSelected ? 'is-rotated' : ''} size={15} aria-hidden="true" />
+                                )}
+                              </span>
+                            </span>
+                          </label>
+                          {isSelected && titles.length > 0 && (
+                            <fieldset className="vote-options vote-suboptions" id={suboptionsId}>
+                              <legend>Escolha o título que representa melhor esse tema</legend>
+                              {titles.map((title, titleIndex) => (
+                                <label
+                                  className={`vote-option vote-suboption${values.subChoiceIndex !== '' && Number(values.subChoiceIndex) === titleIndex ? ' is-selected' : ''}`}
+                                  key={`${titleIndex}-${title}`}
+                                >
+                                  <input
+                                    type="radio"
+                                    name="listening-subvote"
+                                    value={titleIndex}
+                                    checked={values.subChoiceIndex !== '' && Number(values.subChoiceIndex) === titleIndex}
+                                    onChange={(event) => updateValue('subChoiceIndex', event.target.value)}
+                                    required
+                                  />
+                                  <span className="vote-option__marker" aria-hidden="true" />
+                                  <strong>{title}</strong>
+                                </label>
+                              ))}
+                            </fieldset>
+                          )}
+                        </section>
+                      )
+                    })}
+                  </div>
                 </>
               ) : (
                 <>

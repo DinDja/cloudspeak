@@ -22,6 +22,46 @@ const cleanText = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 const SCHOOL_IDS = SCHOOL_UNITS.map((unit) => unit.codSec)
 const LISTENING_MODES = ['open', 'vote']
 
+const normalizeOptions = (options) => Array.isArray(options)
+  ? options.map((option) => (
+    typeof option === 'string'
+      ? cleanText(option)
+      : {
+        label: cleanText(option?.label),
+        titles: Array.isArray(option?.titles) ? option.titles.map(cleanText).filter(Boolean) : [],
+      }
+  ))
+  : []
+
+const validateOptions = (options) => {
+  if (options.length < 2 || options.length > 10) {
+    throw new Error('A votação precisa ter entre 2 e 10 temas.')
+  }
+  if (options.some((option) => (
+    typeof option === 'string'
+      ? !option || option.length > 180
+      : !option.label || option.label.length > 180
+        || option.titles.length < 1
+        || option.titles.length > 30
+        || option.titles.some((entry) => entry.length > 180)
+  ))) {
+    throw new Error('Cada tema deve ter um nome e entre 1 e 30 títulos, com no máximo 180 caracteres cada.')
+  }
+  const normalizedOptions = options.map((option) => (
+    (typeof option === 'string' ? option : option.label).toLocaleLowerCase('pt-BR')
+  ))
+  if (new Set(normalizedOptions).size !== normalizedOptions.length) {
+    throw new Error('Remova os temas repetidos da votação.')
+  }
+  for (const option of options) {
+    if (typeof option === 'string') continue
+    const normalizedTitles = option.titles.map((entry) => entry.toLocaleLowerCase('pt-BR'))
+    if (new Set(normalizedTitles).size !== normalizedTitles.length) {
+      throw new Error(`Remova os títulos repetidos do tema “${option.label}”.`)
+    }
+  }
+}
+
 export const parseListeningOptions = (value) => String(value ?? '')
   .split(/\r?\n/)
   .map(cleanText)
@@ -55,7 +95,7 @@ export const createListeningForm = async ({ ownerUid, title, introduction, topic
   const cleanTitle = cleanText(title)
   const cleanIntroduction = String(introduction ?? '').trim()
   const cleanTopicPrompt = cleanText(topicPrompt)
-  const cleanOptions = Array.isArray(options) ? options.map(cleanText).filter(Boolean) : []
+  const cleanOptions = normalizeOptions(options)
 
   if (!ownerUid) throw new Error('É necessário estar conectado para criar uma escuta.')
   if (!LISTENING_MODES.includes(mode)) throw new Error('Formato de escuta inválido.')
@@ -68,16 +108,7 @@ export const createListeningForm = async ({ ownerUid, title, introduction, topic
   if (cleanTopicPrompt.length < 5 || cleanTopicPrompt.length > 180) {
     throw new Error('A pergunta principal deve ter entre 5 e 180 caracteres.')
   }
-  if (mode === 'vote' && (cleanOptions.length < 2 || cleanOptions.length > 10)) {
-    throw new Error('A votação precisa ter entre 2 e 10 opções.')
-  }
-  if (cleanOptions.some((option) => option.length > 180)) {
-    throw new Error('Cada opção pode ter no máximo 180 caracteres.')
-  }
-  const normalizedOptions = cleanOptions.map((option) => option.toLocaleLowerCase('pt-BR'))
-  if (new Set(normalizedOptions).size !== normalizedOptions.length) {
-    throw new Error('Remova as opções repetidas da votação.')
-  }
+  if (mode === 'vote') validateOptions(cleanOptions)
 
   const payload = {
     title: cleanTitle,
@@ -94,6 +125,39 @@ export const createListeningForm = async ({ ownerUid, title, introduction, topic
 
   const reference = await addDoc(formsCol(), payload)
   return { id: reference.id, ...payload }
+}
+
+export const updateListeningForm = async (id, { title, introduction, topicPrompt, mode = 'open', options }) => {
+  const cleanTitle = cleanText(title)
+  const cleanIntroduction = String(introduction ?? '').trim()
+  const cleanTopicPrompt = cleanText(topicPrompt)
+
+  if (cleanTitle.length < 3 || cleanTitle.length > 120) {
+    throw new Error('O título deve ter entre 3 e 120 caracteres.')
+  }
+  if (cleanIntroduction.length > 800) {
+    throw new Error('A apresentação da escuta pode ter no máximo 800 caracteres.')
+  }
+  if (cleanTopicPrompt.length < 5 || cleanTopicPrompt.length > 180) {
+    throw new Error('A pergunta principal deve ter entre 5 e 180 caracteres.')
+  }
+  if (!LISTENING_MODES.includes(mode)) throw new Error('Formato de escuta inválido.')
+
+  const payload = {
+    title: cleanTitle,
+    introduction: cleanIntroduction,
+    topicPrompt: cleanTopicPrompt,
+    updatedAt: serverTimestamp(),
+  }
+  if (options !== undefined) {
+    const cleanOptions = normalizeOptions(options)
+    if (mode === 'open' && cleanOptions.length > 0) {
+      throw new Error('Escutas abertas não podem ter opções de votação.')
+    }
+    if (mode === 'vote') validateOptions(cleanOptions)
+    payload.options = cleanOptions
+  }
+  await updateDoc(formRef(id), payload)
 }
 
 export const getListeningForm = async (id) => {
@@ -138,10 +202,12 @@ export const submitListeningEntry = async ({
   occupation,
   otherOccupation,
   schoolId,
+  options = [],
   theme,
   importance,
   question,
   choiceIndex,
+  subChoiceIndex = -1,
 }) => {
   const cleanName = cleanText(name)
   const cleanSchoolId = cleanText(schoolId)
@@ -163,8 +229,16 @@ export const submitListeningEntry = async ({
   }
 
   if (mode === 'vote') {
-    if (!Number.isInteger(choiceIndex) || choiceIndex < 0 || choiceIndex > 9) {
+    if (!Number.isInteger(choiceIndex) || choiceIndex < 0 || choiceIndex >= options.length || choiceIndex > 9) {
       throw new Error('Selecione um dos temas antes de enviar seu voto.')
+    }
+    const selectedOption = options[choiceIndex]
+    const titles = Array.isArray(selectedOption?.titles) ? selectedOption.titles : []
+    if (titles.length && (!Number.isInteger(subChoiceIndex) || subChoiceIndex < 0 || subChoiceIndex >= titles.length)) {
+      throw new Error('Selecione um título para o tema escolhido.')
+    }
+    if (!titles.length && subChoiceIndex >= 0) {
+      throw new Error('O tema escolhido não possui títulos adicionais.')
     }
     const voterId = getVoterId(formId)
     await setDoc(doc(entriesCol(formId), voterId), {
@@ -173,6 +247,7 @@ export const submitListeningEntry = async ({
       otherOccupation: cleanOtherOccupation,
       schoolId: cleanSchoolId,
       choiceIndex,
+      ...(titles.length ? { subChoiceIndex } : {}),
       createdAt: serverTimestamp(),
     })
     window.sessionStorage.setItem(`cloudspeak-listening-submitted-${formId}`, cleanName)

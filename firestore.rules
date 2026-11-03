@@ -106,9 +106,23 @@ service cloud.firestore {
 
       allow update: if isSecUser()
         && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'title', 'introduction', 'topicPrompt', 'options', 'updatedAt'
+        ])
         && request.resource.data.status in ['open', 'closed']
-        && request.resource.data.updatedAt == request.time;
+        && request.resource.data.updatedAt == request.time
+        && isString(request.resource.data.title, 3, 120)
+        && isString(request.resource.data.introduction, 0, 800)
+        && isString(request.resource.data.topicPrompt, 5, 180)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['options'])
+            || (request.resource.data.options is list
+                && (request.resource.data.keys().hasAll(['mode'])
+                    ? (request.resource.data.mode == 'open'
+                        ? request.resource.data.options.size() == 0
+                        : request.resource.data.mode == 'vote'
+                          && request.resource.data.options.size() >= 2
+                          && request.resource.data.options.size() <= 10)
+                    : request.resource.data.options.size() == 0)));
       allow delete: if false;
 
       match /entries/{entryId} {
@@ -160,9 +174,27 @@ service cloud.firestore {
                 || get(/databases/$(database)/documents/listeningForms/$(formId)).data.mode == 'open');
         }
 
+        function isValidVoteChoice(options, entry) {
+          return entry.choiceIndex < options.size()
+            && (options[entry.choiceIndex] is string
+              ? !entry.keys().hasAny(['subChoiceIndex'])
+              : options[entry.choiceIndex] is map
+                && options[entry.choiceIndex].keys().hasOnly(['label', 'titles'])
+                && options[entry.choiceIndex].keys().hasAll(['label', 'titles'])
+                && isString(options[entry.choiceIndex].label, 1, 180)
+                && options[entry.choiceIndex].titles is list
+                && options[entry.choiceIndex].titles.size() > 0
+                && options[entry.choiceIndex].titles.size() <= 30
+                && entry.keys().hasAll(['subChoiceIndex'])
+                && entry.subChoiceIndex is int
+                && entry.subChoiceIndex >= 0
+                && entry.subChoiceIndex < options[entry.choiceIndex].titles.size()
+                && isString(options[entry.choiceIndex].titles[entry.subChoiceIndex], 1, 180));
+        }
+
         function isValidVoteEntry() {
           return request.resource.data.keys().hasOnly([
-              'name', 'occupation', 'otherOccupation', 'schoolId', 'choiceIndex', 'createdAt'
+              'name', 'occupation', 'otherOccupation', 'schoolId', 'choiceIndex', 'subChoiceIndex', 'createdAt'
             ])
             && request.resource.data.keys().hasAll([
               'name', 'occupation', 'otherOccupation', 'schoolId', 'choiceIndex', 'createdAt'
@@ -170,8 +202,10 @@ service cloud.firestore {
             && isValidEntryContext()
             && request.resource.data.choiceIndex is int
             && request.resource.data.choiceIndex >= 0
-            && request.resource.data.choiceIndex
-              < get(/databases/$(database)/documents/listeningForms/$(formId)).data.options.size()
+            && isValidVoteChoice(
+              get(/databases/$(database)/documents/listeningForms/$(formId)).data.options,
+              request.resource.data
+            )
             && entryId.matches('^[0-9a-fA-F-]{36}$')
             && get(/databases/$(database)/documents/listeningForms/$(formId)).data.mode == 'vote';
         }
