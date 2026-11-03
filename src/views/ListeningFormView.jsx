@@ -189,7 +189,7 @@ export default function ListeningFormView({ formId, onBack }) {
               </div>
               <div className="voice-deadline" role="note">
                 <span>PERÍODO DA CONSULTA</span>
-                <strong>A consulta está disponível de 3 a 8 de novembro.</strong>
+                <strong>A consulta está disponível de 4 a 8 de novembro.</strong>
               </div>
             </div>
 
