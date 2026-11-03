@@ -19,7 +19,7 @@ export default function ListeningFormView({ formId, onBack }) {
     otherOccupation: '',
     schoolId: '',
     choiceIndex: '',
-    subChoiceIndex: '',
+    subChoiceIndexes: [],
     theme: '',
     importance: '',
     question: '',
@@ -118,6 +118,20 @@ export default function ListeningFormView({ formId, onBack }) {
       setSubmitError('Informe sua ocupação no campo “Outro”.')
       return
     }
+    if (form.mode === 'vote') {
+      const selectedOption = values.choiceIndex === ''
+        ? null
+        : form.options[Number(values.choiceIndex)]
+      const titles = Array.isArray(selectedOption?.titles) ? selectedOption.titles : []
+      if (titles.length && values.subChoiceIndexes.length === 0) {
+        setSubmitError('Escolha pelo menos uma proposta do tema selecionado.')
+        return
+      }
+      if (values.subChoiceIndexes.length > 4) {
+        setSubmitError('Você pode escolher no máximo quatro propostas.')
+        return
+      }
+    }
 
     setSending(true)
     setSubmitError('')
@@ -128,7 +142,7 @@ export default function ListeningFormView({ formId, onBack }) {
         options: form.options,
         ...values,
         choiceIndex: values.choiceIndex === '' ? -1 : Number(values.choiceIndex),
-        subChoiceIndex: values.subChoiceIndex === '' ? -1 : Number(values.subChoiceIndex),
+        subChoiceIndexes: values.subChoiceIndexes.map(Number),
       })
       setSubmitted(true)
     } catch (error) {
@@ -189,7 +203,7 @@ export default function ListeningFormView({ formId, onBack }) {
               <div className="voice-note">
                 {form.mode === 'vote' ? <Sprout size={17} /> : <Feather size={17} />}
                 <span>{form.mode === 'vote'
-                  ? 'Escolha um tema e, em seguida, um título. Este navegador registra apenas um voto por escuta nesta aba.'
+                  ? 'Escolha um tema e marque até quatro propostas relacionadas. Este navegador registra apenas um voto por escuta nesta aba.'
                   : 'Não é uma votação. É um convite para dizer o que merece espaço na conversa.'}</span>
               </div>
               <div className="voice-deadline" role="note">
@@ -351,8 +365,8 @@ export default function ListeningFormView({ formId, onBack }) {
               {form.mode === 'vote' ? (
                 <>
                   <div className="voice-form__heading">
-                    <span>02 — TEMA E TÍTULO</span>
-                    <span>DUAS ESCOLHAS</span>
+                    <span>02 — TEMA E PROPOSTAS</span>
+                    <span>1 TEMA · ATÉ 4 PROPOSTAS</span>
                   </div>
                   <div className="vote-theme-list" role="radiogroup" aria-label={form.topicPrompt}>
                     {form.options.map((option, index) => {
@@ -372,7 +386,7 @@ export default function ListeningFormView({ formId, onBack }) {
                               aria-controls={titles.length > 0 ? suboptionsId : undefined}
                               onChange={(event) => {
                                 updateValue('choiceIndex', event.target.value)
-                                updateValue('subChoiceIndex', '')
+                                updateValue('subChoiceIndexes', [])
                               }}
                               required
                             />
@@ -382,7 +396,7 @@ export default function ListeningFormView({ formId, onBack }) {
                               <strong>{label}</strong>
                               <span className="vote-theme-option__hint">
                                 {titles.length
-                                  ? (isSelected ? 'Tema selecionado · escolha um título abaixo' : 'Toque para ver os títulos')
+                                  ? (isSelected ? 'Tema selecionado · escolha até quatro propostas abaixo' : 'Toque para ver as propostas deste tema')
                                   : (isSelected ? 'Tema selecionado' : 'Selecionar tema')}
                                 {titles.length > 0 && (
                                   <ArrowDown className={isSelected ? 'is-rotated' : ''} size={15} aria-hidden="true" />
@@ -392,21 +406,32 @@ export default function ListeningFormView({ formId, onBack }) {
                           </label>
                           {isSelected && titles.length > 0 && (
                             <fieldset className="vote-options vote-suboptions" id={suboptionsId}>
-                              <legend>Escolha o título que representa melhor esse tema</legend>
+                              <legend>
+                                Escolha até 4 propostas ({values.subChoiceIndexes.length}/4 selecionadas)
+                              </legend>
                               {titles.map((title, titleIndex) => (
                                 <label
-                                  className={`vote-option vote-suboption${values.subChoiceIndex !== '' && Number(values.subChoiceIndex) === titleIndex ? ' is-selected' : ''}`}
+                                  className={`vote-option vote-suboption${values.subChoiceIndexes.includes(titleIndex) ? ' is-selected' : ''}${!values.subChoiceIndexes.includes(titleIndex) && values.subChoiceIndexes.length >= 4 ? ' is-disabled' : ''}`}
                                   key={`${titleIndex}-${title}`}
                                 >
                                   <input
-                                    type="radio"
+                                    type="checkbox"
                                     name="listening-subvote"
                                     value={titleIndex}
-                                    checked={values.subChoiceIndex !== '' && Number(values.subChoiceIndex) === titleIndex}
-                                    onChange={(event) => updateValue('subChoiceIndex', event.target.value)}
-                                    required
+                                    checked={values.subChoiceIndexes.includes(titleIndex)}
+                                    disabled={
+                                      !values.subChoiceIndexes.includes(titleIndex)
+                                      && values.subChoiceIndexes.length >= 4
+                                    }
+                                    onChange={(event) => {
+                                      const selected = values.subChoiceIndexes
+                                      const next = event.target.checked
+                                        ? [...selected, titleIndex]
+                                        : selected.filter((selectedIndex) => selectedIndex !== titleIndex)
+                                      updateValue('subChoiceIndexes', next)
+                                    }}
                                   />
-                                  <span className="vote-option__marker" aria-hidden="true" />
+                                  <span className="vote-option__marker vote-option__marker--checkbox" aria-hidden="true" />
                                   <strong>{title}</strong>
                                 </label>
                               ))}

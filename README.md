@@ -87,7 +87,7 @@ As contribuições ficam em tempo real no mural do responsável pela escuta. O r
 
 O catálogo (`src/data/schoolUnits.json`) contém somente nome, município e códigos das unidades ativas, sem os demais dados da planilha. Os dados ficam em `listeningForms/{id}` e `listeningForms/{id}/entries/{entryId}`; as respostas guardam nome, ocupação e, se informados, a descrição de “Outro” e o código SEC escolhido.
 
-Escutas também podem ser criadas no modo **Votação**. Cada tema pode ter títulos secundários: a pessoa escolhe um tema e, em seguida, um título relacionado. A consulta da Jornada Pedagógica 2027 vem com sete temas e os títulos propostos para cada um; organizadores podem editar temas e títulos ao criar a escuta. O mural mostra a apuração dos temas, a distribuição dos títulos e o tema e título escolhidos por cada votante. Votações antigas, com opções simples, continuam aceitas. A escolha é salva em documento imutável, usando um identificador por formulário na sessão do navegador para evitar repetir o envio na mesma aba.
+Escutas também podem ser criadas no modo **Votação**. Cada tema pode ter títulos secundários: a pessoa escolhe um tema e, em seguida, seleciona de uma a quatro propostas ligadas a ele. A consulta da Jornada Pedagógica 2027 vem com sete temas e os títulos propostos para cada um; organizadores podem editar temas e títulos ao criar a escuta. O mural mostra a apuração dos temas, a distribuição das propostas e todas as escolhas de cada votante. Votações antigas, com opções simples ou escolha única de título, continuam aceitas. A escolha é salva em documento imutável, usando um identificador por formulário na sessão do navegador para evitar repetir o envio na mesma aba.
 
 ---
 

@@ -174,10 +174,35 @@ service cloud.firestore {
                 || get(/databases/$(database)/documents/listeningForms/$(formId)).data.mode == 'open');
         }
 
+        function isValidSubChoiceIndex(titles, index) {
+          return index is int
+            && index >= 0
+            && index < titles.size()
+            && isString(titles[index], 1, 180);
+        }
+
+        function isValidSubChoiceIndexes(titles, indexes) {
+          return indexes is list
+            && indexes.size() >= 1
+            && indexes.size() <= 4
+            && isValidSubChoiceIndex(titles, indexes[0])
+            && (indexes.size() < 2
+              || (isValidSubChoiceIndex(titles, indexes[1]) && indexes[0] != indexes[1]))
+            && (indexes.size() < 3
+              || (isValidSubChoiceIndex(titles, indexes[2])
+                && indexes[0] != indexes[2]
+                && indexes[1] != indexes[2]))
+            && (indexes.size() < 4
+              || (isValidSubChoiceIndex(titles, indexes[3])
+                && indexes[0] != indexes[3]
+                && indexes[1] != indexes[3]
+                && indexes[2] != indexes[3]));
+        }
+
         function isValidVoteChoice(options, entry) {
           return entry.choiceIndex < options.size()
             && (options[entry.choiceIndex] is string
-              ? !entry.keys().hasAny(['subChoiceIndex'])
+              ? !entry.keys().hasAny(['subChoiceIndex', 'subChoiceIndexes'])
               : options[entry.choiceIndex] is map
                 && options[entry.choiceIndex].keys().hasOnly(['label', 'titles'])
                 && options[entry.choiceIndex].keys().hasAll(['label', 'titles'])
@@ -185,16 +210,22 @@ service cloud.firestore {
                 && options[entry.choiceIndex].titles is list
                 && options[entry.choiceIndex].titles.size() > 0
                 && options[entry.choiceIndex].titles.size() <= 30
-                && entry.keys().hasAll(['subChoiceIndex'])
-                && entry.subChoiceIndex is int
-                && entry.subChoiceIndex >= 0
-                && entry.subChoiceIndex < options[entry.choiceIndex].titles.size()
-                && isString(options[entry.choiceIndex].titles[entry.subChoiceIndex], 1, 180));
+                && (entry.keys().hasAll(['subChoiceIndexes'])
+                  ? isValidSubChoiceIndexes(
+                    options[entry.choiceIndex].titles,
+                    entry.subChoiceIndexes
+                  )
+                  : entry.keys().hasAll(['subChoiceIndex'])
+                    && isValidSubChoiceIndex(
+                      options[entry.choiceIndex].titles,
+                      entry.subChoiceIndex
+                    )));
         }
 
         function isValidVoteEntry() {
           return request.resource.data.keys().hasOnly([
-              'name', 'occupation', 'otherOccupation', 'schoolId', 'choiceIndex', 'subChoiceIndex', 'createdAt'
+              'name', 'occupation', 'otherOccupation', 'schoolId',
+              'choiceIndex', 'subChoiceIndex', 'subChoiceIndexes', 'createdAt'
             ])
             && request.resource.data.keys().hasAll([
               'name', 'occupation', 'otherOccupation', 'schoolId', 'choiceIndex', 'createdAt'

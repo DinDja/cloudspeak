@@ -207,7 +207,7 @@ export const submitListeningEntry = async ({
   importance,
   question,
   choiceIndex,
-  subChoiceIndex = -1,
+  subChoiceIndexes = [],
 }) => {
   const cleanName = cleanText(name)
   const cleanSchoolId = cleanText(schoolId)
@@ -234,10 +234,17 @@ export const submitListeningEntry = async ({
     }
     const selectedOption = options[choiceIndex]
     const titles = Array.isArray(selectedOption?.titles) ? selectedOption.titles : []
-    if (titles.length && (!Number.isInteger(subChoiceIndex) || subChoiceIndex < 0 || subChoiceIndex >= titles.length)) {
-      throw new Error('Selecione um título para o tema escolhido.')
+    if (!Array.isArray(subChoiceIndexes)) {
+      throw new Error('Selecione as propostas do tema escolhido.')
     }
-    if (!titles.length && subChoiceIndex >= 0) {
+    const selectedTitles = [...new Set(subChoiceIndexes)]
+    if (titles.length && (selectedTitles.length < 1 || selectedTitles.length > 4)) {
+      throw new Error('Selecione de uma a quatro propostas para o tema escolhido.')
+    }
+    if (selectedTitles.some((index) => !Number.isInteger(index) || index < 0 || index >= titles.length)) {
+      throw new Error('Uma das propostas selecionadas não pertence ao tema escolhido.')
+    }
+    if (!titles.length && selectedTitles.length > 0) {
       throw new Error('O tema escolhido não possui títulos adicionais.')
     }
     const voterId = getVoterId(formId)
@@ -247,7 +254,7 @@ export const submitListeningEntry = async ({
       otherOccupation: cleanOtherOccupation,
       schoolId: cleanSchoolId,
       choiceIndex,
-      ...(titles.length ? { subChoiceIndex } : {}),
+      ...(titles.length ? { subChoiceIndexes: selectedTitles } : {}),
       createdAt: serverTimestamp(),
     })
     window.sessionStorage.setItem(`cloudspeak-listening-submitted-${formId}`, cleanName)

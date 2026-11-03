@@ -105,6 +105,13 @@ const JOURNEY_VOTE_OPTIONS = [
 const SCHOOL_BY_CODE = new Map(SCHOOL_UNITS.map((unit) => [unit.codSec, unit]))
 const getVoteOptionLabel = (option) => (typeof option === 'string' ? option : option.label)
 const getVoteOptionTitles = (option) => (Array.isArray(option?.titles) ? option.titles : [])
+const getEntrySubChoiceIndexes = (entry) => (
+  Array.isArray(entry.subChoiceIndexes)
+    ? entry.subChoiceIndexes
+    : Number.isInteger(entry.subChoiceIndex)
+      ? [entry.subChoiceIndex]
+      : []
+)
 const getOccupationLabel = (entry) => (
   entry.occupation === 'Outro' && entry.otherOccupation
     ? `Outro: ${entry.otherOccupation}`
@@ -154,7 +161,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
       getVoteOptionTitles(option).map((label, subChoiceIndex) => ({
         label,
         count: entries.filter((entry) => (
-          entry.choiceIndex === choiceIndex && entry.subChoiceIndex === subChoiceIndex
+          entry.choiceIndex === choiceIndex && getEntrySubChoiceIndexes(entry).includes(subChoiceIndex)
         )).length,
       }))
     )),
@@ -453,6 +460,9 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                             </div>
                             {titles.length > 0 && (
                               <div className="vote-subresults">
+                                <p className="vote-subresults__note">
+                                  Percentual de quem escolheu este tema; cada participante pode marcar até quatro propostas.
+                                </p>
                                 {titles.map((title, titleIndex) => {
                                   const titlePercentage = selectedThemeCount
                                     ? Math.round((title.count / selectedThemeCount) * 100)
@@ -493,9 +503,9 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                               const choice = selectedOption
                                 ? getVoteOptionLabel(selectedOption)
                                 : 'Opção não identificada'
-                              const subChoice = Number.isInteger(entry.subChoiceIndex)
-                                ? getVoteOptionTitles(selectedOption)[entry.subChoiceIndex]
-                                : ''
+                              const subChoices = getEntrySubChoiceIndexes(entry)
+                                .map((subChoiceIndex) => getVoteOptionTitles(selectedOption)[subChoiceIndex])
+                                .filter(Boolean)
                               return (
                                 <li className="vote-voter" key={entry.id}>
                                   <div className="vote-voter__identity">
@@ -508,7 +518,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                                   <div className="vote-voter__choice">
                                     <span>VOTOU EM</span>
                                     <strong>{choice}</strong>
-                                    {subChoice && <span>{subChoice}</span>}
+                                    {subChoices.map((subChoice) => <span key={subChoice}>{subChoice}</span>)}
                                   </div>
                                 </li>
                               )
