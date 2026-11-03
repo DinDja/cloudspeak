@@ -1,4 +1,6 @@
+import { useMemo } from 'react'
 import { ArrowUpRight } from 'lucide-react'
+import StaticSlide from './StaticSlide'
 
 const COVER_TITLES = {
   'educacao-integral-integrada-bahia': (
@@ -73,6 +75,8 @@ const COVER_TITLES = {
 }
 
 export default function TemplateCover({ template, index = 0, selected, onClick }) {
+  const previewSlide = useMemo(() => template.kind === 'static' ? template.build()[0] : null, [template])
+
   return (
     <button
       type="button"
@@ -80,12 +84,16 @@ export default function TemplateCover({ template, index = 0, selected, onClick }
       onClick={onClick}
       aria-pressed={selected}
     >
-      <div className="template-cover__art" aria-hidden="true">
-        <span>
-          {String(index + 1).padStart(2, '0')} / {template.badge.toUpperCase()}
-        </span>
-        <strong>{COVER_TITLES[template.id] || template.name}</strong>
-        <svg viewBox="0 0 280 42" fill="none" preserveAspectRatio="xMinYMid meet">
+      <div className={`template-cover__art ${previewSlide ? 'template-cover__art--static' : ''}`} aria-hidden="true">
+        {previewSlide ? (
+          <StaticSlide slide={previewSlide} compact mode="thumbnail" />
+        ) : (
+          <>
+            <span>
+              {String(index + 1).padStart(2, '0')} / {template.badge.toUpperCase()}
+            </span>
+            <strong>{COVER_TITLES[template.id] || template.name}</strong>
+            <svg viewBox="0 0 280 42" fill="none" preserveAspectRatio="xMinYMid meet">
           {index % 3 === 0 ? (
             <path
               d="M1 34V24H36V34M46 34V12H81V34M91 34V3H126V34M136 34V18H171V34M181 34V8H216V34M1 38H265"
@@ -105,7 +113,9 @@ export default function TemplateCover({ template, index = 0, selected, onClick }
               strokeWidth="1.2"
             />
           )}
-        </svg>
+            </svg>
+          </>
+        )}
       </div>
       <span className="template-cover__name">
         {template.name}

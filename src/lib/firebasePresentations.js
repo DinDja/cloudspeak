@@ -4,10 +4,12 @@ import {
   deleteDoc,
   doc,
   getDoc,
-  onSnapshot,
+  getDocs,
+  limit,
   orderBy,
   query,
   serverTimestamp,
+  startAfter,
   updateDoc,
   where,
 } from 'firebase/firestore'
@@ -19,6 +21,7 @@ import { normalizeSlideStyle, normalizeSlideWatermark } from './slideStyles'
 
 const presentationsCol = () => collection(db, 'presentations')
 const presentationRef = (id) => doc(db, 'presentations', id)
+const PRESENTATIONS_PAGE_SIZE = 12
 
 const isAvancaDraft = (presentation) => {
   const normalizedTitle = String(presentation?.title ?? '')
@@ -88,20 +91,25 @@ export const getPresentation = async (id) => {
   return { id: snapshot.id, ...snapshot.data() }
 }
 
-export const subscribeUserPresentations = (ownerUid, onNext, onError) => {
-  const q = query(presentationsCol(), where('ownerUid', '==', ownerUid), orderBy('updatedAt', 'desc'))
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      onNext(
-        snapshot.docs.map((entry) => ({
-          id: entry.id,
-          ...entry.data(),
-        })),
-      )
-    },
-    onError,
-  )
+export const getUserPresentationsPage = async (ownerUid, cursor = null) => {
+  const constraints = [
+    where('ownerUid', '==', ownerUid),
+    orderBy('updatedAt', 'desc'),
+  ]
+  if (cursor) constraints.push(startAfter(cursor))
+  constraints.push(limit(PRESENTATIONS_PAGE_SIZE + 1))
+
+  const snapshot = await getDocs(query(presentationsCol(), ...constraints))
+  const pageDocs = snapshot.docs.slice(0, PRESENTATIONS_PAGE_SIZE)
+
+  return {
+    presentations: pageDocs.map((entry) => ({
+      id: entry.id,
+      ...entry.data(),
+    })),
+    cursor: pageDocs.length ? pageDocs[pageDocs.length - 1] : null,
+    hasMore: snapshot.docs.length > PRESENTATIONS_PAGE_SIZE,
+  }
 }
 
 export const buildEditableDraft = (presentation) => {
@@ -114,6 +122,8 @@ export const buildEditableDraft = (presentation) => {
     options: Array.isArray(slide.options) ? [...slide.options] : [],
     teams: Array.isArray(slide.teams) ? slide.teams.map((t) => ({ ...t })) : [],
     points: Array.isArray(slide.points) ? [...slide.points] : [],
+    layerOverrides: slide.layerOverrides && typeof slide.layerOverrides === 'object' ? structuredClone(slide.layerOverrides) : {},
+    customLayers: Array.isArray(slide.customLayers) ? slide.customLayers.map((layer) => ({ ...layer })) : [],
     style: normalizeSlideStyle(slide.style),
     watermark: normalizeSlideWatermark(slide.watermark),
   }))

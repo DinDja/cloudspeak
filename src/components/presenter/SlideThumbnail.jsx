@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { isStaticSlideType, SLIDE_TYPES, SUMMARY_TYPE } from '../../lib/constants'
 import { AVANCA_EVENT_KEY } from '../../lib/eventData'
 import { getSlideStyleClass, getSlideThemeVars } from '../../lib/slideStyles'
@@ -14,16 +15,45 @@ export default function SlideThumbnail({
   slides = [],
   eventKey = null,
   presentationTitle = '',
+  staticScale = null,
 }) {
   const isAvancaPresentation = eventKey === AVANCA_EVENT_KEY
+  const isScaledStaticPreview = staticScale !== null && isStaticSlideType(slide?.type)
+  const staticCanvasRef = useRef(null)
+  const [staticCanvasHeight, setStaticCanvasHeight] = useState(620)
+
+  useEffect(() => {
+    const canvas = staticCanvasRef.current
+    if (!isScaledStaticPreview || !canvas) return undefined
+
+    const measure = () => setStaticCanvasHeight(canvas.offsetHeight)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(canvas)
+    return () => observer.disconnect()
+  }, [isScaledStaticPreview, staticScale, slide])
+
+  const style = {
+    ...getSlideThemeVars(slide),
+    ...(isScaledStaticPreview ? {
+      '--static-preview-scale': staticScale,
+      height: `${staticCanvasHeight * staticScale}px`,
+    } : {}),
+  }
 
   return (
     <div
-      className={`slide-print relative ${getSlideStyleClass(slide)} ${compact ? 'slide-print--compact' : ''} ${className}`}
-      style={getSlideThemeVars(slide)}
+      className={`slide-print relative ${getSlideStyleClass(slide)} ${compact ? 'slide-print--compact' : ''} ${isScaledStaticPreview ? 'slide-print--scaled-static' : ''} ${className}`}
+      style={style}
     >
       {isStaticSlideType(slide?.type) ? (
-        <StaticSlide slide={slide} compact mode="thumbnail" />
+        isScaledStaticPreview ? (
+          <div className="slide-print__static-canvas" ref={staticCanvasRef}>
+            <StaticSlide slide={slide} mode="stage" />
+          </div>
+        ) : (
+          <StaticSlide slide={slide} compact mode="thumbnail" />
+        )
       ) : (
         <>
           <EducationWatermark eventKey={eventKey} presentationTitle={presentationTitle} />

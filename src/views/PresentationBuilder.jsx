@@ -4,9 +4,10 @@ import Logo from '../components/ui/Logo'
 import Modal from '../components/ui/Modal'
 import SlideEditor from '../components/presenter/SlideEditor'
 import SlideCanvas from '../components/presenter/SlideCanvas'
+import StaticLayerInspector from '../components/presenter/StaticLayerInspector'
 import SlideThumbnail from '../components/presenter/SlideThumbnail'
 import { useAuth } from '../hooks/useAuth'
-import { MAX_SLIDES } from '../lib/constants'
+import { MAX_SLIDES, COVER_TYPE, INTRODUCTION_TYPE, CLOSING_TYPE, isStaticSlideType } from '../lib/constants'
 import { createSlideDraft, sanitizeSlides, sanitizeTitle } from '../lib/validators'
 import { buildEditableDraft, createPresentation, updatePresentation } from '../lib/firebasePresentations'
 import { launchPresentationAsSession } from '../lib/firebaseSessions'
@@ -35,12 +36,14 @@ export default function PresentationBuilder({ initialPresentation, onBack, onPre
     return next.slides.length ? next : { ...next, slides: [createSlideDraft()] }
   })
   const [selectedId, setSelectedId] = useState(draft.slides[0]?.id)
+  const [selectedLayerId, setSelectedLayerId] = useState(null)
   const [savedSnapshot, setSavedSnapshot] = useState(() => (draft.id ? fingerprint(draft) : ''))
   const [previewMode, setPreviewMode] = useState('stage')
   const [saving, setSaving] = useState(false)
   const [launching, setLaunching] = useState(false)
   const [error, setError] = useState('')
   const [leaving, setLeaving] = useState(false)
+  useEffect(() => setSelectedLayerId(null), [selectedId])
   const selectedIndex = Math.max(
     0,
     draft.slides.findIndex((slide) => slide.id === selectedId),
@@ -54,9 +57,9 @@ export default function PresentationBuilder({ initialPresentation, onBack, onPre
       ...prev,
       slides: prev.slides.map((slide) => (slide.id === next.id ? next : slide)),
     }))
-  const addSlide = () => {
+  const addSlide = (type = 'multiple_choice') => {
     if (draft.slides.length >= MAX_SLIDES) return
-    const slide = createSlideDraft()
+    const slide = createSlideDraft(type)
     setDraft((prev) => ({ ...prev, slides: [...prev.slides, slide] }))
     setSelectedId(slide.id)
   }
@@ -195,6 +198,24 @@ export default function PresentationBuilder({ initialPresentation, onBack, onPre
               <Plus size={17} />
             </button>
           </div>
+          <div className="builder-rail__quick-add" aria-label="Adicionar página estática">
+            {[
+              [COVER_TYPE, 'Capa'],
+              [INTRODUCTION_TYPE, 'Introdução'],
+              [CLOSING_TYPE, 'Encerramento'],
+            ].map(([type, label]) => (
+              <button
+                type="button"
+                key={type}
+                onClick={() => addSlide(type)}
+                disabled={busy || draft.slides.length >= MAX_SLIDES}
+                aria-label={`Adicionar slide: ${label}`}
+              >
+                <Plus size={12} />
+                {label}
+              </button>
+            ))}
+          </div>
           {draft.slides.map((slide, index) => (
             <div className="builder-rail__slide" key={slide.id}>
               <button
@@ -279,13 +300,28 @@ export default function PresentationBuilder({ initialPresentation, onBack, onPre
               mode={previewMode}
               eventKey={draft.eventKey}
               presentationTitle={draft.title}
+              onChange={updateSlide}
+              selectedLayerId={selectedLayerId}
+              onSelectLayer={setSelectedLayerId}
+              disabled={busy}
             />
             <p className="builder-stage__caption">
-              Prévia do conteúdo · As respostas chegam ao abrir a apresentação.
+              {isStaticSlideType(selectedSlide?.type) && previewMode === 'stage'
+                ? 'Clique em um elemento para editar e arraste para mover.'
+                : 'Prévia do conteúdo · As respostas chegam ao abrir a apresentação.'}
             </p>
           </div>
         </section>
         <aside className="builder-inspector" aria-label="Edição do conteúdo">
+          {isStaticSlideType(selectedSlide?.type) && (
+            <StaticLayerInspector
+              slide={selectedSlide}
+              onChange={updateSlide}
+              selectedLayerId={selectedLayerId}
+              onSelectLayer={setSelectedLayerId}
+              disabled={busy}
+            />
+          )}
           <SlideEditor
             slide={selectedSlide}
             index={selectedIndex}

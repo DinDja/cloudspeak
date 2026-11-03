@@ -1,5 +1,6 @@
 import { Copy, Trash2, Play, Pencil, Plus, MoreHorizontal } from 'lucide-react'
-import SlideThumbnail from './SlideThumbnail'
+import { AVANCA_EVENT_KEY } from '../../lib/eventData'
+import DashboardSlideCarousel from './DashboardSlideCarousel'
 
 export default function PresentationCard({
   presentation,
@@ -13,6 +14,11 @@ export default function PresentationCard({
 }) {
   const { title, slides, updatedAt } = presentation
   const count = slides?.length || 0
+  const eventKey = presentation.eventKey || (
+    slides?.some((slide) => slide?.style?.theme === 'avanca')
+      ? AVANCA_EVENT_KEY
+      : null
+  )
   const edit = (event) => {
     event.preventDefault()
     event.stopPropagation()
@@ -20,18 +26,23 @@ export default function PresentationCard({
   }
   return (
     <article className="deck-row">
-      <button type="button" onClick={edit} aria-label={`Editar ${title}`}>
-        <SlideThumbnail slide={slides?.[0]} compact />
-      </button>
-      <div>
-        <button type="button" className="deck-row__title" onClick={edit}>
-          {title}
-        </button>
-        <p className="deck-row__meta">
-          {count} {count === 1 ? 'slide' : 'slides'} · Editada {formatRelativeDate(updatedAt)}
-        </p>
-      </div>
-      <div className="deck-row__actions">
+      <DashboardSlideCarousel
+        slides={slides || []}
+        total={count}
+        presentationTitle={title}
+        eventKey={eventKey}
+        onEdit={edit}
+      />
+      <div className="deck-row__info">
+        <div className="deck-row__heading">
+          <button type="button" className="deck-row__title" onClick={edit}>
+            {title}
+          </button>
+          <p className="deck-row__meta">
+            {count} {count === 1 ? 'slide' : 'slides'} · Editada {formatRelativeDate(updatedAt)}
+          </p>
+        </div>
+        <div className="deck-row__actions">
         <button
           type="button"
           className="fala-button"
@@ -77,6 +88,7 @@ export default function PresentationCard({
             </button>
           </div>
         </details>
+        </div>
       </div>
     </article>
   )
