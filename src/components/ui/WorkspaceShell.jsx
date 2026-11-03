@@ -1,10 +1,11 @@
-import { FolderClosed, PanelsTopLeft, LogOut } from 'lucide-react'
+import { FolderClosed, PanelsTopLeft, LogOut, MessageCircle } from 'lucide-react'
 import Logo from './Logo'
 
 export default function WorkspaceShell({
   children,
   active = 'presentations',
   onPresentations,
+  onListening,
   onTemplates,
   onLogout,
   name,
@@ -31,6 +32,14 @@ export default function WorkspaceShell({
             <PanelsTopLeft size={17} />
             Modelos
           </button>
+          <button
+            type="button"
+            aria-current={active === 'listening' ? 'page' : undefined}
+            onClick={onListening}
+          >
+            <MessageCircle size={17} />
+            Escutas
+          </button>
         </nav>
         <div className="workspace-sidebar__footer">
             <img src="/brasao-bahia.png" alt="" /> 
@@ -41,7 +50,7 @@ export default function WorkspaceShell({
           <div className="workspace-mobile-logo">
             <Logo size="sm" />
           </div>
-          <span>Estúdio / {active === 'templates' ? 'Modelos' : 'Apresentações'}</span>
+          <span>Estúdio / {active === 'templates' ? 'Modelos' : active === 'listening' ? 'Escutas' : 'Apresentações'}</span>
           <div className="workspace-account">
             <span title={email}>{name || 'Fala SEC'}</span>
             {onLogout && (

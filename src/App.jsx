@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useSession } from './hooks/useSession'
 import { useReactions } from './hooks/useReactions'
@@ -37,6 +37,8 @@ import PresentationBuilder from './views/PresentationBuilder'
 import HostView from './views/HostView'
 import ParticipantView from './views/ParticipantView'
 import AttendanceVerificationView from './views/AttendanceVerificationView'
+const ListeningDashboard = lazy(() => import('./views/ListeningDashboard'))
+const ListeningFormView = lazy(() => import('./views/ListeningFormView'))
 
 const ACTIVE_SESSION_STORAGE_KEY = 'cloudspeak-active-session'
 
@@ -82,6 +84,7 @@ export default function App() {
   const [prefilledCode, setPrefilledCode] = useState('')
   const [prefilledAttendance, setPrefilledAttendance] = useState(false)
   const [verificationReportId, setVerificationReportId] = useState('')
+  const [listeningFormId, setListeningFormId] = useState('')
   const [requestedSlideId, setRequestedSlideId] = useState('')
   const [attendanceMode, setAttendanceMode] = useState(false)
   const [joinError, setJoinError] = useState('')
@@ -125,9 +128,11 @@ export default function App() {
     const codeFromUrl = params.get('code')?.trim().toUpperCase() ?? ''
     const slideFromUrl = params.get('slide')?.trim() ?? ''
     const reportFromUrl = params.get('verify')?.trim() ?? ''
+    const listeningFromUrl = params.get('escuta')?.trim() ?? ''
     if (codeFromUrl) setPrefilledCode(codeFromUrl)
     if (slideFromUrl) setRequestedSlideId(slideFromUrl)
     if (isValidAttendanceReportId(reportFromUrl)) setVerificationReportId(reportFromUrl)
+    if (listeningFromUrl) setListeningFormId(listeningFromUrl)
     setPrefilledAttendance(params.get('mode') === 'attendance' || params.get('presence') === '1')
   }, [])
 
@@ -138,7 +143,8 @@ export default function App() {
     // guard, an old participant session from localStorage can be restored in
     // the same render and overwrite both the session code and the requested
     // slide from the QR code.
-    const hasExplicitJoinUrl = new URLSearchParams(window.location.search).has('code')
+    const params = new URLSearchParams(window.location.search)
+    const hasExplicitJoinUrl = params.has('code') || params.has('escuta')
     if (hasExplicitJoinUrl) return
 
     const saved = readActiveSession()
@@ -229,6 +235,20 @@ export default function App() {
     setSessionCode('')
     setRequestedSlideId('')
     setAttendanceMode(false)
+  }
+  const goListening = () => {
+    clearActiveSession()
+    setRoute('listening')
+    setSessionCode('')
+    setRequestedSlideId('')
+    setAttendanceMode(false)
+  }
+  const leaveListeningForm = () => {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('escuta')
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+    setListeningFormId('')
+    goPublic()
   }
   const leaveHost = () => {
     clearActiveSession()
@@ -437,13 +457,17 @@ export default function App() {
     }
   }
 
-  let view = verificationReportId ? 'attendance-verification' : route
-  if (!verificationReportId && status === 'loading') view = 'loading'
-  else if (!verificationReportId && (route === 'dashboard' || route === 'builder' || route === 'templates') && status !== 'verified') {
+  let view = verificationReportId
+    ? 'attendance-verification'
+    : listeningFormId
+      ? 'listening-form'
+      : route
+  if (!verificationReportId && !listeningFormId && status === 'loading') view = 'loading'
+  else if (!verificationReportId && !listeningFormId && (route === 'dashboard' || route === 'builder' || route === 'templates' || route === 'listening') && status !== 'verified') {
     view = status === 'anonymous' ? 'login' : 'verify'
-  } else if (!verificationReportId && status === 'verified' && (route === 'login' || route === 'register' || route === 'verify')) {
+  } else if (!verificationReportId && !listeningFormId && status === 'verified' && (route === 'login' || route === 'register' || route === 'verify')) {
     view = 'dashboard'
-  } else if (!verificationReportId && status === 'unverified' && (route === 'login' || route === 'register')) {
+  } else if (!verificationReportId && !listeningFormId && status === 'unverified' && (route === 'login' || route === 'register')) {
     view = 'verify'
   }
 
@@ -467,6 +491,14 @@ export default function App() {
 
   if (view === 'attendance-verification') {
     return <AttendanceVerificationView key={verificationReportId} reportId={verificationReportId} onBack={goPublic} />
+  }
+
+  if (view === 'listening-form') {
+    return (
+      <Suspense fallback={<FullPageLoader label="Carregando escuta..." />}>
+        <ListeningFormView key={listeningFormId} formId={listeningFormId} onBack={leaveListeningForm} />
+      </Suspense>
+    )
   }
 
   if (view === 'login') {
@@ -493,8 +525,17 @@ export default function App() {
         onDeleteSession={(session) => deleteSession(session.code)}
         onDuplicate={handleDuplicate}
         onDelete={handleDelete}
+        onListening={goListening}
         onLogout={goPublic}
       />
+    )
+  }
+
+  if (view === 'listening') {
+    return (
+      <Suspense fallback={<FullPageLoader label="Carregando escutas..." />}>
+        <ListeningDashboard onBack={goDashboard} onTemplates={goTemplatePicker} onLogout={goPublic} />
+      </Suspense>
     )
   }
 
@@ -504,6 +545,7 @@ export default function App() {
         initialTitle={pendingTitle}
         initialTemplateId={pendingTemplateId}
         onBack={goDashboard}
+        onListening={goListening}
         onConfirm={({ templateId, title, eventKey }) => {
           const template = TEMPLATE_BY_ID[templateId]
           const slides = template ? template.build() : [createSlideDraft()]

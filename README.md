@@ -55,6 +55,8 @@ Público (mobile, sem login)            Apresentador (desktop, autenticado em do
   │    responses/         respostas por slide      │
   │    reactions/         reações efêmeras (4,2s)  │
   │    participants/      presença (heartbeat)     │
+  │  listeningForms/{id}  escuta pública (owner)   │
+  │    entries/           ideias enviadas           │
   └────────────────────────────────────────────────┘
 ```
 
@@ -76,6 +78,16 @@ Ao gerar a lista de presença, o Fala SEC cria um relatório selado em `attendan
 O PDF inclui um QR Code e um endereço público `?verify={reportId}`. A página de validação consulta o relatório selado no Firestore e permite selecionar o PDF para conferir sua impressão digital no navegador. Relatórios selados não podem ser editados ou apagados pelas regras do Firestore.
 
 Esse mecanismo comprova a origem e a integridade do arquivo dentro do Fala SEC. Ele não constitui assinatura digital ICP-Brasil nem prova física de presença.
+
+### Escutas públicas de ideias
+
+O estúdio também permite criar **Escutas**, experiências independentes de apresentações e sessões ao vivo. Cada escuta tem título, texto de abertura e pergunta principal configuráveis. A página pública usa o catálogo de unidades em atividade extraído de `CODIGO SEC E MEC.xlsx`; é possível pesquisar pelo nome, código SEC ou código MEC/INEP. O participante informa nome e unidade, propõe uma ideia, explica sua importância e, se quiser, registra uma pergunta ou experiência para a conversa. O link público usa `?escuta={id}`.
+
+As contribuições ficam em tempo real no mural do responsável pela escuta. O responsável pode copiar ou abrir o link público e encerrar/reabrir o recebimento. As regras do Firestore deixam o formulário público legível apenas enquanto estiver aberto, validam o código SEC da unidade contra os códigos disponíveis e reservam a leitura das contribuições ao dono autenticado.
+
+O catálogo (`src/data/schoolUnits.json`) contém somente nome, município e códigos das unidades ativas, sem os demais dados da planilha. Os dados ficam em `listeningForms/{id}` e `listeningForms/{id}/entries/{entryId}`; as respostas guardam o nome informado e o código SEC escolhido.
+
+Escutas também podem ser criadas no modo **Votação**, com uma escolha única entre 2 e 10 opções e apuração em tempo real no mural. O modo da Jornada Pedagógica 2027 pode usar seis opções iniciais: “200 Anos de Escola Pública”, “Aprendizagem & Equidade”, “Plano Estadual (PEE-BA)”, “Educação e territorialidade”, “Aprendizagem, inclusão e democracia” e “Escola que forma, juventude que transformam”. A escolha do votante é salva em documento imutável, usando um identificador por formulário na sessão do navegador para evitar repetir o envio na mesma aba.
 
 ---
 
@@ -107,12 +119,14 @@ src/
     firebaseAuth.js        signIn/signUp/signOut/verificação de domínio
     firebaseSessions.js    sessões + responses/reactions/participants (realtime)
     firebasePresentations.js  CRUD de decks (owner-scoped)
+    firebaseListening.js     escutas públicas + contribuições
   hooks/
     useAuth.js             consome AuthContext
     useSession.js          session + responses + participants (onSnapshot)
     useReactions.js        reações (lifetime filter) + send
     usePresence.js         heartbeat de presença
     useSavedPresentations.js  lista de decks do usuário
+    useListeningForms.js     lista de escutas do usuário
   components/
     ui/                    Button, Card, Input, Textarea, Badge, Logo, Spinner,
                            Modal, EmptyState, WaveBackground
@@ -126,6 +140,8 @@ src/
     RegisterView.jsx       cadastro (domínios permitidos)
     VerifyEmailView.jsx    confirmação de e-mail
     PresenterDashboard.jsx estúdio: lista de apresentações
+    ListeningDashboard.jsx  criação, links e mural de escutas
+    ListeningFormView.jsx   página pública de contribuição
     PresentationBuilder.jsx editor de slides (sidebar + preview)
     HostView.jsx           projeção ao vivo (QR, código, resultados, reações)
     ParticipantView.jsx    resposta do público (mobile-first)

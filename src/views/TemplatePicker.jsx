@@ -19,6 +19,7 @@ const FILTERS = [
 
 export default function TemplatePicker({
   onBack,
+  onListening,
   onConfirm,
   initialTitle = '',
   initialTemplateId = 'blank',
@@ -55,6 +56,7 @@ export default function TemplatePicker({
       name={displayName || email?.split('@')[0]}
       email={email}
       onPresentations={onBack}
+      onListening={onListening}
       onTemplates={() => setFilter('all')}
     >
       <div className="workspace-title-row">

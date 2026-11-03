@@ -176,6 +176,7 @@ export function DashboardContent({
   name,
   email,
   onNew,
+  onListening,
   onEdit,
   onPresent,
   onDuplicate,
@@ -303,6 +304,7 @@ export function DashboardContent({
       email={email}
       active="presentations"
       onPresentations={() => setQuery('')}
+      onListening={onListening}
       onTemplates={() => onNew('blank')}
       onLogout={onLogout}
     >
