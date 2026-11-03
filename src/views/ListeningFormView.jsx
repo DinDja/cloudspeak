@@ -197,6 +197,7 @@ export default function ListeningFormView({ formId, onBack }) {
                       id="voice-school-search"
                       role="combobox"
                       aria-required="true"
+                      aria-invalid={Boolean(submitError && !values.schoolId)}
                       aria-autocomplete="list"
                       aria-expanded={schoolPickerOpen}
                       aria-controls="voice-school-options"
@@ -225,7 +226,7 @@ export default function ListeningFormView({ formId, onBack }) {
                           setSchoolPickerOpen(true)
                           setActiveSchoolIndex((index) => Math.max(index - 1, 0))
                         }
-                        if (event.key === 'Enter' && schoolPickerOpen && visibleSchools.length) {
+                        if (event.key === 'Enter' && schoolPickerOpen) {
                           event.preventDefault()
                           if (visibleSchools[activeSchoolIndex]) chooseSchool(visibleSchools[activeSchoolIndex])
                         }
@@ -246,7 +247,9 @@ export default function ListeningFormView({ formId, onBack }) {
                                 role="option"
                                 aria-selected={activeSchoolIndex === index}
                                 key={school.codSec}
-                                onPointerDown={(event) => event.preventDefault()}
+                                onPointerDown={(event) => {
+                                  if (event.pointerType === 'mouse') event.preventDefault()
+                                }}
                                 onPointerEnter={() => setActiveSchoolIndex(index)}
                                 onClick={() => chooseSchool(school)}
                               >
@@ -268,7 +271,7 @@ export default function ListeningFormView({ formId, onBack }) {
                     )}
                   </div>
                   {selectedSchool && !schoolPickerOpen && (
-                    <span className="voice-school-selected">
+                    <span className="voice-school-selected" role="status" aria-live="polite">
                       Selecionada: {selectedSchool.name} · SEC {selectedSchool.codSec}
                       {selectedSchool.codInep ? ` · MEC/INEP ${selectedSchool.codInep}` : ''}
                     </span>

@@ -3749,7 +3749,7 @@ body.cloudspeak-builder-active {
   color: var(--fala-ink);
 }
 .voice-header {
-  width: min(1120px, 100%);
+  width: min(1120px, calc(100% - 48px));
   min-height: 88px;
   display: flex;
   align-items: center;
@@ -3765,7 +3765,7 @@ body.cloudspeak-builder-active {
   letter-spacing: 0.16em;
 }
 .voice-main {
-  width: min(850px, 100%);
+  width: min(920px, calc(100% - 48px));
   margin: 0 auto;
   padding: clamp(42px, 8vw, 92px) 0 80px;
 }
@@ -3795,11 +3795,12 @@ body.cloudspeak-builder-active {
   max-width: 700px;
   margin: 20px 0 15px;
   font-family: 'Barlow Condensed', Impact, sans-serif;
-  font-size: clamp(43px, 7vw, 76px);
+  font-size: clamp(38px, 7vw, 76px);
   font-weight: 600;
   line-height: 0.98;
   letter-spacing: -0.02em;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 .voice-intro > p,
 .voice-state > p:not(.fala-eyebrow),
@@ -3827,9 +3828,10 @@ body.cloudspeak-builder-active {
   color: #6a8050;
 }
 .voice-form {
-  padding: clamp(23px, 5vw, 45px);
+  padding: clamp(24px, 5vw, 48px);
   border: 1px solid #dedbd2;
-  background: rgba(255, 255, 255, 0.82);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 22px 65px rgba(38, 35, 29, 0.07);
 }
 .voice-form__heading {
@@ -3840,7 +3842,7 @@ body.cloudspeak-builder-active {
   margin: 0 0 22px;
   border-bottom: 1px solid var(--fala-rule);
   color: var(--fala-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.13em;
 }
@@ -3888,30 +3890,53 @@ body.cloudspeak-builder-active {
   font-weight: 400;
   line-height: 1.6;
 }
+.voice-page .voice-field input,
+.voice-page .voice-field textarea,
+.voice-page .voice-field select {
+  min-height: 52px;
+  border-radius: 5px;
+  font-size: 16px;
+}
+.voice-page .voice-field input:focus-visible,
+.voice-page .voice-field textarea:focus-visible {
+  border-color: var(--fala-accent);
+  outline: 3px solid rgba(104, 67, 161, 0.15);
+  outline-offset: 1px;
+}
+.voice-page .voice-field input[aria-invalid="true"] {
+  border-color: #b94a48;
+}
 .voice-field textarea {
   min-height: 100px;
   resize: vertical;
 }
 .voice-school-picker {
   position: relative;
+  z-index: 5;
 }
 .voice-school-options {
   position: absolute;
-  z-index: 20;
+  z-index: 40;
   top: calc(100% + 4px);
   right: 0;
   left: 0;
   max-height: 290px;
-  overflow: auto;
+  max-height: min(360px, 48dvh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  border-radius: 7px;
   border: 1px solid #d3d0c8;
   background: #fff;
   box-shadow: 0 12px 30px rgba(38, 35, 29, 0.13);
 }
 .voice-school-options > button {
   display: grid;
-  gap: 5px;
+  gap: 6px;
   width: 100%;
-  padding: 11px 13px;
+  min-height: 64px;
+  padding: 12px 15px;
   border-bottom: 1px solid #eeece6;
   text-align: left;
 }
@@ -3920,13 +3945,13 @@ body.cloudspeak-builder-active {
   background: #f2eef7;
 }
 .voice-school-options > button strong {
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.45;
 }
 .voice-school-options > button span,
 .voice-school-options > p {
   color: var(--fala-muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 400;
   line-height: 1.5;
 }
@@ -3935,11 +3960,16 @@ body.cloudspeak-builder-active {
 }
 .voice-school-selected {
   display: block;
-  margin-top: -12px;
+  padding: 10px 12px;
+  margin-top: -8px;
+  border-left: 2px solid #7c9a5c;
+  border-radius: 0 5px 5px 0;
+  background: #f0f3eb;
   color: #536348;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 .voice-field input::placeholder,
 .voice-field textarea::placeholder {
@@ -4004,7 +4034,7 @@ body.cloudspeak-builder-active {
   color: #627849;
 }
 .voice-footer {
-  width: min(1120px, 100%);
+  width: min(1120px, calc(100% - 48px));
   padding: 22px 0;
   margin: 0 auto;
   border-top: 1px solid var(--fala-rule);
@@ -4378,7 +4408,7 @@ body.cloudspeak-builder-active {
   font-size: 11px;
 }
 .vote-option strong {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.45;
 }
@@ -4427,7 +4457,12 @@ body.cloudspeak-builder-active {
     min-height: 70px;
   }
   .voice-main {
-    padding: 48px 0 56px;
+    padding: 42px 0 56px;
+  }
+  .voice-header,
+  .voice-main,
+  .voice-footer {
+    width: calc(100% - 36px);
   }
   .voice-fields,
   .voice-admin-layout {
@@ -4452,14 +4487,78 @@ body.cloudspeak-builder-active {
 }
 
 @media (max-width: 480px) {
-  .voice-header__label {
-    font-size: 8px;
+  .voice-header,
+  .voice-main,
+  .voice-footer {
+    width: calc(100% - 32px);
+  }
+  .voice-main {
+    padding: 34px 0 44px;
+  }
+  .voice-intro {
+    margin-bottom: 24px;
+  }
+  .voice-intro h1,
+  .voice-state h1,
+  .voice-thanks h1 {
+    font-size: clamp(36px, 12vw, 52px);
+    line-height: 0.98;
+  }
+  .voice-intro > p,
+  .voice-state > p:not(.fala-eyebrow),
+  .voice-thanks > p:not(.fala-eyebrow) {
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  .voice-note {
+    gap: 9px;
+    padding: 12px;
+    font-size: 12px;
   }
   .voice-form {
     padding: 20px 16px;
+    border-radius: 8px;
   }
-  .voice-form__heading > span:last-child {
-    text-align: right;
+  .voice-form__heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px;
+    font-size: 9px;
+    letter-spacing: 0.09em;
+  }
+  .voice-form__heading > span {
+    overflow-wrap: anywhere;
+  }
+  .voice-fields {
+    gap: 0;
+  }
+  .voice-page .voice-field {
+    margin-bottom: 18px;
+  }
+  .voice-school-options {
+    max-height: 50dvh;
+  }
+  .voice-school-options > button {
+    min-height: 68px;
+    padding: 13px 12px;
+  }
+  .vote-option {
+    grid-template-columns: 18px 22px minmax(0, 1fr);
+    gap: 9px;
+    padding: 13px 11px;
+  }
+  .vote-option strong {
+    font-size: 14px;
+  }
+  .voice-submit-row {
+    gap: 14px;
+  }
+  .voice-submit-row .fala-button {
+    min-height: 50px;
+    justify-content: center;
+  }
+  .voice-header__label {
+    font-size: 8px;
   }
   .voice-prompt {
     padding: 16px 13px 1px;
