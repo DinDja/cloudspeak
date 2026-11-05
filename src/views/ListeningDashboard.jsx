@@ -6,6 +6,10 @@ import SCHOOL_UNITS from '../data/schoolUnits.json'
 import { useAuth } from '../hooks/useAuth'
 import { useListeningForms } from '../hooks/useListeningForms'
 import {
+  DEFAULT_VOTE_TITLE_SELECTION_LIMIT,
+  MAX_VOTE_TITLE_SELECTION_LIMIT,
+} from '../lib/constants'
+import {
   createListeningForm,
   deleteListeningForm,
   parseListeningOptions,
@@ -140,6 +144,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   const [topicPrompt, setTopicPrompt] = useState(INITIAL_TOPIC_PROMPT)
   const [consultationPeriod, setConsultationPeriod] = useState(INITIAL_CONSULTATION_PERIOD)
   const [mode, setMode] = useState('open')
+  const [maxTitleSelections, setMaxTitleSelections] = useState(DEFAULT_VOTE_TITLE_SELECTION_LIMIT)
   const [voteOptions, setVoteOptions] = useState(() => JOURNEY_VOTE_OPTIONS.map((option) => ({
     ...option,
     titlesText: option.titles.join('\n'),
@@ -239,6 +244,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
     setTopicPrompt(INITIAL_TOPIC_PROMPT)
     setConsultationPeriod(INITIAL_CONSULTATION_PERIOD)
     setMode('open')
+    setMaxTitleSelections(DEFAULT_VOTE_TITLE_SELECTION_LIMIT)
     setVoteOptions(JOURNEY_VOTE_OPTIONS.map((option) => ({
       ...option,
       titlesText: option.titles.join('\n'),
@@ -255,6 +261,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
     setTopicPrompt(form.topicPrompt ?? '')
     setConsultationPeriod(form.consultationPeriod ?? INITIAL_CONSULTATION_PERIOD)
     setMode(form.mode ?? 'open')
+    setMaxTitleSelections(form.maxTitleSelections ?? DEFAULT_VOTE_TITLE_SELECTION_LIMIT)
     setVoteOptions((form.options ?? []).map((option) => ({
       label: getVoteOptionLabel(option),
       titlesText: getVoteOptionTitles(option).join('\n'),
@@ -319,6 +326,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
           topicPrompt,
           consultationPeriod,
           mode,
+          maxTitleSelections,
           ...(optionsLocked ? {} : { options }),
         })
       } else {
@@ -329,6 +337,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
           topicPrompt,
           consultationPeriod,
           mode,
+          maxTitleSelections,
           options,
         })
         setSelectedId(created.id)
@@ -569,7 +578,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                             {selectedForm.mode === 'vote' && titles.length > 0 && (
                               <div className="vote-subresults">
                                 <p className="vote-subresults__note">
-                                  Percentual de quem escolheu este tema; cada participante pode marcar até quatro propostas.
+                                  Percentual de quem escolheu este tema; cada participante pode marcar até {selectedForm.maxTitleSelections ?? DEFAULT_VOTE_TITLE_SELECTION_LIMIT} propostas.
                                 </p>
                                 {titles.map((title, titleIndex) => {
                                   const titlePercentage = selectedThemeCount
@@ -772,6 +781,25 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
               placeholder="Ex.: A consulta está disponível de 4 a 8 de novembro."
             />
           </label>
+          {mode === 'vote' && (
+            <label className="voice-field">
+              <span>Limite de títulos por participante</span>
+              <input
+                type="number"
+                min={1}
+                max={MAX_VOTE_TITLE_SELECTION_LIMIT}
+                step={1}
+                required
+                value={maxTitleSelections}
+                disabled={optionsLocked}
+                onChange={(event) => setMaxTitleSelections(Number(event.target.value))}
+              />
+              <small>
+                Cada participante poderá selecionar de 1 a {maxTitleSelections} títulos, respeitando a quantidade disponível no tema.
+                {optionsLocked && ' O limite fica bloqueado depois do primeiro voto.'}
+              </small>
+            </label>
+          )}
           {mode === 'vote_simple' && !optionsLocked && (
             <section className="voice-vote-editor" aria-label="Opções da votação simples">
               <div className="voice-vote-editor__heading">

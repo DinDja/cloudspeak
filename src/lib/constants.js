@@ -3,6 +3,8 @@ export { CHART_PALETTE } from './colors'
 export const PRESENCE_TTL_MS = 45000
 export const PRESENCE_HEARTBEAT_MS = 15000
 export const REACTION_LIFETIME_MS = 4200
+export const DEFAULT_VOTE_TITLE_SELECTION_LIMIT = 4
+export const MAX_VOTE_TITLE_SELECTION_LIMIT = 30
 
 export const TEAM_SELECTION_TYPE = 'team_selection'
 export const SUMMARY_TYPE = 'summary'

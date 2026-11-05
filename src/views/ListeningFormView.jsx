@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowLeft, ArrowRight, Feather, Sprout } from 'lucide-react'
 import Logo from '../components/ui/Logo'
 import SCHOOL_UNITS from '../data/schoolUnits.json'
+import {
+  DEFAULT_VOTE_TITLE_SELECTION_LIMIT,
+  MAX_VOTE_TITLE_SELECTION_LIMIT,
+} from '../lib/constants'
 import { getListeningForm, getSubmittedVoterName, submitListeningEntry } from '../lib/firebaseListening'
 
 const normalizeSearch = (value) => String(value ?? '')
@@ -110,6 +114,11 @@ export default function ListeningFormView({ formId, onBack }) {
   const selectedVoteOption = values.choiceIndex === ''
     ? null
     : form?.options?.[Number(values.choiceIndex)]
+  const maxTitleSelections = Number.isInteger(form?.maxTitleSelections)
+    ? form.maxTitleSelections
+    : DEFAULT_VOTE_TITLE_SELECTION_LIMIT
+  const selectedTitles = Array.isArray(selectedVoteOption?.titles) ? selectedVoteOption.titles : []
+  const maxSelectionsForSelectedTheme = Math.min(maxTitleSelections, selectedTitles.length)
   const hasContext = values.name.trim().length >= 2
     && Boolean(values.occupation)
     && (values.occupation !== 'Outro' || values.otherOccupation.trim().length >= 2)
@@ -117,7 +126,8 @@ export default function ListeningFormView({ formId, onBack }) {
     ? Boolean(selectedVoteOption)
       && (!Array.isArray(selectedVoteOption?.titles)
         || selectedVoteOption.titles.length === 0
-        || (values.subChoiceIndexes.length >= 1 && values.subChoiceIndexes.length <= 4))
+        || (values.subChoiceIndexes.length >= 1
+          && values.subChoiceIndexes.length <= maxSelectionsForSelectedTheme))
     : form?.mode === 'vote_simple'
       ? Boolean(selectedVoteOption)
       : values.theme.trim().length >= 5 && values.importance.trim().length >= 10
@@ -153,8 +163,8 @@ export default function ListeningFormView({ formId, onBack }) {
           setSubmitError('Escolha pelo menos uma proposta do tema selecionado.')
           return
         }
-        if (values.subChoiceIndexes.length > 4) {
-          setSubmitError('Você pode escolher no máximo quatro propostas.')
+        if (values.subChoiceIndexes.length > maxTitleSelections) {
+          setSubmitError(`Você pode escolher no máximo ${maxTitleSelections} propostas.`)
           return
         }
       }
@@ -167,6 +177,7 @@ export default function ListeningFormView({ formId, onBack }) {
         formId,
         mode: form.mode ?? 'open',
         options: form.options,
+        maxTitleSelections,
         ...values,
         choiceIndex: values.choiceIndex === '' ? -1 : Number(values.choiceIndex),
         subChoiceIndexes: values.subChoiceIndexes.map(Number),
@@ -232,7 +243,7 @@ export default function ListeningFormView({ formId, onBack }) {
               <div className="voice-note">
                 {isVoteFormMode(form.mode) ? <Sprout size={17} /> : <Feather size={17} />}
                 <span>{form.mode === 'vote'
-                  ? 'Escolha um tema e marque até quatro propostas relacionadas. Este navegador registra apenas um voto por escuta nesta aba.'
+                  ? `Escolha um tema e marque até ${maxTitleSelections} propostas relacionadas. Este navegador registra apenas um voto por escuta nesta aba.`
                   : form.mode === 'vote_simple'
                     ? 'Escolha uma das opções e confirme. Este navegador registra apenas um voto por escuta nesta aba.'
                     : 'Não é uma votação. É um convite para dizer o que merece espaço na conversa.'}</span>
@@ -434,7 +445,7 @@ export default function ListeningFormView({ formId, onBack }) {
                 <>
                   <div className="voice-form__heading">
                     <span id="voice-step-contribution">02 — TEMA E PROPOSTAS</span>
-                    <span>1 TEMA · ATÉ 4 PROPOSTAS</span>
+                    <span>1 TEMA · ATÉ {maxTitleSelections} PROPOSTAS</span>
                   </div>
                   <div className="vote-theme-list" role="radiogroup" aria-label={form.topicPrompt}>
                     {form.options.map((option, index) => {
@@ -494,11 +505,11 @@ export default function ListeningFormView({ formId, onBack }) {
                           {isExpanded && titles.length > 0 && (
                             <fieldset className="vote-options vote-suboptions" id={suboptionsId}>
                               <legend>
-                                Escolha até 4 propostas ({values.subChoiceIndexes.length}/4 selecionadas)
+                                Escolha até {Math.min(maxTitleSelections, titles.length)} propostas ({values.subChoiceIndexes.length}/{Math.min(maxTitleSelections, titles.length)} selecionadas)
                               </legend>
                               {titles.map((title, titleIndex) => (
                                 <label
-                                  className={`vote-option vote-suboption${values.subChoiceIndexes.includes(titleIndex) ? ' is-selected' : ''}${!values.subChoiceIndexes.includes(titleIndex) && values.subChoiceIndexes.length >= 4 ? ' is-disabled' : ''}`}
+                                  className={`vote-option vote-suboption${values.subChoiceIndexes.includes(titleIndex) ? ' is-selected' : ''}${!values.subChoiceIndexes.includes(titleIndex) && values.subChoiceIndexes.length >= Math.min(maxTitleSelections, titles.length) ? ' is-disabled' : ''}`}
                                   key={`${titleIndex}-${title}`}
                                 >
                                   <input
@@ -508,7 +519,7 @@ export default function ListeningFormView({ formId, onBack }) {
                                     checked={values.subChoiceIndexes.includes(titleIndex)}
                                     disabled={
                                       !values.subChoiceIndexes.includes(titleIndex)
-                                      && values.subChoiceIndexes.length >= 4
+                                      && values.subChoiceIndexes.length >= Math.min(maxTitleSelections, titles.length)
                                     }
                                     onChange={(event) => {
                                       const selected = values.subChoiceIndexes

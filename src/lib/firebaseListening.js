@@ -15,6 +15,10 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../firebase'
 import SCHOOL_UNITS from '../data/schoolUnits.json'
+import {
+  DEFAULT_VOTE_TITLE_SELECTION_LIMIT,
+  MAX_VOTE_TITLE_SELECTION_LIMIT,
+} from './constants'
 
 const formsCol = () => collection(db, 'listeningForms')
 const formRef = (id) => doc(db, 'listeningForms', id)
@@ -111,7 +115,16 @@ export const getSubmittedVoterName = (formId) => {
   }
 }
 
-export const createListeningForm = async ({ ownerUid, title, introduction, topicPrompt, consultationPeriod, mode = 'open', options = [] }) => {
+export const createListeningForm = async ({
+  ownerUid,
+  title,
+  introduction,
+  topicPrompt,
+  consultationPeriod,
+  mode = 'open',
+  options = [],
+  maxTitleSelections = DEFAULT_VOTE_TITLE_SELECTION_LIMIT,
+}) => {
   const cleanTitle = cleanText(title)
   const cleanIntroduction = String(introduction ?? '').trim()
   const cleanTopicPrompt = cleanText(topicPrompt)
@@ -129,6 +142,11 @@ export const createListeningForm = async ({ ownerUid, title, introduction, topic
     if (cleanConsultationPeriod.length > 180) {
       throw new Error('O período da consulta pode ter no máximo 180 caracteres.')
     }
+    if (!Number.isInteger(maxTitleSelections)
+      || maxTitleSelections < 1
+      || maxTitleSelections > MAX_VOTE_TITLE_SELECTION_LIMIT) {
+      throw new Error(`O limite de títulos deve ser um número entre 1 e ${MAX_VOTE_TITLE_SELECTION_LIMIT}.`)
+    }
     if (isVoteMode(mode)) validateOptions(cleanOptions, mode)
 
     const payload = {
@@ -137,6 +155,7 @@ export const createListeningForm = async ({ ownerUid, title, introduction, topic
       topicPrompt: cleanTopicPrompt,
       consultationPeriod: cleanConsultationPeriod || 'A consulta está disponível de 4 a 8 de novembro.',
       mode,
+      maxTitleSelections,
       options: isVoteMode(mode) ? cleanOptions : [],
       schoolIds: SCHOOL_IDS,
       status: 'open',
@@ -149,7 +168,15 @@ export const createListeningForm = async ({ ownerUid, title, introduction, topic
     return { id: reference.id, ...payload }
   }
 
-  export const updateListeningForm = async (id, { title, introduction, topicPrompt, consultationPeriod, mode = 'open', options }) => {
+  export const updateListeningForm = async (id, {
+    title,
+    introduction,
+    topicPrompt,
+    consultationPeriod,
+    mode = 'open',
+    options,
+    maxTitleSelections = DEFAULT_VOTE_TITLE_SELECTION_LIMIT,
+  }) => {
     const cleanTitle = cleanText(title)
     const cleanIntroduction = String(introduction ?? '').trim()
     const cleanTopicPrompt = cleanText(topicPrompt)
@@ -165,6 +192,11 @@ export const createListeningForm = async ({ ownerUid, title, introduction, topic
       throw new Error('O período da consulta pode ter no máximo 180 caracteres.')
     }
     if (!LISTENING_MODES.includes(mode)) throw new Error('Formato de escuta inválido.')
+    if (!Number.isInteger(maxTitleSelections)
+      || maxTitleSelections < 1
+      || maxTitleSelections > MAX_VOTE_TITLE_SELECTION_LIMIT) {
+      throw new Error(`O limite de títulos deve ser um número entre 1 e ${MAX_VOTE_TITLE_SELECTION_LIMIT}.`)
+    }
 
   const payload = {
     title: cleanTitle,
@@ -172,6 +204,7 @@ export const createListeningForm = async ({ ownerUid, title, introduction, topic
     topicPrompt: cleanTopicPrompt,
     consultationPeriod: cleanConsultationPeriod || 'A consulta está disponível de 4 a 8 de novembro.',
     mode,
+    maxTitleSelections,
     updatedAt: serverTimestamp(),
   }
   if (options !== undefined) {
@@ -233,6 +266,7 @@ export const submitListeningEntry = async ({
   question,
   choiceIndex,
   subChoiceIndexes = [],
+  maxTitleSelections = DEFAULT_VOTE_TITLE_SELECTION_LIMIT,
 }) => {
   const cleanName = cleanText(name)
   const cleanSchoolId = cleanText(schoolId)
@@ -263,14 +297,20 @@ export const submitListeningEntry = async ({
     const voterId = getVoterId(formId)
 
     if (mode === 'vote') {
+      if (!Number.isInteger(maxTitleSelections)
+        || maxTitleSelections < 1
+        || maxTitleSelections > MAX_VOTE_TITLE_SELECTION_LIMIT) {
+        throw new Error(`O limite de títulos deve ser um número entre 1 e ${MAX_VOTE_TITLE_SELECTION_LIMIT}.`)
+      }
+
       const selectedOption = options[choiceIndex]
       const titles = Array.isArray(selectedOption?.titles) ? selectedOption.titles : []
       if (!Array.isArray(subChoiceIndexes)) {
         throw new Error('Selecione as propostas do tema escolhido.')
       }
       const selectedTitles = [...new Set(subChoiceIndexes)]
-      if (titles.length && (selectedTitles.length < 1 || selectedTitles.length > 4)) {
-        throw new Error('Selecione de uma a quatro propostas para o tema escolhido.')
+      if (titles.length && (selectedTitles.length < 1 || selectedTitles.length > maxTitleSelections)) {
+        throw new Error(`Selecione de uma a ${maxTitleSelections} propostas para o tema escolhido.`)
       }
       if (selectedTitles.some((index) => !Number.isInteger(index) || index < 0 || index >= titles.length)) {
         throw new Error('Uma das propostas selecionadas não pertence ao tema escolhido.')

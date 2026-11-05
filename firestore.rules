@@ -80,11 +80,11 @@ service cloud.firestore {
 
       allow create: if isSecUser()
         && request.resource.data.keys().hasOnly([
-          'title', 'introduction', 'topicPrompt', 'consultationPeriod', 'mode', 'options', 'schoolIds',
+          'title', 'introduction', 'topicPrompt', 'consultationPeriod', 'mode', 'maxTitleSelections', 'options', 'schoolIds',
           'status', 'ownerUid', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.keys().hasAll([
-          'title', 'introduction', 'topicPrompt', 'consultationPeriod', 'mode', 'options', 'schoolIds',
+          'title', 'introduction', 'topicPrompt', 'consultationPeriod', 'mode', 'maxTitleSelections', 'options', 'schoolIds',
           'status', 'ownerUid', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.ownerUid == request.auth.uid
@@ -93,6 +93,9 @@ service cloud.firestore {
         && isString(request.resource.data.topicPrompt, 5, 180)
         && isString(request.resource.data.consultationPeriod, 0, 180)
         && request.resource.data.mode in ['open', 'vote', 'vote_simple']
+        && request.resource.data.maxTitleSelections is int
+        && request.resource.data.maxTitleSelections >= 1
+        && request.resource.data.maxTitleSelections <= 30
         && request.resource.data.options is list
         && (request.resource.data.mode == 'open'
             ? request.resource.data.options.size() == 0
@@ -108,7 +111,7 @@ service cloud.firestore {
       allow update: if isSecUser()
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status', 'title', 'introduction', 'topicPrompt', 'consultationPeriod', 'mode', 'options', 'updatedAt'
+          'status', 'title', 'introduction', 'topicPrompt', 'consultationPeriod', 'mode', 'maxTitleSelections', 'options', 'updatedAt'
         ])
         && request.resource.data.status in ['open', 'closed']
         && request.resource.data.updatedAt == request.time
@@ -117,6 +120,10 @@ service cloud.firestore {
         && isString(request.resource.data.topicPrompt, 5, 180)
         && isString(request.resource.data.consultationPeriod, 0, 180)
         && request.resource.data.mode in ['open', 'vote', 'vote_simple']
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['maxTitleSelections'])
+            || (request.resource.data.maxTitleSelections is int
+                && request.resource.data.maxTitleSelections >= 1
+                && request.resource.data.maxTitleSelections <= 30))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['options'])
             || (request.resource.data.options is list
                 && (request.resource.data.mode == 'open'
@@ -184,19 +191,42 @@ service cloud.firestore {
         function isValidSubChoiceIndexes(titles, indexes) {
           return indexes is list
             && indexes.size() >= 1
-            && indexes.size() <= 4
+            && indexes.size() <= (
+              get(/databases/$(database)/documents/listeningForms/$(formId)).data.keys().hasAll(['maxTitleSelections'])
+                ? get(/databases/$(database)/documents/listeningForms/$(formId)).data.maxTitleSelections
+                : 4
+            )
+            && indexes.toSet().size() == indexes.size()
             && isValidSubChoiceIndex(titles, indexes[0])
-            && (indexes.size() < 2
-              || (isValidSubChoiceIndex(titles, indexes[1]) && indexes[0] != indexes[1]))
-            && (indexes.size() < 3
-              || (isValidSubChoiceIndex(titles, indexes[2])
-                && indexes[0] != indexes[2]
-                && indexes[1] != indexes[2]))
-            && (indexes.size() < 4
-              || (isValidSubChoiceIndex(titles, indexes[3])
-                && indexes[0] != indexes[3]
-                && indexes[1] != indexes[3]
-                && indexes[2] != indexes[3]));
+            && (indexes.size() < 2 || isValidSubChoiceIndex(titles, indexes[1]))
+            && (indexes.size() < 3 || isValidSubChoiceIndex(titles, indexes[2]))
+            && (indexes.size() < 4 || isValidSubChoiceIndex(titles, indexes[3]))
+            && (indexes.size() < 5 || isValidSubChoiceIndex(titles, indexes[4]))
+            && (indexes.size() < 6 || isValidSubChoiceIndex(titles, indexes[5]))
+            && (indexes.size() < 7 || isValidSubChoiceIndex(titles, indexes[6]))
+            && (indexes.size() < 8 || isValidSubChoiceIndex(titles, indexes[7]))
+            && (indexes.size() < 9 || isValidSubChoiceIndex(titles, indexes[8]))
+            && (indexes.size() < 10 || isValidSubChoiceIndex(titles, indexes[9]))
+            && (indexes.size() < 11 || isValidSubChoiceIndex(titles, indexes[10]))
+            && (indexes.size() < 12 || isValidSubChoiceIndex(titles, indexes[11]))
+            && (indexes.size() < 13 || isValidSubChoiceIndex(titles, indexes[12]))
+            && (indexes.size() < 14 || isValidSubChoiceIndex(titles, indexes[13]))
+            && (indexes.size() < 15 || isValidSubChoiceIndex(titles, indexes[14]))
+            && (indexes.size() < 16 || isValidSubChoiceIndex(titles, indexes[15]))
+            && (indexes.size() < 17 || isValidSubChoiceIndex(titles, indexes[16]))
+            && (indexes.size() < 18 || isValidSubChoiceIndex(titles, indexes[17]))
+            && (indexes.size() < 19 || isValidSubChoiceIndex(titles, indexes[18]))
+            && (indexes.size() < 20 || isValidSubChoiceIndex(titles, indexes[19]))
+            && (indexes.size() < 21 || isValidSubChoiceIndex(titles, indexes[20]))
+            && (indexes.size() < 22 || isValidSubChoiceIndex(titles, indexes[21]))
+            && (indexes.size() < 23 || isValidSubChoiceIndex(titles, indexes[22]))
+            && (indexes.size() < 24 || isValidSubChoiceIndex(titles, indexes[23]))
+            && (indexes.size() < 25 || isValidSubChoiceIndex(titles, indexes[24]))
+            && (indexes.size() < 26 || isValidSubChoiceIndex(titles, indexes[25]))
+            && (indexes.size() < 27 || isValidSubChoiceIndex(titles, indexes[26]))
+            && (indexes.size() < 28 || isValidSubChoiceIndex(titles, indexes[27]))
+            && (indexes.size() < 29 || isValidSubChoiceIndex(titles, indexes[28]))
+            && (indexes.size() < 30 || isValidSubChoiceIndex(titles, indexes[29]));
         }
 
         function isValidVoteChoice(options, entry) {
@@ -509,4 +539,3 @@ service cloud.firestore {
     }
   }
 }
-
