@@ -8,6 +8,12 @@ const normalizeSearch = (value) => String(value ?? '')
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
   .toLocaleLowerCase('pt-BR')
+const isVoteFormMode = (mode) => mode === 'vote' || mode === 'vote_simple'
+const getFormModeLabel = (mode) => {
+  if (mode === 'vote_simple') return 'VOTAÇÃO SIMPLES'
+  if (mode === 'vote') return 'VOTAÇÃO ABERTA'
+  return 'ESCUTA ABERTA'
+}
 
 export default function ListeningFormView({ formId, onBack }) {
   const [form, setForm] = useState(null)
@@ -24,6 +30,7 @@ export default function ListeningFormView({ formId, onBack }) {
     importance: '',
     question: '',
   })
+  const [expandedChoiceIndex, setExpandedChoiceIndex] = useState(null)
   const [schoolSearch, setSchoolSearch] = useState('')
   const [schoolPickerOpen, setSchoolPickerOpen] = useState(false)
   const [activeSchoolIndex, setActiveSchoolIndex] = useState(0)
@@ -74,7 +81,7 @@ export default function ListeningFormView({ formId, onBack }) {
       .then((result) => {
         if (!active) return
         if (!result || result.status !== 'open') {
-          setLoadError('Esta escuta não está recebendo novas ideias no momento.')
+          setLoadError('Esta escuta não está recebendo novas respostas no momento.')
           return
         }
         setForm(result)
@@ -83,7 +90,7 @@ export default function ListeningFormView({ formId, onBack }) {
         console.error('getListeningForm failed', error)
         if (active) {
           setLoadError(error.code === 'permission-denied'
-            ? 'Esta escuta não está recebendo novas ideias no momento.'
+            ? 'Esta escuta não está recebendo novas respostas no momento.'
             : 'Não foi possível abrir esta escuta. Verifique o link ou tente novamente.')
         }
       })
@@ -99,6 +106,23 @@ export default function ListeningFormView({ formId, onBack }) {
   const updateValue = (key, value) => {
     setValues((current) => ({ ...current, [key]: value }))
   }
+
+  const selectedVoteOption = values.choiceIndex === ''
+    ? null
+    : form?.options?.[Number(values.choiceIndex)]
+  const hasContext = values.name.trim().length >= 2
+    && Boolean(values.occupation)
+    && (values.occupation !== 'Outro' || values.otherOccupation.trim().length >= 2)
+  const hasContribution = form?.mode === 'vote'
+    ? Boolean(selectedVoteOption)
+      && (!Array.isArray(selectedVoteOption?.titles)
+        || selectedVoteOption.titles.length === 0
+        || (values.subChoiceIndexes.length >= 1 && values.subChoiceIndexes.length <= 4))
+    : form?.mode === 'vote_simple'
+      ? Boolean(selectedVoteOption)
+      : values.theme.trim().length >= 5 && values.importance.trim().length >= 10
+  const completedSteps = Number(hasContext) + Number(hasContribution)
+  const currentStep = hasContext ? (hasContribution ? 0 : 2) : 1
 
   const chooseSchool = (school) => {
     updateValue('schoolId', school.codSec)
@@ -118,18 +142,21 @@ export default function ListeningFormView({ formId, onBack }) {
       setSubmitError('Informe sua ocupação no campo “Outro”.')
       return
     }
-    if (form.mode === 'vote') {
+    if (isVoteFormMode(form.mode)) {
       const selectedOption = values.choiceIndex === ''
         ? null
         : form.options[Number(values.choiceIndex)]
-      const titles = Array.isArray(selectedOption?.titles) ? selectedOption.titles : []
-      if (titles.length && values.subChoiceIndexes.length === 0) {
-        setSubmitError('Escolha pelo menos uma proposta do tema selecionado.')
-        return
-      }
-      if (values.subChoiceIndexes.length > 4) {
-        setSubmitError('Você pode escolher no máximo quatro propostas.')
-        return
+
+      if (form.mode === 'vote') {
+        const titles = Array.isArray(selectedOption?.titles) ? selectedOption.titles : []
+        if (titles.length && values.subChoiceIndexes.length === 0) {
+          setSubmitError('Escolha pelo menos uma proposta do tema selecionado.')
+          return
+        }
+        if (values.subChoiceIndexes.length > 4) {
+          setSubmitError('Você pode escolher no máximo quatro propostas.')
+          return
+        }
       }
     }
 
@@ -148,10 +175,12 @@ export default function ListeningFormView({ formId, onBack }) {
     } catch (error) {
       console.error('submitListeningEntry failed', error)
       setSubmitError(error.code === 'permission-denied'
-        ? (form.mode === 'vote'
+        ? (isVoteFormMode(form.mode)
           ? 'Este voto não pôde ser registrado. Se esta aba já votou, a escolha já foi contabilizada; caso contrário, a votação pode ter sido encerrada.'
           : 'Esta escuta foi encerrada e não recebe mais respostas.')
-        : error.message || 'Não foi possível enviar sua ideia. Tente novamente.')
+        : error.message || (isVoteFormMode(form.mode)
+          ? 'Não foi possível registrar seu voto. Tente novamente.'
+          : 'Não foi possível enviar sua contribuição. Tente novamente.'))
     } finally {
       setSending(false)
     }
@@ -161,7 +190,7 @@ export default function ListeningFormView({ formId, onBack }) {
     <div className="fala-app voice-page">
       <header className="voice-header">
         <Logo size="sm" />
-        <span className="voice-header__label">{form?.mode === 'vote' ? 'VOTAÇÃO ABERTA' : 'ESCUTA ABERTA'}</span>
+        <span className="voice-header__label">{getFormModeLabel(form?.mode)}</span>
       </header>
 
       <main className="voice-main">
@@ -179,12 +208,12 @@ export default function ListeningFormView({ formId, onBack }) {
         ) : submitted ? (
           <section className="voice-thanks cs-fade-in" aria-labelledby="voice-thanks-title">
             <span className="voice-stamp"><Sprout size={24} /></span>
-            <p className="fala-eyebrow">{form?.mode === 'vote' ? 'VOTO REGISTRADO' : 'IDEIA SEMEADA'}</p>
+            <p className="fala-eyebrow">{isVoteFormMode(form?.mode) ? 'VOTO REGISTRADO' : 'IDEIA SEMEADA'}</p>
             <h1 id="voice-thanks-title">
-              {form?.mode === 'vote' ? 'Sua escolha agora faz parte desta construção.' : 'Sua voz agora faz parte do caminho.'}
+              {isVoteFormMode(form?.mode) ? 'Sua escolha agora faz parte desta construção.' : 'Sua voz agora faz parte do caminho.'}
             </h1>
             <p>
-              {form?.mode === 'vote'
+              {isVoteFormMode(form?.mode)
                 ? `Obrigado, ${getSubmittedVoterName(formId) || values.name}. Seu voto foi registrado. Este navegador não pode enviar outro voto nesta aba.`
                 : `Obrigado, ${values.name}. Sua proposta foi registrada para inspirar esta conversa.`}
             </p>
@@ -193,28 +222,67 @@ export default function ListeningFormView({ formId, onBack }) {
             </button>
           </section>
         ) : (
-          <>
+          <div className="voice-layout">
             <div className="voice-intro cs-slide-up">
-              <div className="voice-kicker"><span /> UMA CONSTRUÇÃO COLETIVA</div>
+              <div className="voice-kicker"><span /> {getFormModeLabel(form.mode)} <i /> UMA CONSTRUÇÃO COLETIVA</div>
               <h1>{form.title}</h1>
               <p className="voice-intro__description">
                 {form.introduction || 'Toda jornada começa com uma pergunta que vale a pena compartilhar.'}
               </p>
               <div className="voice-note">
-                {form.mode === 'vote' ? <Sprout size={17} /> : <Feather size={17} />}
+                {isVoteFormMode(form.mode) ? <Sprout size={17} /> : <Feather size={17} />}
                 <span>{form.mode === 'vote'
                   ? 'Escolha um tema e marque até quatro propostas relacionadas. Este navegador registra apenas um voto por escuta nesta aba.'
-                  : 'Não é uma votação. É um convite para dizer o que merece espaço na conversa.'}</span>
-              </div>
-              <div className="voice-deadline" role="note">
-                <span>PERÍODO DA CONSULTA</span>
-                <strong>A consulta está disponível de 4 a 8 de novembro.</strong>
+                  : form.mode === 'vote_simple'
+                    ? 'Escolha uma das opções e confirme. Este navegador registra apenas um voto por escuta nesta aba.'
+                    : 'Não é uma votação. É um convite para dizer o que merece espaço na conversa.'}</span>
               </div>
             </div>
 
+            <aside className="voice-sidepanel cs-slide-up" aria-label="Etapas da resposta e período da consulta">
+              <section className="voice-sidepanel__card">
+                <div className="voice-progress__heading">
+                  <span>SEU PERCURSO</span>
+                  <strong>{completedSteps}/2</strong>
+                </div>
+                <div
+                  className="voice-progress__track"
+                  role="progressbar"
+                  aria-label="Progresso da resposta"
+                  aria-valuemin={0}
+                  aria-valuemax={2}
+                  aria-valuenow={completedSteps}
+                >
+                  <span style={{ width: `${completedSteps * 50}%` }} />
+                </div>
+                <ol className="voice-progress__steps">
+                  <li className={hasContext ? 'is-complete' : currentStep === 1 ? 'is-current' : ''}>
+                    <a href="#voice-step-context">
+                      <span>01</span>
+                      <span><strong>Seu contexto</strong><small>Quem está participando</small></span>
+                    </a>
+                  </li>
+                  <li className={hasContribution ? 'is-complete' : currentStep === 2 ? 'is-current' : ''}>
+                    <a href="#voice-step-contribution">
+                      <span>02</span>
+                      <span>
+                        <strong>{isVoteFormMode(form.mode) ? 'Sua escolha' : 'Sua contribuição'}</strong>
+                        <small>{isVoteFormMode(form.mode) ? 'O que você prioriza' : 'A ideia que quer compartilhar'}</small>
+                      </span>
+                    </a>
+                  </li>
+                </ol>
+              </section>
+
+              <section className="voice-sidepanel__card voice-sidepanel__card--soft">
+                <span>PERÍODO DA CONSULTA</span>
+                <strong>{form?.consultationPeriod || 'A consulta está disponível de 4 a 8 de novembro.'}</strong>
+              </section>
+            </aside>
+
             <form className="voice-form cs-slide-up" onSubmit={submit}>
               <div className="voice-form__heading">
-                <span>01 — DE ONDE VOCÊ FALA</span>
+                <span id="voice-step-context">01 — DE ONDE VOCÊ FALA</span>
                 <span>SEU CONTEXTO</span>
               </div>
               <div className="voice-fields">
@@ -365,7 +433,7 @@ export default function ListeningFormView({ formId, onBack }) {
               {form.mode === 'vote' ? (
                 <>
                   <div className="voice-form__heading">
-                    <span>02 — TEMA E PROPOSTAS</span>
+                    <span id="voice-step-contribution">02 — TEMA E PROPOSTAS</span>
                     <span>1 TEMA · ATÉ 4 PROPOSTAS</span>
                   </div>
                   <div className="vote-theme-list" role="radiogroup" aria-label={form.topicPrompt}>
@@ -373,20 +441,22 @@ export default function ListeningFormView({ formId, onBack }) {
                       const label = typeof option === 'string' ? option : option.label
                       const titles = Array.isArray(option?.titles) ? option.titles : []
                       const isSelected = values.choiceIndex !== '' && Number(values.choiceIndex) === index
+                      const isExpanded = isSelected && expandedChoiceIndex === index
                       const suboptionsId = `vote-suboptions-${formId}-${index}`
                       return (
-                        <section className={`vote-theme-card${isSelected ? ' is-expanded' : ''}`} key={`${index}-${label}`}>
+                        <section className={`vote-theme-card${isExpanded ? ' is-expanded' : ''}`} key={`${index}-${label}`}>
                           <label className={`vote-option vote-theme-option${isSelected ? ' is-selected' : ''}`}>
                             <input
                               type="radio"
                               name="listening-vote"
                               value={index}
                               checked={isSelected}
-                              aria-expanded={isSelected && titles.length > 0}
-                              aria-controls={titles.length > 0 ? suboptionsId : undefined}
+                              aria-expanded={isExpanded}
+                              aria-controls={isExpanded && titles.length > 0 ? suboptionsId : undefined}
                               onChange={(event) => {
                                 updateValue('choiceIndex', event.target.value)
                                 updateValue('subChoiceIndexes', [])
+                                setExpandedChoiceIndex(index)
                               }}
                               required
                             />
@@ -395,16 +465,33 @@ export default function ListeningFormView({ formId, onBack }) {
                             <span className="vote-theme-option__content">
                               <strong>{label}</strong>
                               <span className="vote-theme-option__hint">
-                                {titles.length
-                                  ? (isSelected ? 'Tema selecionado · escolha até quatro propostas abaixo' : 'Toque para ver as propostas deste tema')
-                                  : (isSelected ? 'Tema selecionado' : 'Selecionar tema')}
-                                {titles.length > 0 && (
-                                  <ArrowDown className={isSelected ? 'is-rotated' : ''} size={15} aria-hidden="true" />
-                                )}
+                                {isSelected ? 'Tema selecionado' : 'Selecionar tema'}
                               </span>
                             </span>
                           </label>
-                          {isSelected && titles.length > 0 && (
+                          {titles.length > 0 && (
+                            <button
+                              type="button"
+                              className="vote-theme-toggle"
+                              aria-expanded={isExpanded}
+                              aria-controls={isExpanded ? suboptionsId : undefined}
+                              onClick={() => {
+                                if (isExpanded) {
+                                  setExpandedChoiceIndex(null)
+                                  return
+                                }
+                                if (!isSelected) {
+                                  updateValue('choiceIndex', String(index))
+                                  updateValue('subChoiceIndexes', [])
+                                }
+                                setExpandedChoiceIndex(index)
+                              }}
+                            >
+                              {isExpanded ? 'Ocultar propostas' : 'Ver propostas'}
+                              <ArrowDown className={isExpanded ? 'is-rotated' : ''} size={14} aria-hidden="true" />
+                            </button>
+                          )}
+                          {isExpanded && titles.length > 0 && (
                             <fieldset className="vote-options vote-suboptions" id={suboptionsId}>
                               <legend>
                                 Escolha até 4 propostas ({values.subChoiceIndexes.length}/4 selecionadas)
@@ -442,10 +529,46 @@ export default function ListeningFormView({ formId, onBack }) {
                     })}
                   </div>
                 </>
+              ) : form.mode === 'vote_simple' ? (
+                <>
+                  <div className="voice-form__heading">
+                    <span id="voice-step-contribution">02 — SUA ESCOLHA</span>
+                    <span>1 OPÇÃO · VOTE AGORA</span>
+                  </div>
+                  <div className="vote-theme-list vote-theme-list--simple" role="radiogroup" aria-label={form.topicPrompt}>
+                    {form.options.map((option, index) => {
+                      const label = typeof option === 'string' ? option : option.label
+                      const isSelected = values.choiceIndex !== '' && Number(values.choiceIndex) === index
+                      return (
+                        <label className={`vote-option vote-theme-option${isSelected ? ' is-selected' : ''}`} key={`${index}-${label}`}>
+                          <input
+                            type="radio"
+                            name="listening-vote"
+                            value={index}
+                            checked={isSelected}
+                            onChange={(event) => {
+                              updateValue('choiceIndex', event.target.value)
+                              updateValue('subChoiceIndexes', [])
+                            }}
+                            required
+                          />
+                          <span className="vote-option__marker" aria-hidden="true" />
+                          <span className="vote-option__number">{String(index + 1).padStart(2, '0')}</span>
+                          <span className="vote-theme-option__content">
+                            <strong>{label}</strong>
+                            <span className="vote-theme-option__hint">
+                              {isSelected ? 'Opção selecionada' : 'Selecionar esta opção'}
+                            </span>
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="voice-form__heading">
-                    <span>02 — A IDEIA QUE VOCÊ TRAZ</span>
+                    <span id="voice-step-contribution">02 — A IDEIA QUE VOCÊ TRAZ</span>
                     <span>O CENTRO DA CONVERSA</span>
                   </div>
                   <label className="voice-field voice-field--large">
@@ -490,21 +613,25 @@ export default function ListeningFormView({ formId, onBack }) {
 
               <p className="voice-privacy">
                 Seu nome, ocupação e, se informada, sua unidade serão compartilhados apenas com a equipe que organiza esta escuta.
-                {form.mode === 'vote' && ' O voto fica vinculado a esses dados para contextualizar a consulta.'}
+                {isVoteFormMode(form.mode) && ' O voto fica vinculado a esses dados para contextualizar a consulta.'}
               </p>
               {submitError && <p className="fala-error" role="alert">{submitError}</p>}
               <div className="voice-submit-row">
-                <span>{form.mode === 'vote' ? 'Uma escolha por aba. Muitas vozes revelam os temas prioritários.' : 'Uma ideia de cada vez. Muitas vozes fazem o mapa.'}</span>
+                <span>{isVoteFormMode(form.mode)
+                  ? (form.mode === 'vote'
+                    ? 'Uma escolha por aba. Muitas vozes revelam os temas prioritários.'
+                    : 'Uma escolha por aba. Muitas vozes ajudam a priorizar respostas.')
+                  : 'Uma ideia de cada vez. Muitas vozes fazem o mapa.'}</span>
                 <button type="submit" className="fala-button" disabled={sending}>
                   {sending
-                    ? (form.mode === 'vote' ? 'Registrando seu voto…' : 'Registrando sua ideia…')
-                    : form.mode === 'vote'
+                    ? (isVoteFormMode(form.mode) ? 'Registrando seu voto…' : 'Registrando sua ideia…')
+                    : isVoteFormMode(form.mode)
                       ? <>Confirmar meu voto <ArrowRight size={16} /></>
                       : <>Semeia essa ideia <Sprout size={16} /></>}
                 </button>
               </div>
             </form>
-          </>
+          </div>
         )}
       </main>
       <footer className="voice-footer">FALA SEC <span>·</span> ESCUTA QUE VIRA CAMINHO</footer>

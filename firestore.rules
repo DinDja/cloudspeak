@@ -80,18 +80,19 @@ service cloud.firestore {
 
       allow create: if isSecUser()
         && request.resource.data.keys().hasOnly([
-          'title', 'introduction', 'topicPrompt', 'mode', 'options', 'schoolIds',
+          'title', 'introduction', 'topicPrompt', 'consultationPeriod', 'mode', 'options', 'schoolIds',
           'status', 'ownerUid', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.keys().hasAll([
-          'title', 'introduction', 'topicPrompt', 'mode', 'options', 'schoolIds',
+          'title', 'introduction', 'topicPrompt', 'consultationPeriod', 'mode', 'options', 'schoolIds',
           'status', 'ownerUid', 'createdAt', 'updatedAt'
         ])
         && request.resource.data.ownerUid == request.auth.uid
         && isString(request.resource.data.title, 3, 120)
-        && isString(request.resource.data.introduction, 0, 800)
+                && isString(request.resource.data.introduction, 0, 5000)
         && isString(request.resource.data.topicPrompt, 5, 180)
-        && request.resource.data.mode in ['open', 'vote']
+        && isString(request.resource.data.consultationPeriod, 0, 180)
+        && request.resource.data.mode in ['open', 'vote', 'vote_simple']
         && request.resource.data.options is list
         && (request.resource.data.mode == 'open'
             ? request.resource.data.options.size() == 0
@@ -107,23 +108,22 @@ service cloud.firestore {
       allow update: if isSecUser()
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status', 'title', 'introduction', 'topicPrompt', 'options', 'updatedAt'
+          'status', 'title', 'introduction', 'topicPrompt', 'consultationPeriod', 'mode', 'options', 'updatedAt'
         ])
         && request.resource.data.status in ['open', 'closed']
         && request.resource.data.updatedAt == request.time
         && isString(request.resource.data.title, 3, 120)
-        && isString(request.resource.data.introduction, 0, 800)
+                && isString(request.resource.data.introduction, 0, 5000)
         && isString(request.resource.data.topicPrompt, 5, 180)
+        && isString(request.resource.data.consultationPeriod, 0, 180)
+        && request.resource.data.mode in ['open', 'vote', 'vote_simple']
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['options'])
             || (request.resource.data.options is list
-                && (request.resource.data.keys().hasAll(['mode'])
-                    ? (request.resource.data.mode == 'open'
-                        ? request.resource.data.options.size() == 0
-                        : request.resource.data.mode == 'vote'
-                          && request.resource.data.options.size() >= 2
-                          && request.resource.data.options.size() <= 10)
-                    : request.resource.data.options.size() == 0)));
-      allow delete: if false;
+                && (request.resource.data.mode == 'open'
+                    ? request.resource.data.options.size() == 0
+                    : request.resource.data.options.size() >= 2
+                      && request.resource.data.options.size() <= 10)));
+      allow delete: if isSecUser() && resource.data.ownerUid == request.auth.uid;
 
       match /entries/{entryId} {
         function ownsParentForm() {
@@ -222,6 +222,24 @@ service cloud.firestore {
                     )));
         }
 
+        function isValidSimpleVoteEntry() {
+          return request.resource.data.keys().hasOnly([
+              'name', 'occupation', 'otherOccupation', 'schoolId',
+              'choiceIndex', 'createdAt'
+            ])
+            && request.resource.data.keys().hasAll([
+              'name', 'occupation', 'otherOccupation', 'schoolId', 'choiceIndex', 'createdAt'
+            ])
+            && isValidEntryContext()
+            && request.resource.data.choiceIndex is int
+            && request.resource.data.choiceIndex >= 0
+            && request.resource.data.choiceIndex < get(/databases/$(database)/documents/listeningForms/$(formId)).data.options.size()
+            && get(/databases/$(database)/documents/listeningForms/$(formId)).data.options[request.resource.data.choiceIndex] is string
+            && !request.resource.data.keys().hasAny(['subChoiceIndex', 'subChoiceIndexes'])
+            && entryId.matches('^[0-9a-fA-F-]{36}$')
+            && get(/databases/$(database)/documents/listeningForms/$(formId)).data.mode == 'vote_simple';
+        }
+
         function isValidVoteEntry() {
           return request.resource.data.keys().hasOnly([
               'name', 'occupation', 'otherOccupation', 'schoolId',
@@ -243,7 +261,7 @@ service cloud.firestore {
 
         allow get, list: if ownsParentForm();
         allow create: if parentFormIsOpen()
-          && (isValidOpenEntry() || isValidVoteEntry());
+          && (isValidOpenEntry() || isValidVoteEntry() || isValidSimpleVoteEntry());
         allow update, delete: if false;
       }
     }
@@ -382,7 +400,7 @@ service cloud.firestore {
         && validHash(request.resource.data.pdfHash)
         && request.resource.data.sealedAt is timestamp;
 
-      allow delete: if false;
+      allow delete: if isSecUser() && resource.data.ownerUid == request.auth.uid;
     }
 
     match /sessions/{sessionCode} {
@@ -491,3 +509,4 @@ service cloud.firestore {
     }
   }
 }
+

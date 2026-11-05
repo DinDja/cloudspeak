@@ -1,8 +1,10 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -20,7 +22,8 @@ const entriesCol = (id) => collection(db, 'listeningForms', id, 'entries')
 
 const cleanText = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 const SCHOOL_IDS = SCHOOL_UNITS.map((unit) => unit.codSec)
-const LISTENING_MODES = ['open', 'vote']
+const LISTENING_MODES = ['open', 'vote', 'vote_simple']
+const isVoteMode = (mode) => mode === 'vote' || mode === 'vote_simple'
 
 const normalizeOptions = (options) => Array.isArray(options)
   ? options.map((option) => (
@@ -33,32 +36,49 @@ const normalizeOptions = (options) => Array.isArray(options)
   ))
   : []
 
-const validateOptions = (options) => {
+const validateOptions = (options, mode = 'vote') => {
   if (options.length < 2 || options.length > 10) {
-    throw new Error('A votação precisa ter entre 2 e 10 temas.')
+    throw new Error(mode === 'vote_simple'
+      ? 'A votação simples precisa ter entre 2 e 10 opções.'
+      : 'A votação precisa ter entre 2 e 10 temas.')
   }
-  if (options.some((option) => (
-    typeof option === 'string'
-      ? !option || option.length > 180
-      : !option.label || option.label.length > 180
-        || option.titles.length < 1
-        || option.titles.length > 30
-        || option.titles.some((entry) => entry.length > 180)
-  ))) {
-    throw new Error('Cada tema deve ter um nome e entre 1 e 30 títulos, com no máximo 180 caracteres cada.')
+
+  if (mode === 'vote') {
+    if (options.some((option) => (
+      typeof option === 'string'
+        ? !option || option.length > 180
+        : !option.label || option.label.length > 180
+          || option.titles.length < 1
+          || option.titles.length > 30
+          || option.titles.some((entry) => entry.length > 180)
+    ))) {
+      throw new Error('Cada tema deve ter um nome e entre 1 e 30 títulos, com no máximo 180 caracteres cada.')
+    }
+
+    for (const option of options) {
+      if (typeof option === 'string') continue
+      const normalizedTitles = option.titles.map((entry) => entry.toLocaleLowerCase('pt-BR'))
+      if (new Set(normalizedTitles).size !== normalizedTitles.length) {
+        throw new Error(`Remova os títulos repetidos do tema “${option.label}”.`)
+      }
+    }
+  } else {
+    if (options.some((option) => (
+      typeof option === 'string'
+        ? !option || option.length > 180
+        : !option.label || option.label.length > 180
+    ))) {
+      throw new Error('Cada opção de votação deve ter um nome com até 180 caracteres.')
+    }
   }
+
   const normalizedOptions = options.map((option) => (
     (typeof option === 'string' ? option : option.label).toLocaleLowerCase('pt-BR')
   ))
   if (new Set(normalizedOptions).size !== normalizedOptions.length) {
-    throw new Error('Remova os temas repetidos da votação.')
-  }
-  for (const option of options) {
-    if (typeof option === 'string') continue
-    const normalizedTitles = option.titles.map((entry) => entry.toLocaleLowerCase('pt-BR'))
-    if (new Set(normalizedTitles).size !== normalizedTitles.length) {
-      throw new Error(`Remova os títulos repetidos do tema “${option.label}”.`)
-    }
+    throw new Error(mode === 'vote_simple'
+      ? 'Remova as opções repetidas da votação simples.'
+      : 'Remova os temas repetidos da votação.')
   }
 }
 
@@ -91,62 +111,67 @@ export const getSubmittedVoterName = (formId) => {
   }
 }
 
-export const createListeningForm = async ({ ownerUid, title, introduction, topicPrompt, mode = 'open', options = [] }) => {
+export const createListeningForm = async ({ ownerUid, title, introduction, topicPrompt, consultationPeriod, mode = 'open', options = [] }) => {
   const cleanTitle = cleanText(title)
   const cleanIntroduction = String(introduction ?? '').trim()
   const cleanTopicPrompt = cleanText(topicPrompt)
+  const cleanConsultationPeriod = String(consultationPeriod ?? '').trim()
   const cleanOptions = normalizeOptions(options)
 
   if (!ownerUid) throw new Error('É necessário estar conectado para criar uma escuta.')
   if (!LISTENING_MODES.includes(mode)) throw new Error('Formato de escuta inválido.')
   if (cleanTitle.length < 3 || cleanTitle.length > 120) {
-    throw new Error('O título deve ter entre 3 e 120 caracteres.')
+      throw new Error('O título deve ter entre 3 e 120 caracteres.')
+    }
+    if (cleanTopicPrompt.length < 5 || cleanTopicPrompt.length > 180) {
+      throw new Error('A pergunta principal deve ter entre 5 e 180 caracteres.')
+    }
+    if (cleanConsultationPeriod.length > 180) {
+      throw new Error('O período da consulta pode ter no máximo 180 caracteres.')
+    }
+    if (isVoteMode(mode)) validateOptions(cleanOptions, mode)
+
+    const payload = {
+      title: cleanTitle,
+      introduction: cleanIntroduction,
+      topicPrompt: cleanTopicPrompt,
+      consultationPeriod: cleanConsultationPeriod || 'A consulta está disponível de 4 a 8 de novembro.',
+      mode,
+      options: isVoteMode(mode) ? cleanOptions : [],
+      schoolIds: SCHOOL_IDS,
+      status: 'open',
+      ownerUid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }
+
+    const reference = await addDoc(formsCol(), payload)
+    return { id: reference.id, ...payload }
   }
-  if (cleanIntroduction.length > 800) {
-    throw new Error('A apresentação da escuta pode ter no máximo 800 caracteres.')
-  }
-  if (cleanTopicPrompt.length < 5 || cleanTopicPrompt.length > 180) {
-    throw new Error('A pergunta principal deve ter entre 5 e 180 caracteres.')
-  }
-  if (mode === 'vote') validateOptions(cleanOptions)
+
+  export const updateListeningForm = async (id, { title, introduction, topicPrompt, consultationPeriod, mode = 'open', options }) => {
+    const cleanTitle = cleanText(title)
+    const cleanIntroduction = String(introduction ?? '').trim()
+    const cleanTopicPrompt = cleanText(topicPrompt)
+    const cleanConsultationPeriod = String(consultationPeriod ?? '').trim()
+
+    if (cleanTitle.length < 3 || cleanTitle.length > 120) {
+      throw new Error('O título deve ter entre 3 e 120 caracteres.')
+    }
+    if (cleanTopicPrompt.length < 5 || cleanTopicPrompt.length > 180) {
+      throw new Error('A pergunta principal deve ter entre 5 e 180 caracteres.')
+    }
+    if (cleanConsultationPeriod.length > 180) {
+      throw new Error('O período da consulta pode ter no máximo 180 caracteres.')
+    }
+    if (!LISTENING_MODES.includes(mode)) throw new Error('Formato de escuta inválido.')
 
   const payload = {
     title: cleanTitle,
     introduction: cleanIntroduction,
     topicPrompt: cleanTopicPrompt,
+    consultationPeriod: cleanConsultationPeriod || 'A consulta está disponível de 4 a 8 de novembro.',
     mode,
-    options: mode === 'vote' ? cleanOptions : [],
-    schoolIds: SCHOOL_IDS,
-    status: 'open',
-    ownerUid,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  }
-
-  const reference = await addDoc(formsCol(), payload)
-  return { id: reference.id, ...payload }
-}
-
-export const updateListeningForm = async (id, { title, introduction, topicPrompt, mode = 'open', options }) => {
-  const cleanTitle = cleanText(title)
-  const cleanIntroduction = String(introduction ?? '').trim()
-  const cleanTopicPrompt = cleanText(topicPrompt)
-
-  if (cleanTitle.length < 3 || cleanTitle.length > 120) {
-    throw new Error('O título deve ter entre 3 e 120 caracteres.')
-  }
-  if (cleanIntroduction.length > 800) {
-    throw new Error('A apresentação da escuta pode ter no máximo 800 caracteres.')
-  }
-  if (cleanTopicPrompt.length < 5 || cleanTopicPrompt.length > 180) {
-    throw new Error('A pergunta principal deve ter entre 5 e 180 caracteres.')
-  }
-  if (!LISTENING_MODES.includes(mode)) throw new Error('Formato de escuta inválido.')
-
-  const payload = {
-    title: cleanTitle,
-    introduction: cleanIntroduction,
-    topicPrompt: cleanTopicPrompt,
     updatedAt: serverTimestamp(),
   }
   if (options !== undefined) {
@@ -154,7 +179,7 @@ export const updateListeningForm = async (id, { title, introduction, topicPrompt
     if (mode === 'open' && cleanOptions.length > 0) {
       throw new Error('Escutas abertas não podem ter opções de votação.')
     }
-    if (mode === 'vote') validateOptions(cleanOptions)
+    if (isVoteMode(mode)) validateOptions(cleanOptions, mode)
     payload.options = cleanOptions
   }
   await updateDoc(formRef(id), payload)
@@ -228,35 +253,52 @@ export const submitListeningEntry = async ({
     throw new Error('Selecione sua unidade escolar na lista ou deixe o campo em branco.')
   }
 
-  if (mode === 'vote') {
+  if (isVoteMode(mode)) {
     if (!Number.isInteger(choiceIndex) || choiceIndex < 0 || choiceIndex >= options.length || choiceIndex > 9) {
-      throw new Error('Selecione um dos temas antes de enviar seu voto.')
+      throw new Error(mode === 'vote_simple'
+        ? 'Selecione uma opção antes de enviar seu voto.'
+        : 'Selecione um dos temas antes de enviar seu voto.')
     }
-    const selectedOption = options[choiceIndex]
-    const titles = Array.isArray(selectedOption?.titles) ? selectedOption.titles : []
-    if (!Array.isArray(subChoiceIndexes)) {
-      throw new Error('Selecione as propostas do tema escolhido.')
-    }
-    const selectedTitles = [...new Set(subChoiceIndexes)]
-    if (titles.length && (selectedTitles.length < 1 || selectedTitles.length > 4)) {
-      throw new Error('Selecione de uma a quatro propostas para o tema escolhido.')
-    }
-    if (selectedTitles.some((index) => !Number.isInteger(index) || index < 0 || index >= titles.length)) {
-      throw new Error('Uma das propostas selecionadas não pertence ao tema escolhido.')
-    }
-    if (!titles.length && selectedTitles.length > 0) {
-      throw new Error('O tema escolhido não possui títulos adicionais.')
-    }
+
     const voterId = getVoterId(formId)
-    await setDoc(doc(entriesCol(formId), voterId), {
-      name: cleanName,
-      occupation: cleanOccupation,
-      otherOccupation: cleanOtherOccupation,
-      schoolId: cleanSchoolId,
-      choiceIndex,
-      ...(titles.length ? { subChoiceIndexes: selectedTitles } : {}),
-      createdAt: serverTimestamp(),
-    })
+
+    if (mode === 'vote') {
+      const selectedOption = options[choiceIndex]
+      const titles = Array.isArray(selectedOption?.titles) ? selectedOption.titles : []
+      if (!Array.isArray(subChoiceIndexes)) {
+        throw new Error('Selecione as propostas do tema escolhido.')
+      }
+      const selectedTitles = [...new Set(subChoiceIndexes)]
+      if (titles.length && (selectedTitles.length < 1 || selectedTitles.length > 4)) {
+        throw new Error('Selecione de uma a quatro propostas para o tema escolhido.')
+      }
+      if (selectedTitles.some((index) => !Number.isInteger(index) || index < 0 || index >= titles.length)) {
+        throw new Error('Uma das propostas selecionadas não pertence ao tema escolhido.')
+      }
+      if (!titles.length && selectedTitles.length > 0) {
+        throw new Error('O tema escolhido não possui títulos adicionais.')
+      }
+
+      await setDoc(doc(entriesCol(formId), voterId), {
+        name: cleanName,
+        occupation: cleanOccupation,
+        otherOccupation: cleanOtherOccupation,
+        schoolId: cleanSchoolId,
+        choiceIndex,
+        ...(titles.length ? { subChoiceIndexes: selectedTitles } : {}),
+        createdAt: serverTimestamp(),
+      })
+    } else {
+      await setDoc(doc(entriesCol(formId), voterId), {
+        name: cleanName,
+        occupation: cleanOccupation,
+        otherOccupation: cleanOtherOccupation,
+        schoolId: cleanSchoolId,
+        choiceIndex,
+        createdAt: serverTimestamp(),
+      })
+    }
+
     window.sessionStorage.setItem(`cloudspeak-listening-submitted-${formId}`, cleanName)
     return
   }
@@ -285,3 +327,9 @@ export const submitListeningEntry = async ({
     createdAt: serverTimestamp(),
   })
 }
+
+  export const deleteListeningForm = async (id) => {
+    const entriesSnapshot = await getDocs(entriesCol(id))
+    await Promise.all(entriesSnapshot.docs.map((entryDoc) => deleteDoc(entryDoc.ref)))
+    await deleteDoc(formRef(id))
+  }

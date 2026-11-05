@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowUpRight, Check, ClipboardCopy, Edit2, MessageCircle, Plus, Sprout, Vote } from 'lucide-react'
+import { ArrowUpRight, Check, ClipboardCopy, Edit2, MessageCircle, Plus, Sprout, Trash2, Vote } from 'lucide-react'
 import Modal from '../components/ui/Modal'
 import WorkspaceShell from '../components/ui/WorkspaceShell'
 import SCHOOL_UNITS from '../data/schoolUnits.json'
@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useListeningForms } from '../hooks/useListeningForms'
 import {
   createListeningForm,
+  deleteListeningForm,
   parseListeningOptions,
   setListeningFormStatus,
   subscribeListeningEntries,
@@ -16,6 +17,7 @@ import {
 const INITIAL_TITLE = 'Mapa de Vozes — Jornada Pedagógica 2027'
 const INITIAL_INTRODUCTION = 'A Jornada começa antes do encontro: com as perguntas que atravessam o cotidiano de cada escola. Deixe uma ideia para construirmos esse caminho juntos.'
 const INITIAL_TOPIC_PROMPT = 'Que tema você gostaria de ver na Jornada Pedagógica 2027?'
+const INITIAL_CONSULTATION_PERIOD = 'A consulta está disponível de 4 a 8 de novembro.'
 const VOTE_INTRODUCTION = 'A Jornada Pedagógica começa antes do encontro. Escolha o tema que considera mais importante e, dentro dele, o título que melhor expressa essa construção coletiva.'
 const VOTE_TOPIC_PROMPT = 'Qual tema gerador você considera prioritário para a Jornada Pedagógica 2027?'
 const JOURNEY_VOTE_OPTIONS = [
@@ -117,6 +119,7 @@ const getOccupationLabel = (entry) => (
     ? `Outro: ${entry.otherOccupation}`
     : entry.occupation
 )
+const isVoteMode = (mode) => mode === 'vote' || mode === 'vote_simple'
 
 const makePublicUrl = (formId) => {
   const url = new URL(window.location.href)
@@ -135,6 +138,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   const [title, setTitle] = useState(INITIAL_TITLE)
   const [introduction, setIntroduction] = useState(INITIAL_INTRODUCTION)
   const [topicPrompt, setTopicPrompt] = useState(INITIAL_TOPIC_PROMPT)
+  const [consultationPeriod, setConsultationPeriod] = useState(INITIAL_CONSULTATION_PERIOD)
   const [mode, setMode] = useState('open')
   const [voteOptions, setVoteOptions] = useState(() => JOURNEY_VOTE_OPTIONS.map((option) => ({
     ...option,
@@ -147,8 +151,10 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   const [entriesLoading, setEntriesLoading] = useState(false)
   const [entriesError, setEntriesError] = useState('')
   const [copiedId, setCopiedId] = useState('')
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+    const [formToDelete, setFormToDelete] = useState('')
 
-  const selectedForm = useMemo(() => forms.find((form) => form.id === selectedId) ?? null, [forms, selectedId])
+    const selectedForm = useMemo(() => forms.find((form) => form.id === selectedId) ?? null, [forms, selectedId])
   const optionCounts = useMemo(
     () => (selectedForm?.options ?? []).map((option, index) => ({
       label: getVoteOptionLabel(option),
@@ -168,9 +174,35 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
     [entries, selectedForm],
   )
   const totalVotes = optionCounts.reduce((total, option) => total + option.count, 0)
+  const winningTheme = useMemo(() => {
+    if (!selectedForm || !isVoteMode(selectedForm.mode) || totalVotes === 0) return null
+    return optionCounts.reduce((best, current) => (
+      !best || current.count > best.count ? current : best
+    ), null)
+  }, [optionCounts, selectedForm, totalVotes])
+  const winningTitle = useMemo(() => {
+    if (!selectedForm || selectedForm.mode !== 'vote' || totalVotes === 0) return null
+
+    let best = null
+    selectedForm.options.forEach((option, choiceIndex) => {
+      const titles = subOptionCounts[choiceIndex] ?? []
+      titles.forEach((title) => {
+        const candidate = {
+          theme: getVoteOptionLabel(option),
+          label: title.label,
+          count: title.count,
+        }
+        if (!best || candidate.count > best.count) {
+          best = candidate
+        }
+      })
+    })
+
+    return best
+  }, [selectedForm, subOptionCounts, totalVotes])
   const optionsLocked = Boolean(
     editingFormId
-      && mode === 'vote'
+      && isVoteMode(mode)
       && (entriesLoading || entriesError || entries.some((entry) => Number.isInteger(entry.choiceIndex))),
   )
 
@@ -205,6 +237,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
     setTitle(INITIAL_TITLE)
     setIntroduction(INITIAL_INTRODUCTION)
     setTopicPrompt(INITIAL_TOPIC_PROMPT)
+    setConsultationPeriod(INITIAL_CONSULTATION_PERIOD)
     setMode('open')
     setVoteOptions(JOURNEY_VOTE_OPTIONS.map((option) => ({
       ...option,
@@ -220,6 +253,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
     setTitle(form.title ?? '')
     setIntroduction(form.introduction ?? '')
     setTopicPrompt(form.topicPrompt ?? '')
+    setConsultationPeriod(form.consultationPeriod ?? INITIAL_CONSULTATION_PERIOD)
     setMode(form.mode ?? 'open')
     setVoteOptions((form.options ?? []).map((option) => ({
       label: getVoteOptionLabel(option),
@@ -232,7 +266,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
 
   const chooseMode = (nextMode) => {
     setMode(nextMode)
-    if (nextMode === 'vote') {
+    if (isVoteMode(nextMode)) {
       if (introduction === INITIAL_INTRODUCTION) setIntroduction(VOTE_INTRODUCTION)
       if (topicPrompt === INITIAL_TOPIC_PROMPT) setTopicPrompt(VOTE_TOPIC_PROMPT)
       return
@@ -268,10 +302,13 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
     setSaving(true)
     setActionError('')
     try {
-      const options = mode === 'vote'
+      const options = isVoteMode(mode)
         ? voteOptions.map(({ label, titlesText }) => {
-          const titles = parseListeningOptions(titlesText)
-          return titles.length ? { label, titles } : label
+          if (mode === 'vote') {
+            const titles = parseListeningOptions(titlesText)
+            return titles.length ? { label, titles } : label
+          }
+          return label
         })
         : []
 
@@ -280,6 +317,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
           title,
           introduction,
           topicPrompt,
+          consultationPeriod,
           mode,
           ...(optionsLocked ? {} : { options }),
         })
@@ -289,6 +327,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
           title,
           introduction,
           topicPrompt,
+          consultationPeriod,
           mode,
           options,
         })
@@ -320,16 +359,43 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   }
 
   const toggleStatus = async (form) => {
-    setActionError('')
-    try {
-      await setListeningFormStatus(form.id, form.status === 'open' ? 'closed' : 'open')
-    } catch (error) {
-      console.error('setListeningFormStatus failed', error)
-      setActionError('Não foi possível atualizar o estado desta escuta.')
+      setActionError('')
+      try {
+        await setListeningFormStatus(form.id, form.status === 'open' ? 'closed' : 'open')
+      } catch (error) {
+        console.error('setListeningFormStatus failed', error)
+        setActionError('Não foi possível atualizar o estado desta escuta.')
+      }
     }
-  }
 
-  return (
+    const requestDeleteForm = (formId) => {
+      setFormToDelete(formId)
+      setDeleteConfirmOpen(true)
+    }
+
+    const confirmDeleteForm = async () => {
+      if (!formToDelete) return
+      setActionError('')
+      try {
+        await deleteListeningForm(formToDelete)
+        if (selectedId === formToDelete) {
+          setSelectedId('')
+        }
+      } catch (error) {
+        console.error('deleteListeningForm failed', error)
+        setActionError('Não foi possível apagar a escuta.')
+      } finally {
+        setDeleteConfirmOpen(false)
+        setFormToDelete('')
+      }
+    }
+
+    const cancelDeleteForm = () => {
+      setDeleteConfirmOpen(false)
+      setFormToDelete('')
+    }
+
+    return (
     <WorkspaceShell
       name={displayName || email?.split('@')[0]}
       email={email}
@@ -381,8 +447,10 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                   </span>
                   <strong>{form.title}</strong>
                   <span>{form.mode === 'vote'
-                    ? `Votação · ${form.options?.length ?? 0} temas`
-                    : `Ideias abertas · ${form.schoolIds?.length ?? 0} unidades`}</span>
+                    ? `Votação com temas · ${form.options?.length ?? 0} temas`
+                    : form.mode === 'vote_simple'
+                      ? `Votação simples · ${form.options?.length ?? 0} opções`
+                      : `Ideias abertas · ${form.schoolIds?.length ?? 0} unidades`}</span>
                 </button>
                 <div className="voice-admin-card__actions">
                   <button type="button" className="voice-small-action" onClick={() => startEditingForm(form)}>
@@ -401,6 +469,14 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                   >
                     <ArrowUpRight size={15} /> Abrir link
                   </a>
+                  <button
+                    type="button"
+                    className="voice-small-action voice-small-action--danger"
+                                      onClick={() => requestDeleteForm(form.id)}
+                    aria-label={`Apagar escuta ${form.title}`}
+                  >
+                    <Trash2 size={15} /> Apagar
+                  </button>
                 </div>
               </article>
             ))}
@@ -417,10 +493,12 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
               <>
                 <div className="voice-results-heading">
                   <div>
-                    <p className="fala-eyebrow">{selectedForm.mode === 'vote' ? 'APURAÇÃO DA VOTAÇÃO' : 'MURAL DE CONTRIBUIÇÕES'}</p>
+                    <p className="fala-eyebrow">{selectedForm.mode === 'vote' || selectedForm.mode === 'vote_simple'
+                      ? 'APURAÇÃO DA VOTAÇÃO'
+                      : 'MURAL DE CONTRIBUIÇÕES'}</p>
                     <h2>{selectedForm.title}</h2>
                     <p>
-                      {selectedForm.mode === 'vote'
+                      {selectedForm.mode === 'vote' || selectedForm.mode === 'vote_simple'
                         ? `${totalVotes} ${totalVotes === 1 ? 'voto registrado' : 'votos registrados'}`
                         : `${entries.length} ${entries.length === 1 ? 'ideia recebida' : 'ideias recebidas'}`}
                     </p>
@@ -438,15 +516,45 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                   <p className="fala-error" role="alert">{entriesError}</p>
                 ) : entriesLoading ? (
                   <p className="voice-results-empty" role="status">Reunindo as ideias…</p>
-                ) : selectedForm.mode === 'vote' ? (
+                ) : selectedForm.mode === 'vote' || selectedForm.mode === 'vote_simple' ? (
                   <>
+                    {totalVotes > 0 && (
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: selectedForm.mode === 'vote' ? 'repeat(auto-fit, minmax(220px, 1fr))' : '1fr',
+                        gap: '12px',
+                        marginBottom: '18px',
+                      }}>
+                        {selectedForm.mode === 'vote' && winningTheme && winningTitle && (
+                          <>
+                            <div style={{ border: '1px solid #e9d5ff', borderRadius: '12px', background: '#faf5ff', padding: '14px 16px' }}>
+                              <p className="fala-eyebrow" style={{ marginBottom: '6px' }}>TEMA VENCEDOR</p>
+                              <strong style={{ display: 'block', fontSize: '1.12rem' }}>{winningTheme.label}</strong>
+                              <span style={{ color: '#5b21b6' }}>{winningTheme.count} voto{winningTheme.count === 1 ? '' : 's'}</span>
+                            </div>
+                            <div style={{ border: '1px solid #dbeafe', borderRadius: '12px', background: '#eff6ff', padding: '14px 16px' }}>
+                              <p className="fala-eyebrow" style={{ marginBottom: '6px' }}>TÍTULO VENCEDOR</p>
+                              <strong style={{ display: 'block', fontSize: '1.12rem' }}>{winningTitle.label}</strong>
+                              <span style={{ color: '#1d4ed8' }}>Tema: {winningTitle.theme} · {winningTitle.count} voto{winningTitle.count === 1 ? '' : 's'}</span>
+                            </div>
+                          </>
+                        )}
+                        {selectedForm.mode === 'vote_simple' && winningTheme && (
+                          <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', background: '#f8fafc', padding: '14px 16px' }}>
+                            <p className="fala-eyebrow" style={{ marginBottom: '6px' }}>VENCEDOR</p>
+                            <strong style={{ display: 'block', fontSize: '1.12rem' }}>{winningTheme.label}</strong>
+                            <span style={{ color: '#475569' }}>{winningTheme.count} voto{winningTheme.count === 1 ? '' : 's'}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="vote-results">
                       {!entriesLoading && !totalVotes && (
                         <p className="voice-results-empty">A votação ainda não recebeu votos. Compartilhe o link para iniciar.</p>
                       )}
                       {optionCounts.map((option, index) => {
                         const percentage = totalVotes ? Math.round((option.count / totalVotes) * 100) : 0
-                        const titles = subOptionCounts[index] ?? []
+                        const titles = selectedForm.mode === 'vote' ? subOptionCounts[index] ?? [] : []
                         const selectedThemeCount = option.count
                         return (
                           <article className="vote-result" key={`${index}-${option.label}`}>
@@ -458,7 +566,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                             <div className="vote-result__track" aria-label={`${option.label}: ${option.count} votos, ${percentage}%`}>
                               <span style={{ width: `${percentage}%` }} />
                             </div>
-                            {titles.length > 0 && (
+                            {selectedForm.mode === 'vote' && titles.length > 0 && (
                               <div className="vote-subresults">
                                 <p className="vote-subresults__note">
                                   Percentual de quem escolheu este tema; cada participante pode marcar até quatro propostas.
@@ -503,9 +611,11 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                               const choice = selectedOption
                                 ? getVoteOptionLabel(selectedOption)
                                 : 'Opção não identificada'
-                              const subChoices = getEntrySubChoiceIndexes(entry)
-                                .map((subChoiceIndex) => getVoteOptionTitles(selectedOption)[subChoiceIndex])
-                                .filter(Boolean)
+                              const subChoices = selectedForm.mode === 'vote'
+                                ? getEntrySubChoiceIndexes(entry)
+                                  .map((subChoiceIndex) => getVoteOptionTitles(selectedOption)[subChoiceIndex])
+                                  .filter(Boolean)
+                                : []
                               return (
                                 <li className="vote-voter" key={entry.id}>
                                   <div className="vote-voter__identity">
@@ -617,10 +727,15 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                 <strong>Ideias abertas</strong>
                 <span>Uma proposta com contexto de cada unidade.</span>
               </button>
+              <button type="button" className={mode === 'vote_simple' ? 'is-selected' : ''} aria-pressed={mode === 'vote_simple'} onClick={() => chooseMode('vote_simple')}>
+                <Vote size={18} />
+                <strong>Votação simples</strong>
+                <span>Escolha uma opção entre várias alternativas.</span>
+              </button>
               <button type="button" className={mode === 'vote' ? 'is-selected' : ''} aria-pressed={mode === 'vote'} onClick={() => chooseMode('vote')}>
                 <Vote size={18} />
-                <strong>Votação</strong>
-                <span>Um tema escolhido entre opções.</span>
+                <strong>Votação com tema e propostas</strong>
+                <span>Um tema e várias propostas para priorizar.</span>
               </button>
             </fieldset>
           )}
@@ -629,17 +744,16 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
             <input value={title} onChange={(event) => setTitle(event.target.value)} required minLength={3} maxLength={120} />
           </label>
           <label className="voice-field">
-            <span>Texto de abertura</span>
-            <textarea
-              value={introduction}
-              onChange={(event) => setIntroduction(event.target.value)}
-              maxLength={800}
-              rows={3}
+                      <span>Texto de abertura</span>
+                      <textarea
+                        value={introduction}
+                        onChange={(event) => setIntroduction(event.target.value)}
+                        rows={5}
               placeholder="Conte por que esta conversa está sendo aberta."
             />
           </label>
           <label className="voice-field">
-            <span>{mode === 'vote' ? 'Pergunta da votação' : 'Pergunta principal'} <b>obrigatória</b></span>
+            <span>{isVoteMode(mode) ? 'Pergunta da votação' : 'Pergunta principal'} <b>obrigatória</b></span>
             <input
               value={topicPrompt}
               onChange={(event) => setTopicPrompt(event.target.value)}
@@ -649,6 +763,58 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
               placeholder="O que você quer convidar o público a propor?"
             />
           </label>
+          <label className="voice-field">
+            <span>Período da consulta</span>
+            <input
+              value={consultationPeriod}
+              onChange={(event) => setConsultationPeriod(event.target.value)}
+              maxLength={180}
+              placeholder="Ex.: A consulta está disponível de 4 a 8 de novembro."
+            />
+          </label>
+          {mode === 'vote_simple' && !optionsLocked && (
+            <section className="voice-vote-editor" aria-label="Opções da votação simples">
+              <div className="voice-vote-editor__heading">
+                <div>
+                  <span>OPÇÕES DE VOTO</span>
+                  <p>Adicione alternativas que o público pode escolher diretamente.</p>
+                </div>
+                <span>{voteOptions.length}/10 opções</span>
+              </div>
+              {voteOptions.map((option, index) => (
+                <fieldset className="voice-vote-editor__theme" key={`vote-simple-${index}`}>
+                  <legend>Opção {String(index + 1).padStart(2, '0')}</legend>
+                  <label className="voice-field">
+                    <span>Nome da opção <b>obrigatório</b></span>
+                    <input
+                      value={option.label}
+                      onChange={(event) => updateVoteOption(index, 'label', event.target.value)}
+                      required
+                      maxLength={180}
+                      placeholder="Ex.: Forte investimento na formação docente"
+                    />
+                  </label>
+                  {voteOptions.length > 2 && (
+                    <button
+                      type="button"
+                      className="voice-vote-editor__remove"
+                      onClick={() => removeVoteOption(index)}
+                    >
+                      Remover opção
+                    </button>
+                  )}
+                </fieldset>
+              ))}
+              <button
+                type="button"
+                className="fala-button fala-button--secondary"
+                onClick={addVoteOption}
+                disabled={voteOptions.length >= 10}
+              >
+                <Plus size={15} /> Adicionar opção
+              </button>
+            </section>
+          )}
           {mode === 'vote' && !optionsLocked && (
             <section className="voice-vote-editor" aria-label="Temas e títulos da votação">
               <div className="voice-vote-editor__heading">
@@ -702,6 +868,19 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
               </button>
             </section>
           )}
+          {mode === 'vote_simple' && optionsLocked && (
+            <div className="voice-vote-locked" role="note">
+              <strong>Opções bloqueadas</strong>
+              <span>Esta votação já tem respostas. As opções não podem ser alteradas para preservar a apuração dos votos.</span>
+              <ul>
+                {voteOptions.map((option, index) => (
+                  <li key={`${index}-${option.label}`}>
+                    <strong>{option.label}</strong>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {mode === 'vote' && optionsLocked && (
             <div className="voice-vote-locked" role="note">
               <strong>Temas e títulos bloqueados</strong>
@@ -739,6 +918,33 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
           </div>
         </form>
       </Modal>
+
+      <Modal
+              open={deleteConfirmOpen}
+              onClose={cancelDeleteForm}
+              ariaLabel="Apagar escuta"
+              maxWidth="max-w-sm"
+            >
+              <h2 className="text-lg font-semibold mb-4">Apagar escuta</h2>
+              <p className="mb-4">Tem certeza que deseja apagar esta escuta? Esta ação não pode ser desfeita.</p>
+              <p className="text-sm text-muted-foreground mb-6">Todas as contribuições e votações associadas serão removidas permanentemente.</p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="fala-button fala-button--secondary"
+                  onClick={cancelDeleteForm}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="fala-button fala-button--danger"
+                  onClick={confirmDeleteForm}
+                >
+                  Apagar permanentemente
+                </button>
+              </div>
+            </Modal>
     </WorkspaceShell>
   )
 }
