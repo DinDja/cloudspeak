@@ -323,6 +323,7 @@ export default function ListeningFormView({ formId, onBack }) {
                     <option value="" disabled>Selecione sua ocupação</option>
                     <option value="Estudante">Estudante</option>
                     <option value="Professor da educação básica">Professor da educação básica</option>
+                    <option value="Professor Ensino Médio por Intermediação Tecnológica (EMITec)">Professor Ensino Médio por Intermediação Tecnológica (EMITec)</option>
                     <option value="Professor universitário">Professor universitário</option>
                     <option value="Gestor">Gestor</option>
                     <option value="Coordenação Pedagógica">Coordenação Pedagógica</option>

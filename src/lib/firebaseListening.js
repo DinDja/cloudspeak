@@ -1,15 +1,19 @@
 import {
   addDoc,
   collection,
+  documentId,
   deleteDoc,
   doc,
+  getCountFromServer,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
+  startAfter,
   updateDoc,
   where,
 } from 'firebase/firestore'
@@ -27,6 +31,16 @@ const entriesCol = (id) => collection(db, 'listeningForms', id, 'entries')
 const cleanText = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
 const SCHOOL_IDS = SCHOOL_UNITS.map((unit) => unit.codSec)
 const LISTENING_MODES = ['open', 'vote', 'vote_simple']
+export const LISTENING_OCCUPATIONS = [
+  'Estudante',
+  'Professor da educação básica',
+  'Professor Ensino Médio por Intermediação Tecnológica (EMITec)',
+  'Professor universitário',
+  'Gestor',
+  'Coordenação Pedagógica',
+  'Outro',
+]
+export const LISTENING_ENTRIES_PAGE_SIZE = 20
 const isVoteMode = (mode) => mode === 'vote' || mode === 'vote_simple'
 
 const normalizeOptions = (options) => Array.isArray(options)
@@ -237,12 +251,111 @@ export const subscribeUserListeningForms = (ownerUid, onNext, onError) => {
   )
 }
 
-export const subscribeListeningEntries = (id, onNext, onError) => {
-  const q = query(entriesCol(id), orderBy('createdAt', 'desc'))
+export const getListeningEntriesPage = async (
+  id,
+  { occupation = '', choiceIndex = '', cursor = null } = {},
+) => {
+  const filters = []
+  if (occupation) filters.push(where('occupation', '==', occupation))
+  if (choiceIndex !== '') filters.push(where('choiceIndex', '==', Number(choiceIndex)))
+  const constraints = [...filters]
+  constraints.push(orderBy('createdAt', 'desc'), orderBy(documentId(), 'desc'))
+  if (cursor) constraints.push(startAfter(cursor))
+  constraints.push(limit(LISTENING_ENTRIES_PAGE_SIZE + 1))
+
+  const [snapshot, totalCount] = await Promise.all([
+    getDocs(query(entriesCol(id), ...constraints)),
+    countListeningEntries(id, ...filters),
+  ])
+  const pageDocs = snapshot.docs.slice(0, LISTENING_ENTRIES_PAGE_SIZE)
+
+  return {
+    entries: pageDocs.map((entry) => ({ id: entry.id, ...entry.data() })),
+    cursor: pageDocs.length ? pageDocs[pageDocs.length - 1] : null,
+    hasMore: snapshot.docs.length > LISTENING_ENTRIES_PAGE_SIZE,
+    totalCount,
+  }
+}
+
+const countListeningEntries = async (id, ...constraints) => {
+  const result = await getCountFromServer(query(entriesCol(id), ...constraints))
+  return result.data().count
+}
+
+export const getListeningEntrySummary = async (id, options = [], mode = 'open') => {
+  const countQueries = [[]]
+  const addCountQuery = (...constraints) => {
+    countQueries.push(constraints)
+    return countQueries.length - 1
+  }
+  const totalIndex = 0
+  const occupationIndexes = isVoteMode(mode)
+    ? LISTENING_OCCUPATIONS.map((occupation) => ({
+      occupation,
+      countIndex: addCountQuery(where('occupation', '==', occupation)),
+    }))
+    : []
+  const optionIndexes = isVoteMode(mode)
+    ? options.map((option, choiceIndex) => ({
+      label: typeof option === 'string' ? option : option?.label ?? '',
+      countIndex: addCountQuery(where('choiceIndex', '==', choiceIndex)),
+      subOptions: mode === 'vote' && Array.isArray(option?.titles)
+        ? option.titles.map((label, subChoiceIndex) => ({
+          label,
+          arrayCountIndex: addCountQuery(
+            where('choiceIndex', '==', choiceIndex),
+            where('subChoiceIndexes', 'array-contains', subChoiceIndex),
+          ),
+          legacyCountIndex: addCountQuery(
+            where('choiceIndex', '==', choiceIndex),
+            where('subChoiceIndex', '==', subChoiceIndex),
+          ),
+        }))
+        : [],
+    }))
+    : []
+
+  const counts = new Array(countQueries.length)
+  let nextQueryIndex = 0
+  const workerCount = Math.min(10, countQueries.length)
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextQueryIndex < countQueries.length) {
+      const index = nextQueryIndex
+      nextQueryIndex += 1
+      counts[index] = await countListeningEntries(id, ...countQueries[index])
+    }
+  }))
+
+  return {
+    total: counts[totalIndex],
+    occupationCounts: occupationIndexes.map(({ occupation, countIndex }) => ({
+      occupation,
+      count: counts[countIndex],
+    })),
+    optionCounts: optionIndexes.map(({ label, countIndex }) => ({
+      label,
+      count: counts[countIndex],
+    })),
+    subOptionCounts: optionIndexes.map(({ subOptions }) => subOptions.map((item) => ({
+      label: item.label,
+      count: counts[item.arrayCountIndex] + counts[item.legacyCountIndex],
+    }))),
+  }
+}
+
+export const subscribeLatestListeningEntry = (id, onChange, onError) => {
+  const q = query(
+    entriesCol(id),
+    orderBy('createdAt', 'desc'),
+    orderBy(documentId(), 'desc'),
+    limit(1),
+  )
+  let initialized = false
   return onSnapshot(
     q,
-    (snapshot) => {
-      onNext(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })))
+    () => {
+      if (initialized) onChange()
+      initialized = true
     },
     onError,
   )
@@ -274,7 +387,7 @@ export const submitListeningEntry = async ({
   const cleanOtherOccupation = cleanText(otherOccupation)
 
   if (cleanName.length < 2 || cleanName.length > 80) throw new Error('Informe seu nome (de 2 a 80 caracteres).')
-  if (!['Estudante', 'Professor da educação básica', 'Professor universitário', 'Gestor', 'Coordenação Pedagógica', 'Outro'].includes(cleanOccupation)) {
+  if (!LISTENING_OCCUPATIONS.includes(cleanOccupation)) {
     throw new Error('Selecione sua ocupação.')
   }
   if (cleanOccupation === 'Outro' && (cleanOtherOccupation.length < 2 || cleanOtherOccupation.length > 80)) {

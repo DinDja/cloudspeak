@@ -9940,5 +9940,11 @@
     "codInep": "29096243",
     "name": "INSTITUTO DE EDUCACAO DE TEMPO INTEGRAL GASTAO GUIMARAES",
     "municipality": "FEIRA DE SANTANA"
+  },
+  {
+    "codSec": "1179480",
+    "codInep": "41500",
+    "name": "Ensino Médio por Intermediação Tecnológica (EMITec)",
+    "municipality": "SALVADOR"
   }
 ]

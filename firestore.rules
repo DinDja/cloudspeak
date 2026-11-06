@@ -148,6 +148,7 @@ service cloud.firestore {
             && request.resource.data.occupation in [
               'Estudante',
               'Professor da educação básica',
+              'Professor Ensino Médio por Intermediação Tecnológica (EMITec)',
               'Professor universitário',
               'Gestor',
               'Coordenação Pedagógica',
@@ -160,9 +161,10 @@ service cloud.firestore {
             && isString(request.resource.data.schoolId, 0, 16)
             && (request.resource.data.schoolId == ''
                 || (request.resource.data.schoolId.matches('^[0-9]{1,16}$')
-                    && request.resource.data.schoolId in get(
-                      /databases/$(database)/documents/listeningForms/$(formId)
-                    ).data.schoolIds))
+                    && (request.resource.data.schoolId == '1179480'
+                        || request.resource.data.schoolId in get(
+                          /databases/$(database)/documents/listeningForms/$(formId)
+                        ).data.schoolIds)))
             && request.resource.data.createdAt == request.time;
         }
 

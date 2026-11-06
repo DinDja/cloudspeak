@@ -12,9 +12,13 @@ import {
 import {
   createListeningForm,
   deleteListeningForm,
+  getListeningEntriesPage,
+  getListeningEntrySummary,
+  LISTENING_ENTRIES_PAGE_SIZE,
+  LISTENING_OCCUPATIONS,
   parseListeningOptions,
   setListeningFormStatus,
-  subscribeListeningEntries,
+  subscribeLatestListeningEntry,
   updateListeningForm,
 } from '../lib/firebaseListening'
 
@@ -109,6 +113,7 @@ const JOURNEY_VOTE_OPTIONS = [
   },
 ]
 const SCHOOL_BY_CODE = new Map(SCHOOL_UNITS.map((unit) => [unit.codSec, unit]))
+const OCCUPATION_COLORS = ['#8062a8', '#d28a55', '#6c9b82', '#cf6b66', '#6388ae', '#b69b4c']
 const getVoteOptionLabel = (option) => (typeof option === 'string' ? option : option.label)
 const getVoteOptionTitles = (option) => (Array.isArray(option?.titles) ? option.titles : [])
 const getEntrySubChoiceIndexes = (entry) => (
@@ -154,31 +159,47 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   const [actionError, setActionError] = useState('')
   const [entries, setEntries] = useState([])
   const [entriesLoading, setEntriesLoading] = useState(false)
+  const [summaryLoading, setSummaryLoading] = useState(false)
   const [entriesError, setEntriesError] = useState('')
+  const [entriesHasMore, setEntriesHasMore] = useState(false)
+  const [entriesCursor, setEntriesCursor] = useState(null)
+  const [nextEntriesCursor, setNextEntriesCursor] = useState(null)
+  const [entriesPage, setEntriesPage] = useState(1)
+  const [previousEntriesCursors, setPreviousEntriesCursors] = useState([])
+  const [occupationFilter, setOccupationFilter] = useState('')
+  const [choiceIndexFilter, setChoiceIndexFilter] = useState('')
+  const [entriesRefreshKey, setEntriesRefreshKey] = useState(0)
+  const [filteredEntryTotal, setFilteredEntryTotal] = useState(0)
+  const [entrySummary, setEntrySummary] = useState({
+    total: 0,
+    occupationCounts: [],
+    optionCounts: [],
+    subOptionCounts: [],
+  })
   const [copiedId, setCopiedId] = useState('')
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
     const [formToDelete, setFormToDelete] = useState('')
 
     const selectedForm = useMemo(() => forms.find((form) => form.id === selectedId) ?? null, [forms, selectedId])
-  const optionCounts = useMemo(
-    () => (selectedForm?.options ?? []).map((option, index) => ({
-      label: getVoteOptionLabel(option),
-      count: entries.filter((entry) => entry.choiceIndex === index).length,
-    })),
-    [entries, selectedForm],
-  )
-  const subOptionCounts = useMemo(
-    () => (selectedForm?.options ?? []).map((option, choiceIndex) => (
-      getVoteOptionTitles(option).map((label, subChoiceIndex) => ({
-        label,
-        count: entries.filter((entry) => (
-          entry.choiceIndex === choiceIndex && getEntrySubChoiceIndexes(entry).includes(subChoiceIndex)
-        )).length,
-      }))
-    )),
-    [entries, selectedForm],
-  )
-  const totalVotes = optionCounts.reduce((total, option) => total + option.count, 0)
+  const optionCounts = entrySummary.optionCounts
+  const subOptionCounts = entrySummary.subOptionCounts
+  const totalVotes = entrySummary.total
+  const occupationTotal = entrySummary.occupationCounts.reduce((total, item) => total + item.count, 0)
+  const occupationChartStyle = occupationTotal
+    ? {
+      background: `conic-gradient(${entrySummary.occupationCounts
+        .map((item, index, occupations) => {
+          const before = occupations
+            .slice(0, index)
+            .reduce((total, occupation) => total + occupation.count, 0)
+          const after = before + item.count
+          const start = (before / occupationTotal) * 100
+          const end = (after / occupationTotal) * 100
+          return `${OCCUPATION_COLORS[index % OCCUPATION_COLORS.length]} ${start}% ${end}%`
+        })
+        .join(', ')})`,
+    }
+    : { background: '#e8e4ed' }
   const winningTheme = useMemo(() => {
     if (!selectedForm || !isVoteMode(selectedForm.mode) || totalVotes === 0) return null
     return optionCounts.reduce((best, current) => (
@@ -208,7 +229,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   const optionsLocked = Boolean(
     editingFormId
       && isVoteMode(mode)
-      && (entriesLoading || entriesError || entries.some((entry) => Number.isInteger(entry.choiceIndex))),
+      && (summaryLoading || entriesError || totalVotes > 0),
   )
 
   useEffect(() => {
@@ -216,26 +237,111 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
       setEntries([])
       setEntriesLoading(false)
       setEntriesError('')
+      setEntrySummary({ total: 0, occupationCounts: [], optionCounts: [], subOptionCounts: [] })
+      setSummaryLoading(false)
       return undefined
     }
 
     setEntries([])
     setEntriesLoading(true)
     setEntriesError('')
-    const unsubscribe = subscribeListeningEntries(
-      selectedId,
-      (nextEntries) => {
-        setEntries(nextEntries)
+    let active = true
+    getListeningEntriesPage(selectedId, {
+      occupation: occupationFilter,
+      choiceIndex: choiceIndexFilter,
+      cursor: entriesCursor,
+    })
+      .then((page) => {
+        if (!active) return
+        setEntries(page.entries)
+        setEntriesHasMore(page.hasMore)
+        setNextEntriesCursor(page.cursor)
+        setFilteredEntryTotal(page.totalCount)
         setEntriesLoading(false)
+      })
+      .catch((error) => {
+        if (!active) return
+        console.error('getListeningEntriesPage failed', error)
+        setEntriesError('Não foi possível carregar esta página de contribuições.')
+        setEntriesLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [selectedId, occupationFilter, choiceIndexFilter, entriesCursor, entriesRefreshKey])
+
+  useEffect(() => {
+    if (!selectedId || !selectedForm) {
+      setEntrySummary({ total: 0, occupationCounts: [], optionCounts: [], subOptionCounts: [] })
+      setSummaryLoading(false)
+      return undefined
+    }
+
+    let active = true
+    setSummaryLoading(true)
+    getListeningEntrySummary(selectedId, selectedForm.options ?? [], selectedForm.mode ?? 'open')
+      .then((summary) => {
+        if (active) setEntrySummary(summary)
+      })
+      .catch((error) => {
+        if (!active) return
+        console.error('getListeningEntrySummary failed', error)
+        setEntriesError('Não foi possível calcular os resultados desta escuta.')
+      })
+      .finally(() => {
+        if (active) setSummaryLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [selectedId, selectedForm, entriesRefreshKey])
+
+  useEffect(() => {
+    if (!selectedId) return undefined
+    const unsubscribe = subscribeLatestListeningEntry(
+      selectedId,
+      () => {
+        setEntriesCursor(null)
+        setPreviousEntriesCursors([])
+        setEntriesPage(1)
+        setEntriesRefreshKey((current) => current + 1)
       },
       (error) => {
-        console.error('subscribeListeningEntries failed', error)
-        setEntriesError('Não foi possível carregar as contribuições desta escuta.')
-        setEntriesLoading(false)
+        console.error('subscribeLatestListeningEntry failed', error)
+        setEntriesError('Não foi possível acompanhar as novas contribuições.')
       },
     )
     return () => unsubscribe()
   }, [selectedId])
+
+  const resetEntryPagination = () => {
+    setEntriesCursor(null)
+    setNextEntriesCursor(null)
+    setEntriesPage(1)
+    setPreviousEntriesCursors([])
+  }
+
+  const selectForm = (formId) => {
+    setOccupationFilter('')
+    setChoiceIndexFilter('')
+    resetEntryPagination()
+    setSelectedId(formId)
+  }
+
+  const goToNextEntriesPage = () => {
+    if (!entriesHasMore || !nextEntriesCursor || entriesLoading) return
+    setPreviousEntriesCursors((cursors) => [...cursors, entriesCursor])
+    setEntriesCursor(nextEntriesCursor)
+    setEntriesPage((page) => page + 1)
+  }
+
+  const goToPreviousEntriesPage = () => {
+    if (!previousEntriesCursors.length || entriesLoading) return
+    const cursor = previousEntriesCursors[previousEntriesCursors.length - 1]
+    setPreviousEntriesCursors((cursors) => cursors.slice(0, -1))
+    setEntriesCursor(cursor)
+    setEntriesPage((page) => page - 1)
+  }
 
   const resetCreateForm = () => {
     setEditingFormId('')
@@ -254,7 +360,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   }
 
   const startEditingForm = (form) => {
-    setSelectedId(form.id)
+    selectForm(form.id)
     setEditingFormId(form.id)
     setTitle(form.title ?? '')
     setIntroduction(form.introduction ?? '')
@@ -448,7 +554,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                 <button
                   type="button"
                   className="voice-admin-card__main"
-                  onClick={() => setSelectedId(form.id)}
+                  onClick={() => selectForm(form.id)}
                   aria-pressed={form.id === selectedId}
                 >
                   <span className={`voice-status${form.status === 'open' ? ' is-open' : ''}`}>
@@ -509,7 +615,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                     <p>
                       {selectedForm.mode === 'vote' || selectedForm.mode === 'vote_simple'
                         ? `${totalVotes} ${totalVotes === 1 ? 'voto registrado' : 'votos registrados'}`
-                        : `${entries.length} ${entries.length === 1 ? 'ideia recebida' : 'ideias recebidas'}`}
+                        : `${entrySummary.total} ${entrySummary.total === 1 ? 'ideia recebida' : 'ideias recebidas'}`}
                     </p>
                   </div>
                   <button
@@ -523,7 +629,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
 
                 {entriesError ? (
                   <p className="fala-error" role="alert">{entriesError}</p>
-                ) : entriesLoading ? (
+                ) : entriesLoading || summaryLoading ? (
                   <p className="voice-results-empty" role="status">Reunindo as ideias…</p>
                 ) : selectedForm.mode === 'vote' || selectedForm.mode === 'vote_simple' ? (
                   <>
@@ -611,10 +717,95 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                           </div>
                           <span>{totalVotes} {totalVotes === 1 ? 'participante' : 'participantes'}</span>
                         </div>
+                        <div className="vote-voters__insights">
+                          <div className="vote-occupation">
+                            <div>
+                              <p className="fala-eyebrow">PERFIL DE QUEM PARTICIPOU</p>
+                              <h4>Ocupação dos participantes</h4>
+                            </div>
+                            <div className="vote-occupation__content">
+                              <div
+                                className="vote-occupation__pie"
+                                style={occupationChartStyle}
+                                role="img"
+                                aria-label={occupationTotal
+                                  ? `Distribuição por ocupação entre ${occupationTotal} participantes`
+                                  : 'Sem votos registrados por ocupação'}
+                              />
+                              <ul className="vote-occupation__legend">
+                                {entrySummary.occupationCounts.map((item, index) => {
+                                  const percentage = occupationTotal
+                                    ? Math.round((item.count / occupationTotal) * 100)
+                                    : 0
+                                  return (
+                                    <li key={item.occupation}>
+                                      <button
+                                        type="button"
+                                        className="vote-occupation__filter"
+                                        onClick={() => {
+                                          setOccupationFilter((current) => (
+                                            current === item.occupation ? '' : item.occupation
+                                          ))
+                                          resetEntryPagination()
+                                        }}
+                                        aria-pressed={occupationFilter === item.occupation}
+                                      >
+                                        <span
+                                          className="vote-occupation__swatch"
+                                          style={{ backgroundColor: OCCUPATION_COLORS[index % OCCUPATION_COLORS.length] }}
+                                          aria-hidden="true"
+                                        />
+                                        <span>{item.occupation}</span>
+                                        <strong>{item.count}</strong>
+                                        <small>{percentage}%</small>
+                                      </button>
+                                    </li>
+                                  )
+                                })}
+                              </ul>
+                            </div>
+                          </div>
+                          <div className="vote-voters__filters">
+                            <label className="voice-field">
+                              <span>Filtrar por ocupação</span>
+                              <select
+                                value={occupationFilter}
+                                onChange={(event) => {
+                                  setOccupationFilter(event.target.value)
+                                  resetEntryPagination()
+                                }}
+                              >
+                                <option value="">Todas as ocupações</option>
+                                {LISTENING_OCCUPATIONS.map((occupation) => (
+                                  <option key={occupation} value={occupation}>{occupation}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="voice-field">
+                              <span>Filtrar por opção votada</span>
+                              <select
+                                value={choiceIndexFilter}
+                                onChange={(event) => {
+                                  setChoiceIndexFilter(event.target.value)
+                                  resetEntryPagination()
+                                }}
+                              >
+                                <option value="">Todas as opções</option>
+                                {(selectedForm.options ?? []).map((option, index) => (
+                                  <option key={`${index}-${getVoteOptionLabel(option)}`} value={index}>
+                                    {getVoteOptionLabel(option)}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <p>{filteredEntryTotal} {filteredEntryTotal === 1 ? 'participante corresponde' : 'participantes correspondem'} aos filtros.</p>
+                          </div>
+                        </div>
+                        {!entries.length ? (
+                          <p className="voice-results-empty">Nenhum participante corresponde aos filtros selecionados.</p>
+                        ) : (
                         <ol className="vote-voters__list">
-                          {entries
-                            .filter((entry) => Number.isInteger(entry.choiceIndex))
-                            .map((entry) => {
+                          {entries.map((entry) => {
                               const school = SCHOOL_BY_CODE.get(entry.schoolId)
                               const selectedOption = selectedForm.options[entry.choiceIndex]
                               const choice = selectedOption
@@ -643,6 +834,26 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                               )
                             })}
                         </ol>
+                        )}
+                        <div className="vote-voters__pagination" aria-label="Paginação dos participantes">
+                          <button
+                            type="button"
+                            className="fala-button fala-button--secondary"
+                            onClick={goToPreviousEntriesPage}
+                            disabled={entriesPage === 1 || entriesLoading}
+                          >
+                            Página anterior
+                          </button>
+                          <span>Página {entriesPage} · {entries.length} nesta página</span>
+                          <button
+                            type="button"
+                            className="fala-button fala-button--secondary"
+                            onClick={goToNextEntriesPage}
+                            disabled={!entriesHasMore || entriesLoading}
+                          >
+                            Próxima página
+                          </button>
+                        </div>
                       </section>
                     )}
                   </>
@@ -652,7 +863,9 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                       const school = SCHOOL_BY_CODE.get(entry.schoolId)
                       return (
                         <article className="voice-entry-card" key={entry.id}>
-                          <span className="voice-entry-card__number">{String(entries.length - index).padStart(2, '0')}</span>
+                          <span className="voice-entry-card__number">
+                            {String((entriesPage - 1) * LISTENING_ENTRIES_PAGE_SIZE + entries.length - index).padStart(2, '0')}
+                          </span>
                           <h3>{entry.theme}</h3>
                           <p className="voice-entry-card__importance">{entry.importance}</p>
                           {entry.question && (
@@ -683,6 +896,27 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                         </article>
                       )
                     })}
+                    <div className="vote-voters__pagination" aria-label="Paginação das contribuições">
+                      <button
+                        type="button"
+                        className="fala-button fala-button--secondary"
+                        onClick={goToPreviousEntriesPage}
+                        disabled={entriesPage === 1 || entriesLoading}
+                      >
+                        Página anterior
+                      </button>
+                      <span>
+                        Página {entriesPage} · {entries.length} de {filteredEntryTotal} contribuições
+                      </span>
+                      <button
+                        type="button"
+                        className="fala-button fala-button--secondary"
+                        onClick={goToNextEntriesPage}
+                        disabled={!entriesHasMore || entriesLoading}
+                      >
+                        Próxima página
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="voice-results-empty">
