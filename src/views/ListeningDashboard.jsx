@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUpRight, Check, ClipboardCopy, Edit2, MessageCircle, Plus, Sprout, Trash2, Users, Vote } from 'lucide-react'
 import Modal from '../components/ui/Modal'
 import WorkspaceShell from '../components/ui/WorkspaceShell'
@@ -174,6 +174,10 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   const [occupationFilter, setOccupationFilter] = useState('')
   const [choiceIndexFilter, setChoiceIndexFilter] = useState('')
   const [entriesRefreshKey, setEntriesRefreshKey] = useState(0)
+  // Chave da consulta de contribuições em exibição. Serve para distinguir a
+  // atualização ao vivo (mesma consulta) de uma troca real de escuta, filtro
+  // ou página — só esta última limpa a lista na tela.
+  const entriesQueryKeyRef = useRef('')
   const [filteredEntryTotal, setFilteredEntryTotal] = useState(0)
   const [entrySummary, setEntrySummary] = useState({
     total: 0,
@@ -278,6 +282,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
 
   useEffect(() => {
     if (!selectedId) {
+      entriesQueryKeyRef.current = ''
       setEntries([])
       setEntriesLoading(false)
       setEntriesError('')
@@ -286,7 +291,15 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
       return undefined
     }
 
-    setEntries([])
+    // Na atualização ao vivo (novo voto/ideia) a mesma consulta é refeita; só
+    // limpa a lista quando a consulta em si muda (outra escuta, filtro ou página).
+    const queryKey = `${selectedId}|${occupationFilter}|${choiceIndexFilter}|${entriesCursor?.id ?? 'none'}`
+    const sameQuery = entriesQueryKeyRef.current === queryKey
+    entriesQueryKeyRef.current = queryKey
+
+    if (!sameQuery) {
+      setEntries([])
+    }
     setEntriesLoading(true)
     setEntriesError('')
     let active = true
@@ -785,6 +798,9 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                       {selectedForm.mode === 'vote' || selectedForm.mode === 'vote_simple'
                         ? `${totalVotes} ${totalVotes === 1 ? 'voto registrado' : 'votos registrados'}`
                         : `${entrySummary.total} ${entrySummary.total === 1 ? 'ideia recebida' : 'ideias recebidas'}`}
+                      {(entriesLoading || summaryLoading) && entries.length > 0 && (
+                        <span className="voice-refresh-note"> · atualizando…</span>
+                      )}
                     </p>
                     {selectedFormRole === 'editor' && (
                       <p className="fala-eyebrow voice-role-note">ACESSO DE EDITOR · VOCÊ PODE AJUSTAR ESTA ESCUTA</p>
@@ -810,7 +826,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
 
                 {entriesError ? (
                   <p className="fala-error" role="alert">{entriesError}</p>
-                ) : entriesLoading || summaryLoading ? (
+                ) : (entriesLoading || summaryLoading) && !entries.length ? (
                   <p className="voice-results-empty" role="status">Reunindo as ideias…</p>
                 ) : selectedForm.mode === 'vote' || selectedForm.mode === 'vote_simple' ? (
                   <>

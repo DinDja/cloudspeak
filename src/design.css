@@ -4422,6 +4422,11 @@ body.cloudspeak-builder-active {
   padding-inline: 12px;
   font-size: 11px;
 }
+.voice-refresh-note {
+  color: var(--fala-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
 .voice-entry-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
