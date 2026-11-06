@@ -190,11 +190,17 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   const [shareSaving, setShareSaving] = useState(false)
   const [shareError, setShareError] = useState('')
 
-    const selectedForm = useMemo(() => forms.find((form) => form.id === selectedId) ?? null, [forms, selectedId])
   // Escutas de donos já aparecem na lista principal; evita cartão duplicado.
   const sharedForms = useMemo(
     () => receivedForms.filter((form) => form.ownerUid !== uid),
     [receivedForms, uid],
+  )
+  // A escuta selecionada pode estar na lista do dono OU na compartilhada.
+  const selectedForm = useMemo(
+    () => forms.find((form) => form.id === selectedId)
+      ?? sharedForms.find((form) => form.id === selectedId)
+      ?? null,
+    [forms, sharedForms, selectedId],
   )
   const collaborationEmail = (email ?? '').toLowerCase()
 

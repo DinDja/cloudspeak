@@ -60,6 +60,15 @@ export function useSharedListeningForms(email) {
       },
       (err) => {
         console.error('subscribeSharedListeningForms failed', err)
+        // Sem as regras atualizadas em produção, a leitura do compartilhamento é
+        // negada por permissão. A lista compartilhada é um recurso opcional, então
+        // mantém a tela funcionando com lista vazia; a listagem de escutas
+        // próprias não é afetada.
+        if (err?.code === 'permission-denied') {
+          setForms([])
+          setLoading(false)
+          return
+        }
         setError('Não foi possível carregar as escutas compartilhadas com você.')
         setLoading(false)
       },
