@@ -69,6 +69,8 @@ export const ALLOWED_AUTH_DOMAINS = [
 ]
 export const AUTH_DOMAIN_LABEL = ALLOWED_AUTH_DOMAINS.map((domain) => `@${domain}`).join(', ')
 
+export const MAX_LISTENING_COLLABORATORS = 20
+
 export const REACTION_TYPES = ['heart', 'thumb', 'question']
 
 export const SESSION_CODE_REGEX = /^[A-Z0-9]{6}$/

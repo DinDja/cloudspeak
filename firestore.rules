@@ -74,9 +74,43 @@ service cloud.firestore {
 
     // ---------- Escutas independentes de apresentações ----------
     match /listeningForms/{formId} {
+      // Acesso da equipe através da própria escuta (campos opcionais, escritos
+      // sempre juntos pelo dono): editorEmails pode editar conteúdo e
+      // encerrar/reabrir; viewerEmails apenas acompanha os resultados.
+      // Escutas antigas sem esses campos continuam acessíveis somente ao dono,
+      // e o público continua lendo escutas com status 'open'.
+      function isValidTeamEmailList(value) {
+        return value is list
+          && value.size() <= 20
+          && value.size() == value.toSet().size();
+      }
+
+      function teamEmailFieldsAreValid() {
+        return !request.resource.data.keys().hasAny(['editorEmails', 'viewerEmails'])
+          || (!(request.resource.data.get('editorEmails', []).hasAny(request.resource.data.get('viewerEmails', [])))
+            && (!request.resource.data.keys().hasAll(['editorEmails'])
+                || isValidTeamEmailList(request.resource.data.editorEmails))
+            && (!request.resource.data.keys().hasAll(['viewerEmails'])
+                || isValidTeamEmailList(request.resource.data.viewerEmails)));
+      }
+
+      function isListeningTeamViewer() {
+        return isSecUser()
+          && request.auth.token.email.lower() in resource.data.get('viewerEmails', []);
+      }
+
+      function isListeningTeamEditor() {
+        return isSecUser()
+          && request.auth.token.email.lower() in resource.data.get('editorEmails', []);
+      }
+
       allow get: if resource.data.status == 'open'
+        || isListeningTeamViewer()
+        || isListeningTeamEditor()
         || (isSecUser() && resource.data.ownerUid == request.auth.uid);
-      allow list: if isSecUser() && resource.data.ownerUid == request.auth.uid;
+      allow list: if isListeningTeamViewer()
+        || isListeningTeamEditor()
+        || (isSecUser() && resource.data.ownerUid == request.auth.uid);
 
       allow create: if isSecUser()
         && request.resource.data.keys().hasOnly([
@@ -108,34 +142,64 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
+      // O dono altera tudo (inclusive as listas da equipe);
+      // editores da equipe alteram apenas conteúdo e status — nunca dono,
+      // histórico, unidades escolares ou listas de acesso.
+      function isListeningOwnerUpdate() {
+        return isSecUser()
+          && resource.data.ownerUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'title', 'introduction', 'topicPrompt', 'consultationPeriod',
+            'mode', 'maxTitleSelections', 'options', 'editorEmails', 'viewerEmails', 'updatedAt'
+          ]);
+      }
+
+      function isListeningTeamEditorUpdate() {
+        return request.auth.token.email.lower() in resource.data.get('editorEmails', [])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'title', 'introduction', 'topicPrompt', 'consultationPeriod',
+            'mode', 'maxTitleSelections', 'options', 'updatedAt'
+          ]);
+      }
+
+      function isListeningContentUpdateValid() {
+        return request.resource.data.status in ['open', 'closed']
+          && request.resource.data.updatedAt == request.time
+          && isString(request.resource.data.title, 3, 120)
+                  && isString(request.resource.data.introduction, 0, 5000)
+          && isString(request.resource.data.topicPrompt, 5, 180)
+          && isString(request.resource.data.consultationPeriod, 0, 180)
+          && request.resource.data.mode in ['open', 'vote', 'vote_simple']
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['maxTitleSelections'])
+              || (request.resource.data.maxTitleSelections is int
+                  && request.resource.data.maxTitleSelections >= 1
+                  && request.resource.data.maxTitleSelections <= 30))
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['options'])
+              || (request.resource.data.options is list
+                  && (request.resource.data.mode == 'open'
+                      ? request.resource.data.options.size() == 0
+                      : request.resource.data.options.size() >= 2
+                        && request.resource.data.options.size() <= 10)));
+      }
+
       allow update: if isSecUser()
-        && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status', 'title', 'introduction', 'topicPrompt', 'consultationPeriod', 'mode', 'maxTitleSelections', 'options', 'updatedAt'
-        ])
-        && request.resource.data.status in ['open', 'closed']
-        && request.resource.data.updatedAt == request.time
-        && isString(request.resource.data.title, 3, 120)
-                && isString(request.resource.data.introduction, 0, 5000)
-        && isString(request.resource.data.topicPrompt, 5, 180)
-        && isString(request.resource.data.consultationPeriod, 0, 180)
-        && request.resource.data.mode in ['open', 'vote', 'vote_simple']
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['maxTitleSelections'])
-            || (request.resource.data.maxTitleSelections is int
-                && request.resource.data.maxTitleSelections >= 1
-                && request.resource.data.maxTitleSelections <= 30))
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['options'])
-            || (request.resource.data.options is list
-                && (request.resource.data.mode == 'open'
-                    ? request.resource.data.options.size() == 0
-                    : request.resource.data.options.size() >= 2
-                      && request.resource.data.options.size() <= 10)));
+        && (isListeningOwnerUpdate() || isListeningTeamEditorUpdate())
+        && isListeningContentUpdateValid()
+        && teamEmailFieldsAreValid();
       allow delete: if isSecUser() && resource.data.ownerUid == request.auth.uid;
 
       match /entries/{entryId} {
         function ownsParentForm() {
           return isSecUser()
             && get(/databases/$(database)/documents/listeningForms/$(formId)).data.ownerUid == request.auth.uid;
+        }
+
+        function followsParentForm() {
+          return isSecUser()
+            && (request.auth.token.email.lower()
+                  in get(/databases/$(database)/documents/listeningForms/$(formId)).data.get('viewerEmails', [])
+              || request.auth.token.email.lower()
+                  in get(/databases/$(database)/documents/listeningForms/$(formId)).data.get('editorEmails', []));
         }
 
         function parentFormIsOpen() {
@@ -291,7 +355,8 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/listeningForms/$(formId)).data.mode == 'vote';
         }
 
-        allow get, list: if ownsParentForm();
+        // Dono edita/acompanha; equipe compartilhada (leitor ou editor) acompanha.
+        allow get, list: if ownsParentForm() || followsParentForm();
         allow create: if parentFormIsOpen()
           && (isValidOpenEntry() || isValidVoteEntry() || isValidSimpleVoteEntry());
         allow update, delete: if false;

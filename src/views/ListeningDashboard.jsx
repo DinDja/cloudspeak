@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowUpRight, Check, ClipboardCopy, Edit2, MessageCircle, Plus, Sprout, Trash2, Vote } from 'lucide-react'
+import { ArrowUpRight, Check, ClipboardCopy, Edit2, MessageCircle, Plus, Sprout, Trash2, Users, Vote } from 'lucide-react'
 import Modal from '../components/ui/Modal'
 import WorkspaceShell from '../components/ui/WorkspaceShell'
 import SCHOOL_UNITS from '../data/schoolUnits.json'
 import { useAuth } from '../hooks/useAuth'
-import { useListeningForms } from '../hooks/useListeningForms'
+import { useListeningForms, useSharedListeningForms } from '../hooks/useListeningForms'
 import {
+  AUTH_DOMAIN_LABEL,
   DEFAULT_VOTE_TITLE_SELECTION_LIMIT,
   MAX_VOTE_TITLE_SELECTION_LIMIT,
 } from '../lib/constants'
+import { isSecEmail } from '../lib/validators'
 import {
   createListeningForm,
   deleteListeningForm,
@@ -16,9 +18,11 @@ import {
   getListeningEntrySummary,
   LISTENING_ENTRIES_PAGE_SIZE,
   LISTENING_OCCUPATIONS,
+  normalizeListeningCollaboratorEmail,
   parseListeningOptions,
   setListeningFormStatus,
   subscribeLatestListeningEntry,
+  updateListeningCollaborators,
   updateListeningForm,
 } from '../lib/firebaseListening'
 
@@ -141,6 +145,7 @@ const makePublicUrl = (formId) => {
 export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   const { displayName, email, uid, logout } = useAuth()
   const { forms, loading, error: formsError } = useListeningForms(uid)
+  const { forms: receivedForms, loading: sharedLoading, error: sharedError } = useSharedListeningForms(email)
   const [createOpen, setCreateOpen] = useState(false)
   const [editingFormId, setEditingFormId] = useState('')
   const [selectedId, setSelectedId] = useState('')
@@ -179,8 +184,41 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   const [copiedId, setCopiedId] = useState('')
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
     const [formToDelete, setFormToDelete] = useState('')
+  const [shareFormId, setShareFormId] = useState('')
+  const [shareEmail, setShareEmail] = useState('')
+  const [shareRole, setShareRole] = useState('viewer')
+  const [shareSaving, setShareSaving] = useState(false)
+  const [shareError, setShareError] = useState('')
 
     const selectedForm = useMemo(() => forms.find((form) => form.id === selectedId) ?? null, [forms, selectedId])
+  // Escutas de donos já aparecem na lista principal; evita cartão duplicado.
+  const sharedForms = useMemo(
+    () => receivedForms.filter((form) => form.ownerUid !== uid),
+    [receivedForms, uid],
+  )
+  const collaborationEmail = (email ?? '').toLowerCase()
+
+  const resolveFormRole = (form) => {
+    if (!form) return ''
+    if (form.ownerUid === uid) return 'owner'
+    if (form.role) return form.role
+    if (form.editorEmails?.includes(collaborationEmail)) return 'editor'
+    if (form.viewerEmails?.includes(collaborationEmail)) return 'viewer'
+    return ''
+  }
+
+  const selectedFormRole = resolveFormRole(selectedForm)
+  const canManageSelectedForm = ['owner', 'editor'].includes(selectedFormRole)
+  const shareForm = useMemo(
+    () => forms.find((form) => form.id === shareFormId) ?? null,
+    [forms, shareFormId],
+  )
+  const shareEditors = shareForm?.editorEmails ?? []
+  const shareViewers = shareForm?.viewerEmails ?? []
+  const shareCollaborators = [
+    ...shareEditors.map((entry) => ({ email: entry, role: 'editor' })),
+    ...shareViewers.map((entry) => ({ email: entry, role: 'viewer' })),
+  ]
   const optionCounts = entrySummary.optionCounts
   const subOptionCounts = entrySummary.subOptionCounts
   const totalVotes = entrySummary.total
@@ -510,6 +548,68 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
       setFormToDelete('')
     }
 
+  const openSharePanel = (form) => {
+    setShareFormId(form.id)
+    setShareEmail('')
+    setShareRole('viewer')
+    setShareError('')
+  }
+
+  const closeSharePanel = () => {
+    if (shareSaving) return
+    setShareFormId('')
+    setShareError('')
+  }
+
+  const saveSharedAccess = async (nextEditors, nextViewers) => {
+    setShareSaving(true)
+    setShareError('')
+    try {
+      await updateListeningCollaborators(shareFormId, {
+        editorEmails: nextEditors,
+        viewerEmails: nextViewers,
+      })
+    } catch (error) {
+      console.error('updateListeningCollaborators failed', error)
+      setShareError(error.message || 'Não foi possível atualizar o compartilhamento.')
+    } finally {
+      setShareSaving(false)
+    }
+  }
+
+  const addListeningCollaborator = async (event) => {
+    event.preventDefault()
+    if (!shareFormId || shareSaving) return
+    const normalizedEmail = normalizeListeningCollaboratorEmail(shareEmail)
+    setShareError('')
+    if (!isSecEmail(normalizedEmail)) {
+      setShareError(`Use um e-mail de um destes domínios: ${AUTH_DOMAIN_LABEL}.`)
+      return
+    }
+    if (shareEditors.includes(normalizedEmail) || shareViewers.includes(normalizedEmail)) {
+      setShareError('Essa pessoa já tem acesso a esta escuta.')
+      return
+    }
+    await saveSharedAccess(
+      shareRole === 'editor' ? [...shareEditors, normalizedEmail] : shareEditors,
+      shareRole === 'editor' ? shareViewers : [...shareViewers, normalizedEmail],
+    )
+    setShareEmail('')
+  }
+
+  const removeListeningCollaborator = async (collaborator) => {
+    if (!shareFormId || shareSaving) return
+    setShareError('')
+    await saveSharedAccess(
+      collaborator.role === 'editor'
+        ? shareEditors.filter((entry) => entry !== collaborator.email)
+        : shareEditors,
+      collaborator.role === 'viewer'
+        ? shareViewers.filter((entry) => entry !== collaborator.email)
+        : shareViewers,
+    )
+  }
+
     return (
     <WorkspaceShell
       name={displayName || email?.split('@')[0]}
@@ -539,16 +639,20 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
 
       {actionError && !createOpen && <p className="fala-error" role="alert">{actionError}</p>}
       {formsError && <p className="fala-error" role="alert">{formsError}</p>}
+      {sharedError && <p className="fala-error" role="alert">{sharedError}</p>}
 
-      {loading ? (
+      {loading || sharedLoading ? (
         <p className="workspace-empty" role="status">Carregando suas escutas…</p>
-      ) : forms.length ? (
+      ) : forms.length || sharedForms.length ? (
         <div className="voice-admin-layout">
-          <section className="voice-admin-list" aria-label="Suas escutas">
+          <section className="voice-admin-list" aria-label="Suas escutas e compartilhadas com você">
             <div className="voice-admin-list__heading">
               <h2>Seus espaços de escuta</h2>
               <span>{forms.length}</span>
             </div>
+            {!forms.length && (
+              <p className="workspace-empty">Crie sua primeira escuta com o botão “Nova escuta”.</p>
+            )}
             {forms.map((form) => (
               <article className={`voice-admin-card${form.id === selectedId ? ' is-selected' : ''}`} key={form.id}>
                 <button
@@ -570,6 +674,14 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                 <div className="voice-admin-card__actions">
                   <button type="button" className="voice-small-action" onClick={() => startEditingForm(form)}>
                     <Edit2 size={15} /> Editar escuta
+                  </button>
+                  <button
+                    type="button"
+                    className="voice-small-action"
+                    onClick={() => openSharePanel(form)}
+                    aria-label={`Compartilhar a escuta ${form.title} com a equipe`}
+                  >
+                    <Users size={15} /> Compartilhar
                   </button>
                   <button type="button" className="voice-small-action" onClick={() => copyLink(form.id)}>
                     {copiedId === form.id ? <Check size={15} /> : <ClipboardCopy size={15} />}
@@ -595,6 +707,57 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                 </div>
               </article>
             ))}
+
+            {sharedForms.length > 0 && (
+              <div className="voice-admin-list__heading voice-admin-list__heading--shared">
+                <h2>Compartilhadas com você</h2>
+                <span>{sharedForms.length}</span>
+              </div>
+            )}
+
+            {sharedForms.map((form) => (
+              <article className={`voice-admin-card${form.id === selectedId ? ' is-selected' : ''}`} key={form.id}>
+                <button
+                  type="button"
+                  className="voice-admin-card__main"
+                  onClick={() => selectForm(form.id)}
+                  aria-pressed={form.id === selectedId}
+                >
+                  <span className="voice-share-badges">
+                    <span className={`voice-status${form.status === 'open' ? ' is-open' : ''}`}>
+                      {form.status === 'open' ? 'Recebendo ideias' : 'Encerrada'}
+                    </span>
+                    <span className="voice-status voice-status--role">{form.role === 'editor' ? 'Editor' : 'Leitor'}</span>
+                  </span>
+                  <strong>{form.title}</strong>
+                  <span>{form.mode === 'vote'
+                    ? `Votação com temas · ${form.options?.length ?? 0} temas`
+                    : form.mode === 'vote_simple'
+                      ? `Votação simples · ${form.options?.length ?? 0} opções`
+                    : `Ideias abertas · ${form.schoolIds?.length ?? 0} unidades`}</span>
+                </button>
+                <div className="voice-admin-card__actions">
+                  {form.role === 'editor' && (
+                    <button type="button" className="voice-small-action" onClick={() => startEditingForm(form)}>
+                      <Edit2 size={15} /> Editar escuta
+                    </button>
+                  )}
+                  <button type="button" className="voice-small-action" onClick={() => copyLink(form.id)}>
+                    {copiedId === form.id ? <Check size={15} /> : <ClipboardCopy size={15} />}
+                    {copiedId === form.id ? 'Copiado' : 'Copiar link'}
+                  </button>
+                  <a
+                    className="voice-small-action"
+                    href={makePublicUrl(form.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Abrir link público da escuta ${form.title}`}
+                  >
+                    <ArrowUpRight size={15} /> Abrir link
+                  </a>
+                </div>
+              </article>
+            ))}
           </section>
 
           <section className="voice-admin-results" aria-live="polite">
@@ -617,14 +780,26 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                         ? `${totalVotes} ${totalVotes === 1 ? 'voto registrado' : 'votos registrados'}`
                         : `${entrySummary.total} ${entrySummary.total === 1 ? 'ideia recebida' : 'ideias recebidas'}`}
                     </p>
+                    {selectedFormRole === 'editor' && (
+                      <p className="fala-eyebrow voice-role-note">ACESSO DE EDITOR · VOCÊ PODE AJUSTAR ESTA ESCUTA</p>
+                    )}
+                    {selectedFormRole === 'viewer' && (
+                      <p className="fala-eyebrow voice-role-note">ACESSO DE LEITOR · SOMENTE ACOMPANHAMENTO</p>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    className="fala-button fala-button--secondary"
-                    onClick={() => toggleStatus(selectedForm)}
-                  >
-                    {selectedForm.status === 'open' ? 'Encerrar escuta' : 'Reabrir escuta'}
-                  </button>
+                  {canManageSelectedForm ? (
+                    <button
+                      type="button"
+                      className="fala-button fala-button--secondary"
+                      onClick={() => toggleStatus(selectedForm)}
+                    >
+                      {selectedForm.status === 'open' ? 'Encerrar escuta' : 'Reabrir escuta'}
+                    </button>
+                  ) : (
+                    <span className="voice-status voice-status--role">
+                      {selectedFormRole === 'editor' ? 'Editor' : 'Leitor'}
+                    </span>
+                  )}
                 </div>
 
                 {entriesError ? (
@@ -1176,6 +1351,76 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                 : editingFormId
                   ? <>Salvar alterações <Check size={16} /></>
                   : <>Criar escuta <Sprout size={16} /></>}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(shareFormId)}
+        onClose={closeSharePanel}
+        maxWidth="max-w-xl"
+        ariaLabel="Compartilhar escuta com a equipe"
+      >
+        <form className="voice-create-form" onSubmit={addListeningCollaborator}>
+          <p className="fala-eyebrow">ACESSO DA EQUIPE</p>
+          <h2>Compartilhar escuta</h2>
+          <p className="voice-create-form__intro">
+            Convide colegas pelo e-mail institucional para acompanhar esta escuta. Editores podem ajustar textos,
+            opções e encerrar/reabrir; leitores apenas acompanham os resultados. Somente você, dono da escuta,
+            gerencia acessos e pode apagá-la.
+          </p>
+          <div className="voice-share-row">
+            <label className="voice-field">
+              <span>E-mail da pessoa <b>obrigatório</b></span>
+              <input
+                type="email"
+                value={shareEmail}
+                onChange={(event) => setShareEmail(event.target.value)}
+                placeholder="nome@secti.ba.gov.br"
+                autoCapitalize="none"
+                autoCorrect="off"
+                required
+              />
+            </label>
+            <label className="voice-field">
+              <span>Permissão</span>
+              <select value={shareRole} onChange={(event) => setShareRole(event.target.value)}>
+                <option value="viewer">Acompanhar (leitor)</option>
+                <option value="editor">Acompanhar e editar (editor)</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit" className="fala-button fala-button--secondary" disabled={shareSaving}>
+            <Users size={15} /> Adicionar pessoa
+          </button>
+          {shareError && <p className="fala-error" role="alert">{shareError}</p>}
+          <div className="voice-share-list">
+            {shareCollaborators.length ? (
+              shareCollaborators.map((collaborator) => (
+                <div className="voice-share-item" key={`${collaborator.role}-${collaborator.email}`}>
+                  <div>
+                    <strong>{collaborator.email}</strong>
+                    <span>{collaborator.role === 'editor' ? 'Editor' : 'Leitor'}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="voice-small-action voice-small-action--danger"
+                    disabled={shareSaving}
+                    onClick={() => removeListeningCollaborator(collaborator)}
+                    aria-label={`Remover acesso de ${collaborator.email}`}
+                  >
+                    Remover
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="voice-share-item voice-share-item--empty">Ninguém compartilhado ainda.</p>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <button type="button" className="fala-button" onClick={closeSharePanel} disabled={shareSaving}>
+              Fechar <Check size={16} />
             </button>
           </div>
         </form>

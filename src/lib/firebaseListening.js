@@ -20,9 +20,12 @@ import {
 import { db } from '../../firebase'
 import SCHOOL_UNITS from '../data/schoolUnits.json'
 import {
+  AUTH_DOMAIN_LABEL,
   DEFAULT_VOTE_TITLE_SELECTION_LIMIT,
+  MAX_LISTENING_COLLABORATORS,
   MAX_VOTE_TITLE_SELECTION_LIMIT,
 } from './constants'
+import { isSecEmail } from './validators'
 
 const formsCol = () => collection(db, 'listeningForms')
 const formRef = (id) => doc(db, 'listeningForms', id)
@@ -249,6 +252,70 @@ export const subscribeUserListeningForms = (ownerUid, onNext, onError) => {
     },
     onError,
   )
+}
+
+export const normalizeListeningCollaboratorEmail = (value) => cleanText(value).toLowerCase()
+
+const normalizeCollaboratorList = (value) => Array.isArray(value)
+  ? [...new Set(value.map(normalizeListeningCollaboratorEmail))]
+  : []
+
+const assertCollaboratorList = (list, label) => {
+  if (list.length > MAX_LISTENING_COLLABORATORS) {
+    throw new Error(`A lista de ${label} pode ter no máximo ${MAX_LISTENING_COLLABORATORS} e-mails.`)
+  }
+  const invalid = list.find((email) => !isSecEmail(email))
+  if (invalid) {
+    throw new Error(`O e-mail “${invalid}” não é permitido. Use e-mails de um destes domínios: ${AUTH_DOMAIN_LABEL}.`)
+  }
+}
+
+export const subscribeSharedListeningForms = (email, onNext, onError) => {
+  const normalizedEmail = normalizeListeningCollaboratorEmail(email)
+  if (!isSecEmail(normalizedEmail)) {
+    onNext([])
+    return () => {}
+  }
+
+  const state = { editors: [], viewers: [] }
+  const emit = () => {
+    const merged = new Map()
+    state.editors.forEach((entry) => merged.set(entry.id, { ...entry, role: 'editor' }))
+    state.viewers.forEach((entry) => {
+      if (!merged.has(entry.id)) merged.set(entry.id, { ...entry, role: 'viewer' })
+    })
+    const forms = [...merged.values()]
+      .sort((left, right) => (right.createdAt?.toMillis?.() ?? 0) - (left.createdAt?.toMillis?.() ?? 0))
+    onNext(forms)
+  }
+  const subscribeTeamQuery = (field, stateKey) => onSnapshot(
+    query(formsCol(), where(field, 'array-contains', normalizedEmail)),
+    (snapshot) => {
+      state[stateKey] = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }))
+      emit()
+    },
+    onError,
+  )
+  const cancelEditors = subscribeTeamQuery('editorEmails', 'editors')
+  const cancelViewers = subscribeTeamQuery('viewerEmails', 'viewers')
+  return () => {
+    cancelEditors()
+    cancelViewers()
+  }
+}
+
+export const updateListeningCollaborators = async (id, { editorEmails = [], viewerEmails = [] } = {}) => {
+  const editors = normalizeCollaboratorList(editorEmails)
+  const viewers = normalizeCollaboratorList(viewerEmails)
+  assertCollaboratorList(editors, 'editores')
+  assertCollaboratorList(viewers, 'leitores')
+  // Edição vence leitura: remove das listas de leitura quem também é editor.
+  const viewersOnly = viewers.filter((email) => !editors.includes(email))
+  await updateDoc(formRef(id), {
+    editorEmails: editors,
+    viewerEmails: viewersOnly,
+    updatedAt: serverTimestamp(),
+  })
 }
 
 export const getListeningEntriesPage = async (
