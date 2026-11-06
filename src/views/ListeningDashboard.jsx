@@ -178,6 +178,12 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
   // atualização ao vivo (mesma consulta) de uma troca real de escuta, filtro
   // ou página — só esta última limpa a lista na tela.
   const entriesQueryKeyRef = useRef('')
+  // Marca de qual consulta (escuta + filtros + página) os dados já carregados
+  // pertencem. Quando difere da consulta em exibição, os dados ainda estão em
+  // trânsito → painel mostra esqueleto animado em vez de dados de outra escuta
+  // ou de mensagens enganosas de "sem dados".
+  const [entriesReadyKey, setEntriesReadyKey] = useState('')
+  const [summaryReadyKey, setSummaryReadyKey] = useState('')
   const [filteredEntryTotal, setFilteredEntryTotal] = useState(0)
   const [entrySummary, setEntrySummary] = useState({
     total: 0,
@@ -280,9 +286,14 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
       && (summaryLoading || entriesError || totalVotes > 0),
   )
 
+  // Identidade da consulta exibida (escuta + filtros + página), compartilhada
+  // pelo efeito de carregamento e pelo cálculo de pendência do painel.
+  const resultsQueryKey = `${selectedId}|${occupationFilter}|${choiceIndexFilter}|${entriesCursor?.id ?? 'none'}`
+
   useEffect(() => {
     if (!selectedId) {
       entriesQueryKeyRef.current = ''
+      setEntriesReadyKey('')
       setEntries([])
       setEntriesLoading(false)
       setEntriesError('')
@@ -293,7 +304,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
 
     // Na atualização ao vivo (novo voto/ideia) a mesma consulta é refeita; só
     // limpa a lista quando a consulta em si muda (outra escuta, filtro ou página).
-    const queryKey = `${selectedId}|${occupationFilter}|${choiceIndexFilter}|${entriesCursor?.id ?? 'none'}`
+    const queryKey = resultsQueryKey
     const sameQuery = entriesQueryKeyRef.current === queryKey
     entriesQueryKeyRef.current = queryKey
 
@@ -314,21 +325,24 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
         setEntriesHasMore(page.hasMore)
         setNextEntriesCursor(page.cursor)
         setFilteredEntryTotal(page.totalCount)
+        setEntriesReadyKey(queryKey)
         setEntriesLoading(false)
       })
       .catch((error) => {
         if (!active) return
         console.error('getListeningEntriesPage failed', error)
         setEntriesError('Não foi possível carregar esta página de contribuições.')
+        setEntriesReadyKey(queryKey)
         setEntriesLoading(false)
       })
     return () => {
       active = false
     }
-  }, [selectedId, occupationFilter, choiceIndexFilter, entriesCursor, entriesRefreshKey])
+  }, [resultsQueryKey, selectedId, occupationFilter, choiceIndexFilter, entriesCursor, entriesRefreshKey])
 
   useEffect(() => {
     if (!selectedId || !selectedForm) {
+      setSummaryReadyKey('')
       setEntrySummary({ total: 0, occupationCounts: [], optionCounts: [], subOptionCounts: [] })
       setSummaryLoading(false)
       return undefined
@@ -338,12 +352,15 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
     setSummaryLoading(true)
     getListeningEntrySummary(selectedId, selectedForm.options ?? [], selectedForm.mode ?? 'open')
       .then((summary) => {
-        if (active) setEntrySummary(summary)
+        if (!active) return
+        setEntrySummary(summary)
+        setSummaryReadyKey(selectedId)
       })
       .catch((error) => {
         if (!active) return
         console.error('getListeningEntrySummary failed', error)
         setEntriesError('Não foi possível calcular os resultados desta escuta.')
+        setSummaryReadyKey(selectedId)
       })
       .finally(() => {
         if (active) setSummaryLoading(false)
@@ -352,6 +369,15 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
       active = false
     }
   }, [selectedId, selectedForm, entriesRefreshKey])
+
+  // Pendência do painel de resultados: os dados exibidos ainda não correspondem
+  // à consulta atual (clicou em outra escuta, mudou filtro/página ou é a
+  // primeira carga) → esqueleto animado no lugar do conteúdo. Refresh ao vivo
+  // da mesma consulta NÃO pendência: mantém o conteúdo e marca "atualizando…".
+  const resultsPending = Boolean(selectedForm)
+    && (entriesReadyKey !== resultsQueryKey
+      || summaryReadyKey !== selectedId
+      || ((entriesLoading || summaryLoading) && !entries.length))
 
   useEffect(() => {
     if (!selectedId) return undefined
@@ -795,11 +821,17 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                       : 'MURAL DE CONTRIBUIÇÕES'}</p>
                     <h2>{selectedForm.title}</h2>
                     <p>
-                      {selectedForm.mode === 'vote' || selectedForm.mode === 'vote_simple'
-                        ? `${totalVotes} ${totalVotes === 1 ? 'voto registrado' : 'votos registrados'}`
-                        : `${entrySummary.total} ${entrySummary.total === 1 ? 'ideia recebida' : 'ideias recebidas'}`}
-                      {(entriesLoading || summaryLoading) && entries.length > 0 && (
-                        <span className="voice-refresh-note"> · atualizando…</span>
+                      {resultsPending ? (
+                        <span className="voice-skeleton voice-skeleton--count" />
+                      ) : (
+                        <>
+                          {selectedForm.mode === 'vote' || selectedForm.mode === 'vote_simple'
+                            ? `${totalVotes} ${totalVotes === 1 ? 'voto registrado' : 'votos registrados'}`
+                            : `${entrySummary.total} ${entrySummary.total === 1 ? 'ideia recebida' : 'ideias recebidas'}`}
+                          {(entriesLoading || summaryLoading) && (
+                            <span className="voice-refresh-note"> · atualizando…</span>
+                          )}
+                        </>
                       )}
                     </p>
                     {selectedFormRole === 'editor' && (
@@ -826,8 +858,21 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
 
                 {entriesError ? (
                   <p className="fala-error" role="alert">{entriesError}</p>
-                ) : (entriesLoading || summaryLoading) && !entries.length ? (
-                  <p className="voice-results-empty" role="status">Reunindo as ideias…</p>
+                ) : resultsPending ? (
+                  <div className="voice-results-skeleton" role="status" aria-label="Carregando os resultados desta escuta">
+                    <div className="voice-results-skeleton__row">
+                      <span className="voice-skeleton voice-skeleton--chip" />
+                      <span className="voice-skeleton voice-skeleton--chip voice-skeleton--chip--short" />
+                    </div>
+                    <span className="voice-skeleton voice-skeleton--bar voice-skeleton--bar--long" />
+                    <span className="voice-skeleton voice-skeleton--bar" />
+                    <span className="voice-skeleton voice-skeleton--bar voice-skeleton--bar--short" />
+                    <div className="voice-results-skeleton__row voice-results-skeleton__row--cards">
+                      <span className="voice-skeleton voice-skeleton--card" />
+                      <span className="voice-skeleton voice-skeleton--card" />
+                      <span className="voice-skeleton voice-skeleton--card" />
+                    </div>
+                  </div>
                 ) : selectedForm.mode === 'vote' || selectedForm.mode === 'vote_simple' ? (
                   <>
                     {totalVotes > 0 && (
@@ -861,7 +906,7 @@ export default function ListeningDashboard({ onBack, onTemplates, onLogout }) {
                       </div>
                     )}
                     <div className="vote-results">
-                      {!entriesLoading && !totalVotes && (
+                      {!totalVotes && (
                         <p className="voice-results-empty">A votação ainda não recebeu votos. Compartilhe o link para iniciar.</p>
                       )}
                       {optionCounts.map((option, index) => {
